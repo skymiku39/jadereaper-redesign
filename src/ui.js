@@ -142,7 +142,7 @@ export function createUI({ onAction }) {
   function hud({
     hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
     carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait, accept,
-    artElements = [], guard = 0, guardMax = 0, regrow = 0,
+    artElements = [], guard = 0, guardMax = 0, regrow = 0, commission = null, notice = null,
   }) {
     set('hpFill', 'width', `${Math.max(0, Math.min(100, (hp / maxHp) * 100)).toFixed(1)}%`);
     set('hpText', 'text', String(Math.ceil(hp)));
@@ -190,17 +190,30 @@ export function createUI({ onAction }) {
     } else if (boss) {
       label = t('hud.boss', { hp: Math.max(0, Math.ceil(goal - progress)) });
     }
+    // A commission in endless: what it asks, and how long is left.
+    const offered = commission?.phase === 1;
+    const village = commission?.phase === 2;
+    if (offered) {
+      label = commission.held > 0
+        ? t('commission.accept', { n: Math.ceil(commission.need - commission.held) })
+        : t('commission.offer', { time: formatTime(Math.ceil(commission.left)) });
+    } else if (village) {
+      label = t('commission.defend', { time: formatTime(Math.ceil(commission.left)) });
+    }
+    if (notice) label = t(notice);
     // Before the mission is accepted, the label says what to do: go to the circle, then stay in it.
     if (accept) {
       label = accept.held > 0 ? t('hud.accept', { n: Math.ceil(accept.need - accept.held) }) : t('hud.acceptGo');
     }
     set('goalText', 'text', label);
     set('goalText', 'display', label ? '' : 'none');
-    // The shrine's health, in the hold mission only.
-    set('pointRow', 'display', holding ? '' : 'none');
-    if (holding) {
-      set('pointFill', 'width', `${Math.max(0, Math.min(100, (pointHp / pointMax) * 100)).toFixed(1)}%`);
-      set('pointText', 'text', String(Math.ceil(pointHp)));
+    // The shrine's health in the hold mission, or the village's while a commission defends it.
+    set('pointRow', 'display', holding || village ? '' : 'none');
+    if (holding || village) {
+      const [hpNow, hpMax] = holding ? [pointHp, pointMax] : [commission.hp, commission.max];
+      set('pointLabel', 'text', t(holding ? 'hud.shrine' : 'hud.village'));
+      set('pointFill', 'width', `${Math.max(0, Math.min(100, (hpNow / hpMax) * 100)).toFixed(1)}%`);
+      set('pointText', 'text', String(Math.ceil(hpNow)));
     }
     exitMarker(escaping ? exit : null);
     // The boss's health bar, once it has arrived.

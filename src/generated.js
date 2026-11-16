@@ -96,6 +96,9 @@ export const EVENT = {
   WIN: 12,
   REACT: 13,
   ATTACH: 14,
+  COMMISSION: 15,
+  COMMISSION_DONE: 16,
+  COMMISSION_FAILED: 17,
 };
 
 /** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).
@@ -183,6 +186,7 @@ export const TUNES = [
   { id: 46, name: 'chasers', mission: 'any', def: 0.0, min: 0.0, max: 0.6, step: 0.05 },
   { id: 47, name: 'ambush', mission: 'any', def: 0.0, min: 0.0, max: 1.0, step: 0.1 },
   { id: 48, name: 'arena_radius', mission: 'any', def: 0, min: 0, max: 3000, step: 100 },
+  { id: 49, name: 'commissions', mission: 'endless', def: 1, min: 0, max: 1, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */
@@ -230,6 +234,13 @@ export const STATE = {
   GUARD_MAX: 62,
   REGROW: 63,
   ART_ELEMENT0: 64,
+  COMMISSION: 70,
+  COMMISSION_LEFT: 71,
+  COMMISSION_NEED: 72,
+  COMMISSION_HELD: 73,
+  COMMISSION_HP: 74,
+  COMMISSION_MAX: 75,
+  COMMISSION_DONE: 76,
 };
 
 export const INK = [0.17, 0.15, 0.13];

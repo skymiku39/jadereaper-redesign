@@ -182,6 +182,8 @@ pub struct Game {
     pub retrieval: Retrieval,
     /// State of the `hold` mission; idle in every other mission.
     pub hold: Hold,
+    /// The commission in endless, if any.
+    pub commission: commission::Commission,
     /// State of the `escape` mission.
     pub escape: Escape,
     /// State of the boss mission; idle in the others.
@@ -327,6 +329,7 @@ impl Game {
             retrieval: Retrieval::default(),
             hold: Hold::new(),
             escape: Escape::default(),
+            commission: commission::Commission::default(),
             boss: mission_boss::Boss::default(),
             shake: 0.0,
             cam: (0.0, -30.0),
@@ -519,6 +522,9 @@ impl Game {
             self.escort.mix_into(&mut mix);
         }
         self.hold.mix(&mut mix);
+        if self.commissions_on() {
+            self.commission.mix(&mut mix);
+        }
         for v in self.escape.hash_words() {
             mix(v);
         }
@@ -654,6 +660,7 @@ impl Game {
         self.vendetta.step(self.player.x, self.player.y);
         self.move_enemies(dt);
         self.escort_step(dt);
+        self.commission_step(dt);
         // The shrine falling on the step the player dies counts as dying.
         if self.hold.step(self.player.x, self.player.y, dt) && !self.over {
             self.over = true;
@@ -813,6 +820,7 @@ impl Game {
         let escort = &self.escort;
         let mut hit: Option<f32> = None;
         let hold = &mut self.hold;
+        let siege = &mut self.commission;
         for e in self.enemies.iter_mut() {
             // The pursuit target moves itself and never leaves its route.
             if e.id == mission_pursuit::PURSUIT_ID {
@@ -826,7 +834,9 @@ impl Game {
             let drive = self.boss.drive(e.id);
             // A marked enemy of the vendetta mission follows the mission, not the horde.
             let marked = self.vendetta.steer(e.id, e.x, e.y, px, py, speed);
-            if d > far && drive.is_none() && marked.is_none() {
+            // An enemy sent after the village keeps going there, however far the player is.
+            let sieging = siege.target(e.id).is_some();
+            if d > far && drive.is_none() && marked.is_none() && !sieging {
                 // Left far behind: bring it back to the spawn ring on the
                 // other side so the crowd keeps closing in.
                 e.x = px + dx / d * ring;
@@ -847,7 +857,16 @@ impl Game {
                     hold.gnaw(hd, k.r, k.dmg * dt);
                     (ax, ay, hd.max(0.001), ax)
                 }
-                None => (cx, cy, cd, dx),
+                // Likewise for the village of a commission in endless.
+                None => match siege.target(e.id) {
+                    Some((qx, qy)) => {
+                        let (ax, ay) = (qx - e.x, qy - e.y);
+                        let hd = (ax * ax + ay * ay).sqrt();
+                        siege.gnaw(hd, k.r, k.dmg * dt);
+                        (ax, ay, hd.max(0.001), ax)
+                    }
+                    None => (cx, cy, cd, dx),
+                },
             };
             // The boss and the marked enemies bring their own velocity.
             let (vx, vy) = match (drive, marked) {
@@ -1339,6 +1358,7 @@ impl Game {
         self.draw_wall();
         self.draw_hold_ground();
         self.accept_draw_ground();
+        self.commission_draw_ground();
         if self.mission == M_ESCAPE {
             self.escape_draw();
         }
@@ -1421,6 +1441,7 @@ impl Game {
         self.draw_escort_markers();
         self.draw_hold_marker();
         self.accept_draw_marker();
+        self.commission_draw_marker();
         // The host shows how far away each marked thing is.
         let (px, py) = (self.player.x, self.player.y);
         for p in self.pointers.iter_mut() {
@@ -1640,6 +1661,15 @@ impl Game {
             s[S_UPGRADE0 + id] = self.up[id] as f32;
         }
         s[S_ATTACH] = self.attach as f32;
+        let c = &self.commission;
+        let shown = self.mission == M_ENDLESS && self.tune[T_COMMISSIONS] > 0.5;
+        s[S_COMMISSION] = if shown { c.phase as f32 } else { 0.0 };
+        s[S_COMMISSION_LEFT] = c.left.max(0.0);
+        s[S_COMMISSION_NEED] = c.need();
+        s[S_COMMISSION_HELD] = c.held;
+        s[S_COMMISSION_HP] = c.hp;
+        s[S_COMMISSION_MAX] = c.max_hp();
+        s[S_COMMISSION_DONE] = c.done as f32;
         s[S_GUARD] = p.guard;
         s[S_GUARD_MAX] = guard_cap;
         s[S_REGROW] = p.regrow;
@@ -1653,6 +1683,8 @@ impl Game {
 
 #[path = "arts.rs"]
 pub mod arts;
+#[path = "commission.rs"]
+pub mod commission;
 #[path = "elements.rs"]
 pub mod elements;
 #[path = "mission_boss.rs"]

@@ -174,6 +174,16 @@ export function createAudio() {
       tone({ dur: 0.7, type: 'sawtooth', f0: 90, f1: 60, gain: 0.3 });
       tone({ dur: 0.7, type: 'sawtooth', f0: 95, f1: 63, gain: 0.3 });
     },
+    // A commission turned up, was done, or failed.
+    [EVENT.COMMISSION]: () => {
+      [2, 4].forEach((n, i) => tone({ dur: 0.35, type: 'triangle', f0: PENTATONIC[n], gain: 0.22, delay: i * 0.12 }));
+    },
+    [EVENT.COMMISSION_DONE]: () => {
+      [0, 2, 4, 7].forEach((n, i) => tone({ dur: 0.4, type: 'triangle', f0: PENTATONIC[n], gain: 0.26, delay: i * 0.1 }));
+    },
+    [EVENT.COMMISSION_FAILED]: () => {
+      [4, 2, 0].forEach((n, i) => tone({ dur: 0.4, type: 'triangle', f0: PENTATONIC[n] / 2, gain: 0.24, delay: i * 0.14 }));
+    },
     // Played by the host while health is low.
     heartbeat: () => {
       tone({ dur: 0.12, f0: 70, f1: 45, gain: 0.5 });

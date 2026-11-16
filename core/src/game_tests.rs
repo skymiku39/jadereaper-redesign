@@ -782,8 +782,9 @@ fn fold(g: &Game) -> u64 {
 
 fn whole_run() -> (u32, u32, f32, usize, u64) {
     let mut g = Game::new(42);
-    // No element cards: this run pins down how the game plays without elements.
+    // No element cards and no commissions: this run pins down the game as it was.
     g.tune[T_ELEMENT_CARDS] = 0.0;
+    g.tune[T_COMMISSIONS] = 0.0;
     g.set_view(640.0, 360.0);
     g.running = true;
     g.input = (1.0, 0.5);

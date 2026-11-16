@@ -34,6 +34,8 @@ async function boot() {
   let hitstop = 0;
   // Seconds until the next heartbeat while health is low.
   let heartbeat = 0;
+  // A line the HUD shows for a few seconds, such as a commission's outcome: { key, until }.
+  let notice = null;
 
   const ui = createUI({ onAction });
 
@@ -366,6 +368,8 @@ async function boot() {
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) hitstop = Math.max(hitstop, 0.07);
           if (save.motion && type === EVENT.REACT) hitstop = Math.max(hitstop, 0.04);
           if (type === EVENT.LEVELUP) ui.flashLevel();
+          if (type === EVENT.COMMISSION_DONE) notice = { key: 'commission.done', until: clock + 4 };
+          if (type === EVENT.COMMISSION_FAILED) notice = { key: 'commission.failed', until: clock + 4 };
         }
       }
       // Low health: the edges of the screen redden, and a heartbeat sounds.
@@ -385,6 +389,11 @@ async function boot() {
         // What the elements on the arts are doing: the metal guard and wood's slow healing.
         artElements: artElements(s), guard: s[STATE.GUARD], guardMax: s[STATE.GUARD_MAX], regrow: s[STATE.REGROW],
         accept: accepting ? { held: s[STATE.ACCEPT_HELD], need: s[STATE.ACCEPT_NEED] } : null,
+        commission: {
+          phase: s[STATE.COMMISSION], left: s[STATE.COMMISSION_LEFT], need: s[STATE.COMMISSION_NEED],
+          held: s[STATE.COMMISSION_HELD], hp: s[STATE.COMMISSION_HP], max: s[STATE.COMMISSION_MAX],
+        },
+        notice: notice && clock < notice.until ? notice.key : null,
         goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],
         // Values of single missions; the HUD ignores them in the others.
         carried: s[STATE.CARRIED], escape: s[STATE.ESCAPE], bossWait: s[STATE.BOSS_WAIT],

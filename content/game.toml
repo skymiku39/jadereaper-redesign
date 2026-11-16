@@ -598,6 +598,19 @@ name = "react"
 id = 14
 name = "attach"
 
+# A commission turned up on the map in endless; it was done; it failed.
+[[event]]
+id = 15
+name = "commission"
+
+[[event]]
+id = 16
+name = "commission_done"
+
+[[event]]
+id = 17
+name = "commission_failed"
+
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...
 # without gaps. `goal` is what the mission asks for, in its own unit; 0 means
@@ -1186,6 +1199,16 @@ min = 0
 max = 3000
 step = 100
 
+# Commissions in endless (core/src/commission.rs): 1 on, 0 off.
+[[tune]]
+id = 49
+name = "commissions"
+mission = "endless"
+default = 1
+min = 0
+max = 1
+step = 1
+
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
 # first float. A field with `len` is a run of floats; its constant gets a 0
@@ -1378,3 +1401,35 @@ name = "art_element"
 index = 64
 
 len = "art"
+
+# The commission in endless: 0 none on the map, 1 offered, 2 under way; the
+# seconds left of that; the seconds the phase lasts in all; the seconds stood
+# at its spot while offered; the village's health and its full health; how
+# many were done this run.
+[[state]]
+name = "commission"
+index = 70
+
+[[state]]
+name = "commission_left"
+index = 71
+
+[[state]]
+name = "commission_need"
+index = 72
+
+[[state]]
+name = "commission_held"
+index = 73
+
+[[state]]
+name = "commission_hp"
+index = 74
+
+[[state]]
+name = "commission_max"
+index = 75
+
+[[state]]
+name = "commission_done"
+index = 76
