@@ -264,13 +264,15 @@ impl Game {
         }
     }
 
-    /// Let the player's guard take a blow first. Returns the damage left for his health.
+    /// Let the player's guard take its share of a blow. Returns the damage left for his health.
     pub(crate) fn guard_against(&mut self, dmg: f32) -> f32 {
         let p = &mut self.player;
         if p.guard <= 0.0 {
             return dmg;
         }
-        let taken = dmg.min(p.guard);
+        // The guard only ever takes part of a blow, so it softens hits without making him untouchable.
+        let share = ELEMENTS[p.guard_element as usize].minor.clamp(0.0, 1.0);
+        let taken = (dmg * share).min(p.guard);
         p.guard -= taken;
         dmg - taken
     }

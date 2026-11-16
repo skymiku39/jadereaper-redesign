@@ -62,6 +62,7 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 | `core/src/elements.rs` | Magic elements: what each effect does on a hit, the tags on enemies and the reactions between them |
 | `core/src/fmath.rs` | Float functions that give the same result natively and in wasm |
 | `core/src/lib.rs` | The `jr_*` functions exported to JavaScript, and tests |
+| `core/src/bin/sim.rs` | The balance tool: many native runs with bots, as a table |
 | `wasm/` | Built core |
 | `src/main.js` | Loads the core, frame loop, game modes |
 | `src/renderer.js` | WebGPU setup, part image atlas, drawing |
@@ -124,6 +125,18 @@ npm run shot -- --give scythe:3:fire --give pulse:2:lightning --tune spawn_rate=
 ```
 
 `--give` uses `jr_give(art, level, element)`, which the core exports for tools and the browser console (`jadereaper.core.jr_give(3, 2, 6)` gives the pulse at level 2 with lightning). The game itself never calls it.
+
+## Balance by numbers
+
+`core/src/bin/sim.rs` plays many runs natively with simple bots, with no drawing and no browser, and prints how they went:
+
+```bash
+cargo run --release --manifest-path core/Cargo.toml --bin sim
+```
+
+Without options it prints a row for each of three bots (one stands still, one walks a square, one backs away from whatever is near) and four ways of picking cards, 24 endless runs of up to five minutes each, in about a quarter of a minute. The columns are runs won and runs that ended in death, and the mean time, level, kills, kills per minute and health lost per minute. `--element each` prints a row for no element and one for each element carried by every art, which is how the numbers in `[[element]]` are compared; `--mission`, `--tune name=value`, `--seeds`, `--seconds` and `--csv` do what they say. The options are listed at the top of the file.
+
+The bots are crude: they show which of two numbers is larger, not how the game feels.
 
 ## Extending
 

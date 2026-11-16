@@ -35,6 +35,8 @@ pub const U_MIGHT: usize = 7;
 pub const U_HASTE: usize = 8;
 pub const U_MENDING: usize = 9;
 pub const N_UPGRADES: usize = 10;
+#[rustfmt::skip]
+pub const UPGRADE_NAMES: [&str; N_UPGRADES] = ["scythe", "talisman", "beads", "pulse", "vitality", "swift", "lure", "might", "haste", "mending"];
 pub const UPGRADE_MAX: [u8; N_UPGRADES] = [6, 6, 6, 6, 5, 5, 5, 5, 5, 5];
 
 // Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.
@@ -43,6 +45,8 @@ pub const A_TALISMAN: usize = 1;
 pub const A_BEADS: usize = 2;
 pub const A_PULSE: usize = 3;
 pub const N_ARTS: usize = 4;
+#[rustfmt::skip]
+pub const ART_NAMES: [&str; N_ARTS] = ["scythe", "talisman", "beads", "pulse"];
 /// How many martial arts the player can hold at once.
 pub const MAX_ARTS: usize = 6;
 #[rustfmt::skip]
@@ -91,15 +95,17 @@ pub const E_LIGHTNING: u8 = 6;
 pub const E_HOLY: u8 = 7;
 pub const N_ELEMENTS: usize = 7;
 #[rustfmt::skip]
+pub const ELEMENT_NAMES: [&str; N_ELEMENTS + 1] = ["none", "metal", "wood", "water", "fire", "earth", "lightning", "holy"];
+#[rustfmt::skip]
 pub const ELEMENTS: [ElementDef; N_ELEMENTS + 1] = [
     ElementDef::NONE,
-    ElementDef { effect: EF_GUARD, tags: false, color: [0.80, 0.70, 0.36], power: 3.0, minor: 0.0, time: 2.0, cap: 30.0, rate: 6.0, reach: 0.0, rest: 0.0, count: 0 },
+    ElementDef { effect: EF_GUARD, tags: false, color: [0.80, 0.70, 0.36], power: 1.0, minor: 0.4, time: 2.0, cap: 12.0, rate: 6.0, reach: 0.0, rest: 0.0, count: 0 },
     ElementDef { effect: EF_REGROW, tags: false, color: [0.36, 0.62, 0.30], power: 1.5, minor: 0.0, time: 3.0, cap: 0.0, rate: 0.0, reach: 0.0, rest: 0.0, count: 0 },
-    ElementDef { effect: EF_SURGE, tags: true, color: [0.25, 0.48, 0.70], power: 0.7, minor: 0.0, time: 0.8, cap: 0.0, rate: 0.0, reach: 0.0, rest: 0.0, count: 0 },
-    ElementDef { effect: EF_BURN, tags: true, color: [0.82, 0.34, 0.18], power: 0.6, minor: 0.0, time: 3.0, cap: 0.0, rate: 0.5, reach: 0.0, rest: 0.0, count: 0 },
+    ElementDef { effect: EF_SURGE, tags: true, color: [0.25, 0.48, 0.70], power: 1.0, minor: 0.0, time: 0.8, cap: 0.0, rate: 0.0, reach: 0.0, rest: 0.0, count: 0 },
+    ElementDef { effect: EF_BURN, tags: true, color: [0.82, 0.34, 0.18], power: 0.8, minor: 0.0, time: 3.0, cap: 0.0, rate: 0.5, reach: 0.0, rest: 0.0, count: 0 },
     ElementDef { effect: EF_ROOT, tags: true, color: [0.55, 0.42, 0.26], power: 260.0, minor: 0.0, time: 0.6, cap: 0.0, rate: 0.0, reach: 0.0, rest: 2.0, count: 0 },
-    ElementDef { effect: EF_CHAIN, tags: true, color: [0.56, 0.40, 0.78], power: 0.4, minor: 0.0, time: 2.0, cap: 0.0, rate: 0.0, reach: 150.0, rest: 0.0, count: 3 },
-    ElementDef { effect: EF_BANE, tags: true, color: [0.92, 0.86, 0.62], power: 0.6, minor: 0.2, time: 2.0, cap: 0.0, rate: 0.0, reach: 0.0, rest: 0.0, count: 0 },
+    ElementDef { effect: EF_CHAIN, tags: true, color: [0.56, 0.40, 0.78], power: 0.3, minor: 0.0, time: 2.0, cap: 0.0, rate: 0.0, reach: 150.0, rest: 0.0, count: 3 },
+    ElementDef { effect: EF_BANE, tags: true, color: [0.92, 0.86, 0.62], power: 0.6, minor: 0.3, time: 2.0, cap: 0.0, rate: 0.0, reach: 0.0, rest: 0.0, count: 0 },
 ];
 
 // Reactions between two element tags on one enemy, tried in this order.
@@ -144,6 +150,8 @@ pub const M_ESCAPE: usize = 9;
 pub const M_BOSS: usize = 10;
 pub const M_VENDETTA: usize = 11;
 pub const N_MISSIONS: usize = 12;
+#[rustfmt::skip]
+pub const MISSION_NAMES: [&str; N_MISSIONS] = ["endless", "survive", "kills", "formation", "arena", "retrieval", "pursuit", "escort", "hold", "escape", "boss", "vendetta"];
 #[rustfmt::skip]
 pub const MISSION_GOAL: [f32; N_MISSIONS] = [0.0, 300.0, 1500.0, 5.0, 10.0, 3.0, 3000.0, 21000.0, 300.0, 18000.0, 12000.0, 6.0];
 
@@ -195,6 +203,8 @@ pub const T_ACCEPT_TIME: usize = 43;
 pub const T_ELEMENT_CARDS: usize = 44;
 pub const T_START_ELEMENT: usize = 45;
 pub const N_TUNES: usize = 46;
+#[rustfmt::skip]
+pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element"];
 #[rustfmt::skip]
 pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0];
 #[rustfmt::skip]

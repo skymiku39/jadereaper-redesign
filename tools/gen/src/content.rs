@@ -979,6 +979,13 @@ fn float_lit(s: &str) -> String {
     }
 }
 
+/// A table of names, for the native tools to look ids up by name.
+fn name_table<'a>(o: &mut String, table: &str, len: &str, names: impl Iterator<Item = &'a str>) {
+    let list: Vec<String> = names.map(|n| format!("\"{n}\"")).collect();
+    o.push_str("#[rustfmt::skip]\n");
+    writeln!(o, "pub const {table}: [&str; {len}] = [{}];", list.join(", ")).unwrap();
+}
+
 /// `core/src/generated.rs`.
 pub fn render_rust(c: &Content) -> String {
     let mut o = String::new();
@@ -996,6 +1003,7 @@ pub fn render_rust(c: &Content) -> String {
         writeln!(o, "pub const U_{}: usize = {};", upper(&u.name), u.id).unwrap();
     }
     writeln!(o, "pub const N_UPGRADES: usize = {};", c.upgrades.len()).unwrap();
+    name_table(&mut o, "UPGRADE_NAMES", "N_UPGRADES", c.upgrades.iter().map(|u| u.name.as_str()));
     let maxes: Vec<String> = c.upgrades.iter().map(|u| u.max.to_string()).collect();
     writeln!(o, "pub const UPGRADE_MAX: [u8; N_UPGRADES] = [{}];", maxes.join(", ")).unwrap();
 
@@ -1004,6 +1012,7 @@ pub fn render_rust(c: &Content) -> String {
         writeln!(o, "pub const A_{}: usize = {};", upper(&a.name), a.id).unwrap();
     }
     writeln!(o, "pub const N_ARTS: usize = {};", c.arts.len()).unwrap();
+    name_table(&mut o, "ART_NAMES", "N_ARTS", c.arts.iter().map(|a| a.name.as_str()));
     writeln!(o, "/// How many martial arts the player can hold at once.").unwrap();
     writeln!(o, "pub const MAX_ARTS: usize = {};", c.max_arts).unwrap();
     o.push_str("#[rustfmt::skip]\n");
@@ -1047,6 +1056,13 @@ pub fn render_rust(c: &Content) -> String {
         writeln!(o, "pub const E_{}: u8 = {};", upper(&e.name), e.id).unwrap();
     }
     writeln!(o, "pub const N_ELEMENTS: usize = {};", c.elements.len()).unwrap();
+    // Entry 0 is "no element".
+    name_table(
+        &mut o,
+        "ELEMENT_NAMES",
+        "N_ELEMENTS + 1",
+        std::iter::once("none").chain(c.elements.iter().map(|e| e.name.as_str())),
+    );
     let rgb = |c: &[String; 3]| c.iter().map(|v| float_lit(v)).collect::<Vec<String>>().join(", ");
     o.push_str("#[rustfmt::skip]\n");
     o.push_str("pub const ELEMENTS: [ElementDef; N_ELEMENTS + 1] = [\n");
@@ -1100,6 +1116,7 @@ pub fn render_rust(c: &Content) -> String {
         writeln!(o, "pub const M_{}: usize = {};", upper(&m.name), m.id).unwrap();
     }
     writeln!(o, "pub const N_MISSIONS: usize = {};", c.missions.len()).unwrap();
+    name_table(&mut o, "MISSION_NAMES", "N_MISSIONS", c.missions.iter().map(|m| m.name.as_str()));
     let goals: Vec<String> = c.missions.iter().map(|m| format!("{}.0", m.goal)).collect();
     // One line however many missions there are, so rustfmt must leave it alone.
     o.push_str("#[rustfmt::skip]\n");
@@ -1110,6 +1127,7 @@ pub fn render_rust(c: &Content) -> String {
         writeln!(o, "pub const T_{}: usize = {};", upper(&t.name), t.id).unwrap();
     }
     writeln!(o, "pub const N_TUNES: usize = {};", c.tunes.len()).unwrap();
+    name_table(&mut o, "TUNE_NAMES", "N_TUNES", c.tunes.iter().map(|t| t.name.as_str()));
     let column = |pick: fn(&Tune) -> &String| -> String {
         c.tunes.iter().map(|t| float_lit(pick(t))).collect::<Vec<String>>().join(", ")
     };

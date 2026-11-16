@@ -252,8 +252,9 @@ knockback = 520
 #
 # `effect` is code in core/src/elements.rs; the numbers mean, per effect:
 #   guard   acts on the player: each hit adds `power` guard, up to `cap`.
-#           Guard takes damage before health. After `time` seconds without
-#           a hit it fades by `rate` per second.
+#           Guard takes the share `minor` of a blow (as far as it lasts) and
+#           health takes the rest. After `time` seconds without a hit it
+#           fades by `rate` per second.
 #   regrow  acts on the player: a hit starts `time` seconds of healing
 #           `power` health per second. More hits only restart the time.
 #   surge   `time` seconds after the hit, the enemy takes `power` times the
@@ -276,8 +277,9 @@ name = "metal"
 glyph = "金"
 color = [0.80, 0.70, 0.36]
 effect = "guard"
-power = 3
-cap = 30
+power = 1
+cap = 12
+minor = 0.4
 time = 2.0
 rate = 6
 
@@ -296,7 +298,7 @@ name = "water"
 glyph = "水"
 color = [0.25, 0.48, 0.70]
 effect = "surge"
-power = 0.7
+power = 1.0
 time = 0.8
 
 [[element]]
@@ -305,7 +307,7 @@ name = "fire"
 glyph = "火"
 color = [0.82, 0.34, 0.18]
 effect = "burn"
-power = 0.6
+power = 0.8
 time = 3.0
 rate = 0.5
 
@@ -325,7 +327,7 @@ name = "lightning"
 glyph = "雷"
 color = [0.56, 0.40, 0.78]
 effect = "chain"
-power = 0.4
+power = 0.3
 count = 3
 reach = 150
 time = 2.0
@@ -337,7 +339,7 @@ glyph = "聖"
 color = [0.92, 0.86, 0.62]
 effect = "bane"
 power = 0.6
-minor = 0.2
+minor = 0.3
 time = 2.0
 
 # ------------------------------------------------------------- reactions
