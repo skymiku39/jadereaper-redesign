@@ -47,6 +47,17 @@ impl Game {
         }
     }
 
+    /// Set a martial art's level and element, each kept inside what exists.
+    /// An unknown art changes nothing. Not part of play: see `jr_give`.
+    pub fn give(&mut self, a: usize, level: u32, element: u32) {
+        if a >= N_ARTS {
+            return;
+        }
+        let top = UPGRADE_MAX[ARTS[a].upgrade] as u32;
+        self.up[ARTS[a].upgrade] = level.min(top) as u8;
+        self.arts[a].element = if element as usize <= N_ELEMENTS { element as u8 } else { 0 };
+    }
+
     /// How many martial arts are held.
     pub(crate) fn arts_held(&self) -> usize {
         (0..N_ARTS).filter(|&a| self.art_level(a) > 0).count()

@@ -73,7 +73,7 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 | `src/data.js` | Re-exports the generated tables from `src/generated.js` |
 | `assets/parts.json` | Optional image overrides for parts |
 | `assets/fonts/` | Bundled UI fonts, cut down to the game's characters, with their licenses |
-| `tools/` | Font subset and check scripts, the local server and the smoke test |
+| `tools/` | Font subset and check scripts, the local server, the smoke test, and `shot.mjs`, which takes pictures of a bot playing (`play.mjs` drives the browser for it) |
 | `tools/gen/` | Generator for the id constants (a separate Rust crate) |
 
 ## Fonts
@@ -114,6 +114,16 @@ Run the simulation tests natively (they also check that the generated files are 
 ```bash
 cargo test --release --manifest-path core/Cargo.toml
 ```
+
+## Looking at the game without playing it
+
+`npm run shot` plays a mission with a bot in headless Chromium and saves pictures of it, game view and UI together (after `npm ci`). The options are listed at the top of `tools/shot.mjs`. For example, to see fire meet lightning on a thick crowd:
+
+```bash
+npm run shot -- --give scythe:3:fire --give pulse:2:lightning --tune spawn_rate=4 --tune enemy_hp=4 --seconds 20 --every 4 --out /tmp/shot.png
+```
+
+`--give` uses `jr_give(art, level, element)`, which the core exports for tools and the browser console (`jadereaper.core.jr_give(3, 2, 6)` gives the pulse at level 2 with lightning). The game itself never calls it.
 
 ## Extending
 

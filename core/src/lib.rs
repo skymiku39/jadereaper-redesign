@@ -118,6 +118,15 @@ pub extern "C" fn jr_choose(i: u32) {
     g().choose(i as usize);
 }
 
+/// Give the player a martial art (an id from `[[art]]`) at a level, carrying
+/// an element (an id from `[[element]]`, 0 for none). For the tools and the
+/// browser console, to look at a build without playing up to it; the game
+/// itself never calls it.
+#[no_mangle]
+pub extern "C" fn jr_give(art: u32, level: u32, element: u32) {
+    g().give(art as usize, level, element);
+}
+
 #[no_mangle]
 pub extern "C" fn jr_instances_ptr() -> *const f32 {
     g().inst.as_ptr() as *const f32

@@ -592,6 +592,24 @@ fn the_start_element_tune_puts_an_element_on_the_first_art() {
 }
 
 #[test]
+fn give_sets_an_art_up_within_what_exists() {
+    let mut g = Game::new(3);
+    g.give(A_PULSE, 3, E_FIRE as u32);
+    assert_eq!(g.up[U_PULSE], 3);
+    assert_eq!(g.arts[A_PULSE].element, E_FIRE);
+    // A level past the top is the top; an element or an art that does not exist is none.
+    g.give(A_PULSE, 99, 99);
+    assert_eq!(g.up[U_PULSE], UPGRADE_MAX[U_PULSE]);
+    assert_eq!(g.arts[A_PULSE].element, 0);
+    let before = g.up;
+    g.give(N_ARTS + 1, 2, 1);
+    assert_eq!(g.up, before);
+    // Level 0 takes the art away.
+    g.give(A_PULSE, 0, 0);
+    assert_eq!(g.arts_held(), 1);
+}
+
+#[test]
 fn the_held_arts_are_counted_for_the_slot_limit() {
     // The content holds fewer arts than there are slots, so the limit cannot
     // be reached in a real run yet; this checks the count the limit uses.
