@@ -6,6 +6,7 @@
 //! re-exported here. Edit the content file, not the generated code.
 
 pub use crate::generated::*;
+pub use crate::schema::*;
 
 /// One paper cutout drawn by the renderer. 12 floats, 48 bytes.
 #[repr(C)]
@@ -42,6 +43,8 @@ pub struct Kind {
     pub hh: f32,
     /// Puppet pose changes per second.
     pub rate: f32,
+    /// A corpse or a spirit: what an element with the bane effect hits hardest.
+    pub corpse: bool,
 }
 
 pub const K_BLOT: u8 = 0;
@@ -61,6 +64,7 @@ pub const KINDS: [Kind; 4] = [
         hw: 18.0,
         hh: 18.0,
         rate: 5.0,
+        corpse: false,
     },
     Kind {
         hp: 7.0,
@@ -73,6 +77,7 @@ pub const KINDS: [Kind; 4] = [
         hw: 22.0,
         hh: 13.0,
         rate: 9.0,
+        corpse: true,
     },
     Kind {
         hp: 70.0,
@@ -85,6 +90,7 @@ pub const KINDS: [Kind; 4] = [
         hw: 30.0,
         hh: 30.0,
         rate: 3.0,
+        corpse: false,
     },
     Kind {
         hp: 600.0,
@@ -97,6 +103,7 @@ pub const KINDS: [Kind; 4] = [
         hw: 52.0,
         hh: 52.0,
         rate: 2.5,
+        corpse: false,
     },
 ];
 

@@ -319,6 +319,7 @@ impl Game {
             flash: 0.0,
             seed,
             bead_cd: 0.0,
+            tags: Default::default(),
             id,
             face: 1.0,
         });
@@ -368,6 +369,7 @@ impl Game {
                 flash: 0.0,
                 seed,
                 bead_cd: 0.0,
+                tags: Default::default(),
                 id,
                 face: 1.0,
             });
@@ -400,7 +402,7 @@ impl Game {
 
     fn boss_hurt_player(&mut self, dmg: f32) {
         let (px, py) = (self.player.x, self.player.y);
-        self.player.hp -= dmg;
+        self.player.hp -= self.guard_against(dmg);
         self.player.iframe = 0.8;
         self.shake = 1.0;
         self.event(EV_HURT, px, py, dmg);

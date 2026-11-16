@@ -121,6 +121,7 @@ impl Game {
                 flash: 0.0,
                 seed,
                 bead_cd: 0.0,
+                tags: Default::default(),
                 id,
                 face: 1.0,
             });
@@ -319,6 +320,7 @@ mod tests {
             flash: 0.0,
             seed: 0.0,
             bead_cd: 0.0,
+            tags: Default::default(),
             id: 9999,
             face: 1.0,
         });

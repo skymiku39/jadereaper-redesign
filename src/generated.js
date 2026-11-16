@@ -38,6 +38,38 @@ export const UPGRADES = [
   { name: 'mending', glyph: '癒', max: 5 },
 ];
 
+/** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and
+ * whose name, glyph and card text it shows. */
+export const ARTS = [
+  { id: 0, name: 'scythe', upgrade: 0, behaviour: 'arc' },
+  { id: 1, name: 'talisman', upgrade: 1, behaviour: 'projectile' },
+  { id: 2, name: 'beads', upgrade: 2, behaviour: 'orbit' },
+  { id: 3, name: 'pulse', upgrade: 3, behaviour: 'nova' },
+];
+
+/** How many martial arts the player can hold at once. */
+export const MAX_ARTS = 6;
+
+/** Magic elements. Ids start at 1 (0 means no element), so element `id` is ELEMENTS[id - 1].
+ * `color` is linear-ish RGB, 0..1. `tags` says whether a hit leaves the element's tag on the enemy.
+ * Names and descriptions are in src/i18n.js as element.<name>.name and .desc. */
+export const ELEMENTS = [
+  { id: 1, name: 'metal', glyph: '金', color: [0.80, 0.70, 0.36], tags: false },
+  { id: 2, name: 'wood', glyph: '木', color: [0.36, 0.62, 0.30], tags: false },
+  { id: 3, name: 'water', glyph: '水', color: [0.25, 0.48, 0.70], tags: true },
+  { id: 4, name: 'fire', glyph: '火', color: [0.82, 0.34, 0.18], tags: true },
+  { id: 5, name: 'earth', glyph: '土', color: [0.55, 0.42, 0.26], tags: true },
+  { id: 6, name: 'lightning', glyph: '雷', color: [0.56, 0.40, 0.78], tags: true },
+  { id: 7, name: 'holy', glyph: '聖', color: [0.92, 0.86, 0.62], tags: true },
+];
+
+/** Reactions between the tags of elements `a` and `b` on one enemy. */
+export const REACTIONS = [
+  { id: 0, name: 'blast', a: 'fire', b: 'lightning' },
+  { id: 1, name: 'conduct', a: 'water', b: 'lightning' },
+  { id: 2, name: 'steam', a: 'water', b: 'fire' },
+];
+
 /** Event types reported by the core. */
 export const EVENT = {
   HIT: 1,
@@ -52,6 +84,8 @@ export const EVENT = {
   HEAL: 10,
   ELITE: 11,
   WIN: 12,
+  REACT: 13,
+  ATTACH: 14,
 };
 
 /** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).
@@ -134,10 +168,12 @@ export const TUNES = [
   { id: 41, name: 'vendetta_group_hp', mission: 'vendetta', def: 240, min: 60, max: 1200, step: 60 },
   { id: 42, name: 'accept_dist', mission: 'any', def: 600, min: 0, max: 3000, step: 100 },
   { id: 43, name: 'accept_time', mission: 'any', def: 3, min: 0, max: 10, step: 1 },
+  { id: 44, name: 'element_cards', mission: 'any', def: 0.35, min: 0.0, max: 1.0, step: 0.05 },
+  { id: 45, name: 'start_element', mission: 'any', def: 0, min: 0, max: 7, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */
-export const STATE_FLOATS = 60;
+export const STATE_FLOATS = 80;
 
 /** Indices into the state array. A run of floats has a 0 suffix (CHOICE0). */
 export const STATE = {
@@ -176,6 +212,11 @@ export const STATE = {
   EXIT_Y: 53,
   EXIT_DIST: 54,
   BOSS_WAIT: 56,
+  ATTACH: 60,
+  GUARD: 61,
+  GUARD_MAX: 62,
+  REGROW: 63,
+  ART_ELEMENT0: 64,
 };
 
 export const INK = [0.17, 0.15, 0.13];

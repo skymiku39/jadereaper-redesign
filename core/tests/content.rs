@@ -112,7 +112,89 @@ fn undefined_reference_is_rejected() {
 #[test]
 fn overlapping_state_is_rejected() {
     assert_error(&errors_after("name = \"over\"\nindex = 11", "name = \"over\"\nindex = 10"), "overlaps `choice`");
-    assert_error(&errors_after("state_floats = 60", "state_floats = 20"), "ends past state_floats");
+    assert_error(&errors_after("state_floats = 80", "state_floats = 20"), "ends past state_floats");
+}
+
+#[test]
+fn arts_are_checked() {
+    let c = real();
+    assert!(!c.arts.is_empty());
+    for art in &c.arts {
+        let upgrade = c.upgrades.iter().find(|u| u.name == art.name).expect("an art without its upgrade");
+        assert_eq!(art.levels.len(), content::ART_LEVEL_KEYS.len());
+        assert!(art.levels.iter().all(|values| values.len() == upgrade.max as usize));
+    }
+    assert_error(&errors_after("behaviour = \"arc\"", "behaviour = \"lunge\""), "must be one of");
+    assert_error(&errors_after("part = \"slash\"", "part = \"sword\""), "which is not defined");
+    assert_error(&errors_after("name = \"scythe\"\nbehaviour", "name = \"sabre\"\nbehaviour"), "needs an [[upgrade]]");
+    assert_error(
+        &errors_after("damage = [20, 26, 32, 38, 44, 50]", "damage = [20, 26, 32]"),
+        "has 3 values for `damage`",
+    );
+    assert_error(&errors_after("count = [1, 1, 1, 1, 2, 2]", "count = [1, 1, 1, 1, 2, 2.5]"), "must be whole numbers");
+    assert_error(&errors_after("start_level = 1", "start_level = 9"), "starts above its top level");
+    assert_error(
+        &errors_after("id = 3\nname = \"pulse\"\nbehaviour", "id = 7\nname = \"pulse\"\nbehaviour"),
+        "art ids must run",
+    );
+    assert_error(&errors_after("max_arts = 6", "max_arts = 0"), "`max_arts` must be 1 or more");
+}
+
+#[test]
+fn elements_and_reactions_are_checked() {
+    let c = real();
+    assert_eq!(c.elements.first().map(|e| e.id), Some(1), "element ids start at 1; 0 means none");
+    assert_error(&errors_after("effect = \"burn\"", "effect = \"melt\""), "must be one of");
+    assert_error(&errors_after("glyph = \"火\"", "glyph = \"火焰\""), "one character");
+    assert_error(&errors_after("id = 7\nname = \"holy\"", "id = 9\nname = \"holy\""), "element ids must run 1 to");
+    assert_error(&errors_after("color = [0.82, 0.34, 0.18]", "color = [0.82, 0.34, 1.8]"), "from 0 to 1");
+    assert_error(
+        &errors_after("a = \"fire\"\nb = \"lightning\"", "a = \"fire\"\nb = \"frost\""),
+        "which is not defined",
+    );
+    assert_error(
+        &errors_after("a = \"fire\"\nb = \"lightning\"", "a = \"fire\"\nb = \"fire\""),
+        "two different elements",
+    );
+    // Metal acts on the player and leaves no tag, so it cannot react.
+    assert_error(&errors_after("a = \"fire\"\nb = \"lightning\"", "a = \"fire\"\nb = \"metal\""), "leaves no tag");
+    assert_error(
+        &errors_after("a = \"fire\"\nb = \"lightning\"", "a = \"fire\"\nb = \"water\""),
+        "already have a reaction",
+    );
+    assert_error(&errors_after("kind = \"relay\"", "kind = \"echo\""), "must be one of");
+    // A relay sets a waiting surge off, so one of its two elements must leave one.
+    assert_error(
+        &errors_after(
+            "a = \"fire\"\nb = \"lightning\"\nkind = \"burst\"",
+            "a = \"fire\"\nb = \"lightning\"\nkind = \"relay\"",
+        ),
+        "must have the surge effect",
+    );
+}
+
+#[test]
+fn every_element_has_card_text() {
+    let c = real();
+    let i18n = read("src/i18n.js");
+    let langs = i18n
+        .split("export const LANGS = [")
+        .nth(1)
+        .and_then(|s| s.split(']').next())
+        .map(|s| s.split(',').filter(|x| !x.trim().is_empty()).count())
+        .expect("LANGS not found in src/i18n.js");
+    for e in &c.elements {
+        for field in ["name", "desc"] {
+            let key = format!("'element.{}.{field}'", e.name);
+            assert_eq!(i18n.matches(&key).count(), langs, "{key} should appear once per language in src/i18n.js");
+        }
+    }
+    for name in refs(&i18n, "'element.") {
+        assert!(
+            c.elements.iter().any(|e| e.name == name),
+            "src/i18n.js has text for element `{name}`, which is not defined"
+        );
+    }
 }
 
 #[test]

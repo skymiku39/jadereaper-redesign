@@ -351,6 +351,7 @@ mod tests {
             flash: 0.0,
             seed: 0.5,
             bead_cd: 0.0,
+            tags: Default::default(),
             id: 9999,
             face: 1.0,
         }

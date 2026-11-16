@@ -288,6 +288,26 @@ button.card { font-family: var(--hand); }
   font-size: 14px;
   color: var(--ink-soft);
 }
+/* Up to six art cards when an element is put on one. */
+.card:nth-child(4) { --tilt: -1.6deg; animation-delay: 0.23s; }
+.card:nth-child(5) { --tilt: 1.2deg; animation-delay: 0.3s; }
+.card:nth-child(6) { --tilt: -0.6deg; animation-delay: 0.37s; }
+/* An element card, or an art that carries an element: tinted with the element's colour (--element). */
+.element-card::before {
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--element) 75%, transparent);
+}
+.element-card .glyph {
+  color: var(--element);
+  /* Pale colours such as holy need an ink edge to read on paper. */
+  text-shadow: 1px 1px 0 rgba(43, 38, 34, 0.55), -1px -1px 0 rgba(43, 38, 34, 0.25);
+}
+.element-card .rank { color: color-mix(in srgb, var(--element) 60%, var(--ink)); }
+/* The held arts have no description, so they are narrower and six fit in a row. */
+.card.art-card { flex: 1 1 120px; max-width: 170px; padding: 22px 12px 16px; }
+.card.art-card .glyph { font-size: 46px; }
+.card.art-card .name { font-size: 19px; }
+/* Six art cards can be taller than a small window; let the screen scroll then. */
+#levelup { overflow-y: auto; align-items: safe center; }
 
 /* -------------------------------------------------------------- game over */
 
@@ -354,6 +374,26 @@ button.card { font-family: var(--hand); }
   overflow: hidden;
 }
 .hp-fill { height: 100%; width: 100%; background: var(--vermilion); transition: width 0.12s ease-out; }
+.hp { position: relative; }
+/* The metal guard: a strip along the bottom of the health bar, and its points by the number. */
+.guard-fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 5px;
+  width: 0;
+  background: var(--element-metal, var(--gold));
+  border-top: 1px solid var(--ink);
+  transition: width 0.12s ease-out;
+}
+.guard-text { font-size: 0.8em; color: color-mix(in srgb, var(--element-metal, var(--gold)) 60%, var(--ink)); }
+/* Wood's slow healing: a green plus by the heart. */
+.regrow-mark {
+  margin-left: -6px;
+  font-size: 0.85em;
+  color: var(--element-wood, var(--jade));
+  text-shadow: 0 0 1px var(--ink);
+}
 .escort-fill { background: var(--gold); }
 .seal-dot { font-family: var(--brush); color: var(--vermilion); }
 .boss-bar {
@@ -396,6 +436,15 @@ button.card { font-family: var(--hand); }
 .chip:nth-child(odd) { transform: rotate(-2deg); }
 .chip:nth-child(even) { transform: rotate(1.5deg); }
 .chip b { font-family: var(--brush); font-size: 20px; color: var(--jade-dark); font-weight: 400; }
+/* An art that carries an element: its colour round the chip and the element's glyph as a mark. */
+.chip-element::before { box-shadow: inset 0 0 0 2px var(--element); }
+.chip-element i {
+  font-style: normal;
+  font-family: var(--brush);
+  font-size: 13px;
+  color: var(--element);
+  text-shadow: 1px 1px 0 rgba(43, 38, 34, 0.5);
+}
 
 /* ------------------------------------------------------------- animations */
 
@@ -406,7 +455,7 @@ button.card { font-family: var(--hand); }
 
 @media (prefers-reduced-motion: reduce) {
   .screen, .sheet, .card, .banner, .record-stamp { animation: none; }
-  button, .xp-fill, .hp-fill { transition: none; }
+  button, .xp-fill, .hp-fill, .guard-fill { transition: none; }
 }
 
 @media (max-width: 560px) {
@@ -422,4 +471,8 @@ button.card { font-family: var(--hand); }
   .time-tag { font-size: 21px; }
   .card { flex-basis: 100%; max-width: 340px; flex-direction: row; flex-wrap: wrap; justify-content: center; padding: 12px 16px; }
   .card .glyph { font-size: 36px; }
+  /* Two art cards per row, each a glyph over its name and line. */
+  .card.art-card { flex: 1 1 calc(50% - 10px); max-width: calc(50% - 10px); flex-direction: column; padding: 18px 8px 12px; }
+  .card.art-card .glyph { font-size: 32px; }
+  .card.art-card .name { font-size: 17px; }
 }

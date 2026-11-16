@@ -10,8 +10,8 @@ The backbone is about 3,000 lines: a Rust simulation compiled to WebAssembly (`c
 
 Known weaknesses, which the steps below address:
 
-- **Content is hardcoded.** All four weapons live in one `Game::weapons` function in `core/src/game.rs`, each with its own timer field on `Game`. Adding a weapon means editing the struct, that function, the draw code and `src/data.js`.
-- **Only ids are data so far.** Part, upgrade and event ids and the state indices are generated from `content/game.toml` (the first slice of step 1, done). Enemy numbers, weapon behaviour and puppet rigs are still code.
+- **Half of the content is still code.** Ids, the martial arts, the magic elements and the reactions are data in `content/game.toml` (the first two slices of step 1, done): a new art of an existing behaviour, a new element of an existing effect or a new reaction is a content edit. Enemy numbers and spawn rules, the passive upgrades' effects and the puppet rigs are still code.
+- **The elements are unplayed.** Seven elements and three reactions work and are covered by tests, but every number is a first pick, their effects are only shown by a colour (a tinted swing, a dot above the enemy, a ring), and holy's extra damage has only the wisp to land on, since no corpse enemy exists yet.
 - **Puppets are posed in code.** `draw_player` and `draw_enemy` hardcode part offsets, tilts and sizes. A custom image can replace a part's picture but not how a character is assembled or how it moves.
 - **Runs cannot be recorded yet.** The core steps at a fixed 60 Hz and plays the same run natively and in wasm (the first slice of step 3, done), but nothing records inputs, plays a replay back or simulates runs in bulk.
 - **Weapon hits are brute force.** The spatial grid is only used for enemy separation; every weapon loops over every enemy. Fine at the 500-enemy cap, not beyond.
@@ -64,6 +64,8 @@ Leave 6 and 7 until the target devices and horde size are decided.
 - Update `assets/parts/README.md` and the README's "Extending" section.
 
 **Done when.** Adding a new enemy, a new martial art of an existing behaviour, a new element or a new reaction is a content-file edit plus `./build.sh`, with no Rust or JavaScript changes. With no element attached, the existing four weapons, four enemies and six passives play the same as today (checked with step 3's tool if it exists, or by side-by-side play). Each of the seven elements can be attached to each martial art, and the three reactions work. A test fails the build if any id is duplicated or referenced but undefined.
+
+**Done so far (2026-11-17).** The martial arts are `[[art]]` entries read by one function per behaviour in `core/src/arts.rs`, with the art state in one array instead of a timer field each; a recorded run without element cards plays exactly as before the rewrite. The seven elements and three reactions are `[[element]]` and `[[reaction]]` entries, with one piece of code per effect and per reaction kind in `core/src/elements.rs`. Element cards appear among the level-up cards, with the second step that picks the art; at most `max_arts` (6) arts are held. Still to do from the list above: enemies and passives as data, schools, puppet rigs and poses, several images per part, and the README's assets section. The slot limit cannot be reached while only four arts exist.
 
 **Risks.** Over-designing the behaviour system. Keep it to the four existing behaviours plus whatever step 4 needs; add more only when a real weapon needs it. Rig blending adds per-instance work in the core; measure at the 500-enemy cap. This step is now large: the data-driven rewrite and the element axis can be separate PRs, rewrite first. Effects for 28 art-and-element pairs (four behaviours, seven elements) are a lot of art; start with a colour tint per element.
 

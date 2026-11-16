@@ -18,6 +18,7 @@ pub mod mission_escape;
 pub mod mission_formation;
 pub mod mission_hold;
 pub mod mission_retrieval;
+pub mod schema;
 
 use game::Game;
 

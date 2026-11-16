@@ -12,7 +12,9 @@ use crate::mission_escape::Escape;
 use crate::mission_formation::Formation;
 use crate::mission_hold::{Hold, POINT};
 use crate::mission_retrieval::{Canvas, Retrieval};
+use arts::ArtState;
 use core::f32::consts::TAU;
+use elements::Tags;
 use mission_escort::Escort;
 
 const MAX_ENEMIES: usize = 500;
@@ -34,6 +36,8 @@ pub struct Enemy {
     pub flash: f32,
     pub seed: f32,
     pub bead_cd: f32,
+    /// The element tags it holds.
+    pub tags: Tags,
     pub id: u32,
     pub face: f32,
 }
@@ -47,6 +51,10 @@ pub struct Shot {
     dmg: f32,
     pierce: i32,
     last: u32,
+    /// The martial art that fired it; a hit carries that art's element.
+    art: u8,
+    /// The share of its speed a hit pushes the enemy at.
+    push: f32,
 }
 
 pub struct Gem {
@@ -91,6 +99,15 @@ pub struct Player {
     pub moving: bool,
     pub iframe: f32,
     pub attack: f32,
+    /// Guard held (an element with the guard effect): it takes damage before health does.
+    pub guard: f32,
+    /// Seconds since the last hit before the guard starts to fade.
+    pub guard_idle: f32,
+    /// The element the guard came from; its numbers say how the guard behaves.
+    pub guard_element: u8,
+    /// Seconds of slow healing left (an element with the regrow effect).
+    pub regrow: f32,
+    pub regrow_element: u8,
 }
 
 pub struct Game {
@@ -127,7 +144,14 @@ pub struct Game {
     pub gems: Vec<Gem>,
     pub fx: Vec<Fx>,
     pub up: [u8; N_UPGRADES],
+    /// The timer and the element of each martial art, by art id.
+    pub arts: [ArtState; N_ARTS],
+    /// The cards on offer: an upgrade id, `N_UPGRADES + element id - 1` for
+    /// an element card, or -1 for an empty slot.
     pub choices: [i32; 3],
+    /// The element whose card was picked and now waits for the player to say
+    /// which martial art gets it; 0 when none does.
+    pub attach: u8,
     pub pending: u32,
     pub kills: u32,
     /// State of the retrieval mission; idle in other missions.
@@ -149,9 +173,6 @@ pub struct Game {
     spawn_acc: f32,
     next_elite: f32,
     next_id: u32,
-    t_scythe: f32,
-    t_talisman: f32,
-    t_pulse: f32,
     /// State of the pursuit mission; idle in every other mission.
     pursuit: mission_pursuit::Pursuit,
     pub inst: Vec<Inst>,
@@ -211,7 +232,9 @@ fn cell_key(cx: i32, cy: i32) -> usize {
 impl Game {
     pub fn new(seed: u32) -> Game {
         let mut up = [0u8; N_UPGRADES];
-        up[U_SCYTHE] = 1;
+        for art in &ARTS {
+            up[art.upgrade] = art.start_level;
+        }
         Game {
             rng: Rng(seed | 1),
             running: false,
@@ -242,6 +265,11 @@ impl Game {
                 moving: false,
                 iframe: 0.0,
                 attack: 0.0,
+                guard: 0.0,
+                guard_idle: 0.0,
+                guard_element: 0,
+                regrow: 0.0,
+                regrow_element: 0,
             },
             escort: Escort::new(),
             enemies: Vec::with_capacity(MAX_ENEMIES),
@@ -249,7 +277,9 @@ impl Game {
             gems: Vec::with_capacity(MAX_GEMS),
             fx: Vec::with_capacity(MAX_FX),
             up,
+            arts: ArtState::fresh(),
             choices: [-1; 3],
+            attach: 0,
             pending: 0,
             kills: 0,
             retrieval: Retrieval::default(),
@@ -264,9 +294,6 @@ impl Game {
             spawn_acc: 0.0,
             next_elite: 90.0,
             next_id: 1,
-            t_scythe: 0.6,
-            t_talisman: 0.5,
-            t_pulse: 2.0,
             pursuit: mission_pursuit::Pursuit::default(),
             inst: Vec::with_capacity(MAX_INST),
             events: Vec::with_capacity(256),
@@ -285,6 +312,13 @@ impl Game {
         self.mission = if mission < N_MISSIONS { mission } else { M_ENDLESS };
         self.hold.begin(self.mission == M_HOLD, &self.tune);
         self.running = true;
+        // A test run can open with an element already on the first held art.
+        let element = self.tune[T_START_ELEMENT] as usize;
+        if (1..=N_ELEMENTS).contains(&element) {
+            if let Some(a) = (0..N_ARTS).find(|&a| self.art_level(a) > 0) {
+                self.arts[a].element = element as u8;
+            }
+        }
         if self.mission == M_FORMATION {
             self.formation_start();
         }
@@ -453,11 +487,20 @@ impl Game {
         for &level in &self.up {
             mix(level as u32);
         }
+        for art in &self.arts {
+            mix(art.element as u32);
+        }
+        mix(self.attach as u32);
+        mix(p.guard.to_bits());
+        mix(p.regrow.to_bits());
         mix(self.enemies.len() as u32);
         for e in &self.enemies {
             mix(e.x.to_bits());
             mix(e.y.to_bits());
             mix(e.hp.to_bits());
+            for left in &e.tags.left[1..] {
+                mix(left.to_bits());
+            }
         }
         mix(self.shots.len() as u32);
         for s in &self.shots {
@@ -524,6 +567,7 @@ impl Game {
     fn step(&mut self, dt: f32) {
         self.time += dt;
         self.walk(dt);
+        self.tick_boons(dt);
 
         let moved = self.retrieval.step(self.player.x, self.player.y);
         if moved.picked > 0 {
@@ -552,6 +596,7 @@ impl Game {
         }
         self.separate();
         self.move_shots(dt);
+        self.tick_tags(dt);
         self.reap();
         self.move_gems(dt);
         self.move_fx(dt);
@@ -582,182 +627,6 @@ impl Game {
         e.ky += ky * heavy;
         let (x, y) = (e.x, e.y);
         self.event(EV_HIT, x, y, dmg);
-    }
-
-    fn weapons(&mut self, dt: f32) {
-        let might = 1.0 + 0.12 * self.lvl(U_MIGHT);
-        let haste = fmath::powu(0.92, self.up[U_HASTE] as u32);
-        let (px, py) = (self.player.x, self.player.y);
-
-        // Scythe: a sweeping arc in the aim direction.
-        self.t_scythe -= dt;
-        if self.t_scythe <= 0.0 {
-            let lvl = self.lvl(U_SCYTHE);
-            self.t_scythe = 0.9 * haste;
-            let (ax, ay) = self.player.aim;
-            let reach = 105.0 + 14.0 * lvl;
-            let dmg = (14.0 + 6.0 * lvl) * might;
-            let cosw = if lvl >= 5.0 { -2.0 } else { -0.15 };
-            for i in 0..self.enemies.len() {
-                let e = &self.enemies[i];
-                let (dx, dy) = (e.x - px, e.y - py);
-                let d = (dx * dx + dy * dy).sqrt().max(0.001);
-                let r = KINDS[e.kind as usize].r;
-                if d < reach + r && (d < 30.0 || (dx * ax + dy * ay) / d > cosw) {
-                    self.hurt_enemy(i, dmg, dx / d * 240.0, dy / d * 240.0);
-                }
-            }
-            self.formation_hit_arc(px, py, ax, ay, reach, cosw, dmg);
-            self.player.attack = 0.25;
-            let rot = fmath::atan2(ay, ax);
-            let arcs = if lvl >= 5.0 { 2 } else { 1 };
-            for k in 0..arcs {
-                self.add_fx(Fx {
-                    x: px,
-                    y: py - 24.0,
-                    vx: 0.0,
-                    vy: 0.0,
-                    life: 0.22,
-                    max: 0.22,
-                    part: P_SLASH,
-                    hw: reach,
-                    hh: reach,
-                    rot: rot + k as f32 * TAU * 0.5,
-                    vr: 5.0,
-                    grow: 60.0,
-                    color: [0.25, 0.62, 0.48, 0.9],
-                    seed: 0.3,
-                    top: true,
-                });
-            }
-            self.event(EV_SLASH, px, py, 0.0);
-        }
-
-        // Talisman: flies at the nearest enemies.
-        if self.up[U_TALISMAN] > 0 {
-            self.t_talisman -= dt;
-            if self.t_talisman <= 0.0 {
-                let lvl = self.lvl(U_TALISMAN);
-                self.t_talisman = 0.95 * haste;
-                let count = 1 + (lvl as usize) / 2;
-                let mut best = [(f32::MAX, 0usize); 4];
-                for (i, e) in self.enemies.iter().enumerate() {
-                    let d = (e.x - px) * (e.x - px) + (e.y - py) * (e.y - py);
-                    for s in 0..count {
-                        if d < best[s].0 {
-                            for t in (s + 1..count).rev() {
-                                best[t] = best[t - 1];
-                            }
-                            best[s] = (d, i);
-                            break;
-                        }
-                    }
-                }
-                let mut fired = false;
-                for s in 0..count {
-                    if best[s].0 > 520.0 * 520.0 || self.shots.len() >= MAX_SHOTS {
-                        continue;
-                    }
-                    let e = &self.enemies[best[s].1];
-                    let (dx, dy) = (e.x - px, e.y - py);
-                    let d = (dx * dx + dy * dy).sqrt().max(0.001);
-                    self.shots.push(Shot {
-                        x: px,
-                        y: py,
-                        vx: dx / d * 540.0,
-                        vy: dy / d * 540.0,
-                        life: 1.3,
-                        dmg: (8.0 + 4.0 * lvl) * might,
-                        pierce: 1 + (lvl as i32) / 3,
-                        last: 0,
-                    });
-                    fired = true;
-                }
-                if fired {
-                    self.event(EV_SHOOT, px, py, 0.0);
-                } else {
-                    self.t_talisman = 0.15;
-                }
-            }
-        }
-
-        // Jade beads: orbit the player. Positions come from the clock, so
-        // there is nothing to store.
-        if self.up[U_BEADS] > 0 {
-            let lvl = self.lvl(U_BEADS);
-            let dmg = (6.0 + 3.0 * lvl) * might;
-            let n = self.bead_count();
-            for k in 0..n {
-                let (bx, by) = self.bead_pos(k, n);
-                for i in 0..self.enemies.len() {
-                    let e = &self.enemies[i];
-                    if e.bead_cd > 0.0 {
-                        continue;
-                    }
-                    let r = KINDS[e.kind as usize].r + 12.0;
-                    let (dx, dy) = (e.x - bx, e.y - by);
-                    if dx * dx + dy * dy < r * r {
-                        let (ox, oy) = (e.x - px, e.y - py);
-                        let d = (ox * ox + oy * oy).sqrt().max(0.001);
-                        self.enemies[i].bead_cd = 0.45;
-                        self.hurt_enemy(i, dmg, ox / d * 160.0, oy / d * 160.0);
-                    }
-                }
-                self.formation_hit_bead(bx, by, dmg);
-            }
-        }
-
-        // Spirit pulse: a ring that damages and shoves everything nearby.
-        if self.up[U_PULSE] > 0 {
-            self.t_pulse -= dt;
-            if self.t_pulse <= 0.0 {
-                let lvl = self.lvl(U_PULSE);
-                self.t_pulse = 4.2 * haste;
-                let radius = 150.0 + 30.0 * lvl;
-                let dmg = (10.0 + 6.0 * lvl) * might;
-                for i in 0..self.enemies.len() {
-                    let e = &self.enemies[i];
-                    let (dx, dy) = (e.x - px, e.y - py);
-                    let d = (dx * dx + dy * dy).sqrt().max(0.001);
-                    if d < radius {
-                        self.hurt_enemy(i, dmg, dx / d * 520.0, dy / d * 520.0);
-                    }
-                }
-                self.formation_hit_circle(px, py, radius, dmg);
-                self.add_fx(Fx {
-                    x: px,
-                    y: py - 10.0,
-                    vx: 0.0,
-                    vy: 0.0,
-                    life: 0.35,
-                    max: 0.35,
-                    part: P_RING,
-                    hw: 20.0,
-                    hh: 20.0,
-                    rot: 0.0,
-                    vr: 0.0,
-                    grow: (radius - 20.0) / 0.35,
-                    color: [0.25, 0.62, 0.48, 0.8],
-                    seed: 0.7,
-                    top: true,
-                });
-                self.event(EV_PULSE, px, py, 0.0);
-            }
-        }
-    }
-
-    fn bead_count(&self) -> usize {
-        if self.up[U_BEADS] == 0 {
-            0
-        } else {
-            1 + self.up[U_BEADS] as usize
-        }
-    }
-
-    fn bead_pos(&self, k: usize, n: usize) -> (f32, f32) {
-        let radius = 78.0 + 6.0 * self.lvl(U_BEADS);
-        let a = self.time * 2.8 + k as f32 * TAU / n as f32;
-        (self.player.x + fmath::cos(a) * radius, self.player.y + fmath::sin(a) * radius * 0.8)
     }
 
     pub(crate) fn spawn_ring(&self) -> f32 {
@@ -794,6 +663,7 @@ impl Game {
             flash: 0.0,
             seed,
             bead_cd: 0.0,
+            tags: Tags::default(),
             id,
             face: 1.0,
         });
@@ -881,6 +751,8 @@ impl Game {
                     v
                 }
                 (None, Some(v)) => v,
+                // Rooted by an element: it stands where the blow threw it.
+                (None, None) if e.tags.rooted() => (0.0, 0.0),
                 (None, None) => (hx / hd * speed, hy / hd * speed),
             };
             e.x += (vx + e.kx) * dt;
@@ -898,7 +770,7 @@ impl Game {
         }
         if let Some(dmg) = hit {
             if self.player.iframe <= 0.0 {
-                self.player.hp -= dmg;
+                self.player.hp -= self.guard_against(dmg);
                 self.player.iframe = 0.8;
                 self.shake = 1.0;
                 self.event(EV_HURT, px, py, dmg);
@@ -1021,10 +893,11 @@ impl Game {
                 }
             }
             if let Some(i) = hit {
-                let (vx, vy) = (self.shots[s].vx, self.shots[s].vy);
+                let (vx, vy, push) = (self.shots[s].vx, self.shots[s].vy, self.shots[s].push);
+                let element = self.arts[self.shots[s].art as usize].element;
                 self.shots[s].last = self.enemies[i].id;
                 self.shots[s].pierce -= 1;
-                self.hurt_enemy(i, dmg, vx * 0.3, vy * 0.3);
+                self.strike(i, dmg, vx * push, vy * push, element);
             } else if self.formation_hit_shot(x, y, dmg) {
                 self.shots[s].pierce = 0;
             }
@@ -1156,8 +1029,11 @@ impl Game {
     fn offer(&mut self) {
         let mut pool = [0usize; N_UPGRADES];
         let mut n = 0;
+        // With every slot for a martial art taken, the ones not held are not offered.
+        let full = self.arts_held() >= MAX_ARTS;
         for id in 0..N_UPGRADES {
-            if self.up[id] < UPGRADE_MAX[id] {
+            let new_art = self.up[id] == 0 && ARTS.iter().any(|a| a.upgrade == id);
+            if self.up[id] < UPGRADE_MAX[id] && !(full && new_art) {
                 pool[n] = id;
                 n += 1;
             }
@@ -1177,20 +1053,47 @@ impl Game {
                 self.choices[c] = -1;
             }
         }
+        // Now and then the last card is an element instead: it takes the
+        // third slot, or the first empty one when fewer upgrades are left.
+        let chance = self.tune[T_ELEMENT_CARDS];
+        if chance > 0.0 && self.rng.f() < chance {
+            let element = 1 + (self.rng.next_u32() as usize) % N_ELEMENTS;
+            self.choices[n.min(2)] = (N_UPGRADES + element - 1) as i32;
+        }
         self.choosing = true;
         self.event(EV_LEVELUP, self.player.x, self.player.y, self.player.level as f32);
     }
 
+    /// Pick one of the cards on offer (0..2). After an element card, the
+    /// choice stays open and the next pick is the id of the held martial art
+    /// that gets the element; whatever element it carried is lost.
     pub fn choose(&mut self, i: usize) {
-        if !self.choosing || i >= 3 || self.choices[i] < 0 {
+        if !self.choosing {
             return;
         }
-        let id = self.choices[i] as usize;
-        if self.up[id] < UPGRADE_MAX[id] {
-            self.up[id] += 1;
-            if id == U_VITALITY {
-                self.player.max_hp += 20.0;
-                self.player.hp += 20.0;
+        if self.attach > 0 {
+            if i >= N_ARTS || self.art_level(i) == 0 {
+                return;
+            }
+            self.arts[i].element = self.attach;
+            self.event(EV_ATTACH, self.player.x, self.player.y, self.attach as f32);
+            self.attach = 0;
+        } else {
+            if i >= 3 || self.choices[i] < 0 {
+                return;
+            }
+            let id = self.choices[i] as usize;
+            if id >= N_UPGRADES {
+                self.attach = (id - N_UPGRADES + 1).min(N_ELEMENTS) as u8;
+                self.choices = [-1; 3];
+                return;
+            }
+            if self.up[id] < UPGRADE_MAX[id] {
+                self.up[id] += 1;
+                if id == U_VITALITY {
+                    self.player.max_hp += 20.0;
+                    self.player.hp += 20.0;
+                }
             }
         }
         self.choices = [-1; 3];
@@ -1295,16 +1198,7 @@ impl Game {
         self.vendetta_draw_marks();
 
         // Things in the air.
-        for i in 0..self.shots.len() {
-            let s = &self.shots[i];
-            let (x, y, rot) = (s.x, s.y, fmath::atan2(s.vy, s.vx) + TAU * 0.25);
-            self.put(x, y - 24.0, 6.0, 11.0, rot, P_TALISMAN, 0.0, 0.5, [0.89, 0.77, 0.38, 1.0]);
-        }
-        let n = self.bead_count();
-        for k in 0..n {
-            let (x, y) = self.bead_pos(k, n);
-            self.put(x, y - 24.0, 9.0, 9.0, 0.0, P_BEAD, 0.0, k as f32 * 0.13, [0.30, 0.66, 0.50, 1.0]);
-        }
+        self.draw_arts();
         self.boss_draw_air();
         for i in 0..self.fx.len() {
             if self.fx[i].top {
@@ -1394,14 +1288,15 @@ impl Game {
 
     fn draw_enemy(&mut self, i: usize) {
         let e = self.enemies[i];
+        let k = &KINDS[e.kind as usize];
         if e.id == mission_pursuit::PURSUIT_ID {
             self.pursuit_draw_target(&e);
-            return;
+            return self.draw_tags(i, e.y - k.hh * 2.0);
         }
         if self.boss.is(e.id) {
-            return self.boss_draw_body(i);
+            self.boss_draw_body(i);
+            return self.draw_tags(i, e.y - k.hh * 2.0);
         }
-        let k = &KINDS[e.kind as usize];
         // Two poses, flipped back and forth. That is the whole walk cycle.
         let pose = ((self.anim * k.rate + e.seed * 7.0).floor() as i32) & 1;
         let (tilt, hop) = if pose == 0 { (0.13, 0.0) } else { (-0.13, -3.0) };
@@ -1413,8 +1308,10 @@ impl Game {
             let hw = if pose == 0 { k.hw } else { k.hw * 0.7 };
             let bob = fmath::sin(self.anim * 5.0 + e.seed * 20.0) * 3.0;
             self.put(e.x, e.y - 26.0 + bob, hw * e.face, k.hh, tilt * 0.5, k.part, e.flash, e.seed, c);
+            self.draw_tags(i, e.y - 26.0 - k.hh);
         } else {
             self.put(e.x, e.y - k.hh + hop, k.hw * e.face, k.hh, tilt, k.part, e.flash, e.seed, c);
+            self.draw_tags(i, e.y - k.hh * 2.0);
         }
     }
 
@@ -1465,6 +1362,7 @@ impl Game {
             let ang = (-1.3 + 2.8 * ease) * f;
             self.put(px + f * 12.0, py - 42.0 + bob, 20.0 * f, 34.0, ang, P_SCYTHE, flash, 0.21, scythe);
         }
+        self.draw_guard();
     }
 
     // --------------------------------------------------------------- state
@@ -1474,6 +1372,7 @@ impl Game {
     fn write_state(&mut self) {
         let (goal, progress) = (self.goal(), self.progress());
         let boss_wait = self.boss_wait();
+        let guard_cap = self.guard_cap();
         let p = &self.player;
         let s = &mut self.state;
         s[S_HP] = p.hp;
@@ -1510,11 +1409,22 @@ impl Game {
         for id in 0..N_UPGRADES {
             s[S_UPGRADE0 + id] = self.up[id] as f32;
         }
+        s[S_ATTACH] = self.attach as f32;
+        s[S_GUARD] = p.guard;
+        s[S_GUARD_MAX] = guard_cap;
+        s[S_REGROW] = p.regrow;
+        for (a, art) in self.arts.iter().enumerate() {
+            s[S_ART_ELEMENT0 + a] = art.element as f32;
+        }
         self.pursuit_write_state();
         self.escort_state();
     }
 }
 
+#[path = "arts.rs"]
+pub mod arts;
+#[path = "elements.rs"]
+pub mod elements;
 #[path = "mission_boss.rs"]
 mod mission_boss;
 #[path = "mission_escort.rs"]
@@ -1527,3 +1437,7 @@ mod mission_vendetta;
 #[cfg(test)]
 #[path = "game_tests.rs"]
 mod game_tests;
+
+#[cfg(test)]
+#[path = "element_tests.rs"]
+mod element_tests;
