@@ -167,8 +167,11 @@ export function createInput({ onKey, surface }) {
     my += ty;
     const len = Math.hypot(mx, my);
     if (len > 1) { mx /= len; my /= len; }
-    out.mx = mx;
-    out.my = my;
+    // In steps of 1/16: too fine to feel, but a stick or a finger no longer
+    // changes the input on every frame, and each change is an entry in the
+    // run's replay log, so replay links stay short.
+    out.mx = Math.round(mx * 16) / 16;
+    out.my = Math.round(my * 16) / 16;
     return out;
   }
 
