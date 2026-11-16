@@ -112,6 +112,13 @@ pub extern "C" fn jr_scripted_run(seed: u32, ticks: u32) -> u32 {
     game::scripted_run(seed, ticks)
 }
 
+/// The same for a mission (an id from `[[mission]]`), with every martial art
+/// and an element on each when `armed` is not 0. See `game::scripted_mission`.
+#[no_mangle]
+pub extern "C" fn jr_scripted_mission(seed: u32, ticks: u32, mission: u32, armed: u32) -> u32 {
+    game::scripted_mission(seed, ticks, mission as usize, armed != 0)
+}
+
 /// Pick one of the offered upgrades (0..2).
 #[no_mangle]
 pub extern "C" fn jr_choose(i: u32) {
@@ -204,6 +211,22 @@ mod tests {
         let a = game::scripted_run(42, 60 * 120);
         assert_eq!(a, game::scripted_run(42, 60 * 120));
         assert_ne!(a, game::scripted_run(44, 60 * 120));
+    }
+
+    #[test]
+    fn every_mission_plays_the_same_run_twice() {
+        for mission in 0..N_MISSIONS {
+            for armed in [false, true] {
+                let a = game::scripted_mission(9, 60 * 40, mission, armed);
+                assert_eq!(a, game::scripted_mission(9, 60 * 40, mission, armed), "mission {mission}, armed {armed}");
+            }
+            // Holding four arts with elements changes the run.
+            assert_ne!(
+                game::scripted_mission(9, 60 * 40, mission, false),
+                game::scripted_mission(9, 60 * 40, mission, true),
+                "mission {mission}"
+            );
+        }
     }
 
     /// Drive two games with the same inputs per step, one at 60 frames per

@@ -17,7 +17,7 @@ Known weaknesses, which the steps below address:
 - **Weapon hits are brute force.** The spatial grid is only used for enemy separation; every weapon loops over every enemy. Fine at the 500-enemy cap, not beyond.
 - **A run has little shape.** There is a mission framework with eleven goal missions next to endless: stay alive for five minutes, cut down 1,500 enemies, and a prototype of each other type in the design document (section 4.2.1). The nine prototypes were tuned against bots only and nobody has played them. It is still one open arena, only the boss mission's boss has attacks, and nothing carries over between runs.
 - **Enemies cannot hold the player.** They never block and are slower than the player, and at most 500 exist. A bot that only runs away wins the survive mission every time at level 1, and a bot that only dodges wins the break-out mission 9 times in 12 and the retrieval mission 7 times in 8. Those missions need pressure that running cannot escape.
-- **Checks do not reach the missions.** The determinism check and the smoke test only play the default run, so no automated check compares native and wasm in the new missions or starts them in a browser.
+- **Checks reach the missions, but only just.** The determinism check plays every mission natively and in wasm, with and without elements, and the smoke test starts each one in a browser for a few seconds. Both use a bot that walks at random, so neither gets far into a mission: no check wins one, loses one, or reaches its later stages.
 - **Balance is untested by people.** Numbers were tuned only against a bot that walks in circles, which survived about 2 minutes 20 seconds.
 
 ## Summary

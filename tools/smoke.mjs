@@ -3,7 +3,8 @@
 //
 //     npm run smoke
 //
-// With WebGPU, it starts a run and plays a few seconds. This includes the CI
+// With WebGPU, it starts a run and plays a few seconds of its accept phase,
+// then starts every mission in turn and plays a few seconds of each. This includes the CI
 // runner, which has no GPU but gets a software adapter from Chromium. Without
 // WebGPU, it checks that the "Cannot start" screen shows the WebGPU reason.
 
@@ -11,7 +12,10 @@ import { chromium } from 'playwright';
 import { serve } from './serve.mjs';
 
 const PLAY_MS = 3000;
+const MISSION_MS = 2500;
 const TIMEOUT_MS = 20000;
+/** A screen ignores clicks for its first 300 ms (INPUT_LOCK_MS in src/ui.js). */
+const LOCK_MS = 450;
 
 const server = await serve(0);
 // The server listens on 127.0.0.1 only; "localhost" can resolve to ::1 first.
@@ -62,7 +66,48 @@ try {
     await page.waitForTimeout(PLAY_MS);
     if (await page.locator('#error').isVisible()) problems.push('the "Cannot start" screen appeared during the run');
     if (!(await page.locator('#hud').isVisible())) problems.push('the HUD disappeared during the run');
-    outcome = `WebGPU available; played ${PLAY_MS / 1000} s of a run`;
+
+    // Then every mission in turn, with the accept phase turned off so the
+    // mission itself runs, and the level-up cards answered if they come.
+    const { missions, acceptTime, S } = await page.evaluate(async () => {
+      const d = await import('./src/data.js');
+      return { missions: d.MISSIONS, acceptTime: d.TUNES.find((t) => t.name === 'accept_time'), S: d.STATE };
+    });
+    let played = 0;
+    for (const mission of missions) {
+      // Leave the run in progress: pause it, unless it has already ended, then quit to the title.
+      if (!(await page.locator('#over, #won, #levelup').locator('visible=true').count())) await page.keyboard.press('Escape');
+      if (await page.locator('#levelup').isVisible()) {
+        await page.waitForTimeout(LOCK_MS);
+        await page.locator('#cards .card').first().click();
+        await page.keyboard.press('Escape');
+      }
+      await page.waitForTimeout(LOCK_MS);
+      await page.locator('.screen:not([hidden]) [data-action="quit"]').click();
+      await page.locator('#title').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
+      await page.waitForTimeout(LOCK_MS);
+      await page.locator(`#title [data-action="setup"][data-value="${mission.id}"]`).click();
+      await page.locator('#setup').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
+      await page.waitForTimeout(LOCK_MS);
+      // The setup screen remembers the value, so this only does something the first time.
+      const steps = Math.round((acceptTime.max - acceptTime.min) / acceptTime.step);
+      for (let i = 0; i < steps && mission === missions[0]; i++) {
+        await page.locator(`#tunes button[data-value="${acceptTime.id}:-1"]`).click();
+      }
+      await page.locator('#setup [data-action="start"]').click();
+      await page.locator('#hud').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
+      await page.keyboard.down('KeyD');
+      await page.waitForTimeout(MISSION_MS);
+      await page.keyboard.up('KeyD');
+      const s = await page.evaluate(() => window.jadereaper.state());
+      if (s[S.ACCEPTING]) problems.push(`${mission.name}: still in the accept phase`);
+      else if (s[S.MISSION] !== mission.id) problems.push(`${mission.name}: the core plays mission ${s[S.MISSION]}`);
+      else if (!(s[S.TIME] > 0.5)) problems.push(`${mission.name}: the clock stands at ${s[S.TIME]}`);
+      if (await page.locator('#error').isVisible()) problems.push(`${mission.name}: the "Cannot start" screen appeared`);
+      if (problems.length) break;
+      played++;
+    }
+    outcome = `WebGPU available; played ${PLAY_MS / 1000} s of a run, then ${played} of ${missions.length} missions for ${MISSION_MS / 1000} s each`;
   }
 } catch (err) {
   problems.push(`smoke test failed: ${err.message}`);

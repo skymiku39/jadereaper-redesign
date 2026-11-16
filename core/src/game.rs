@@ -196,8 +196,21 @@ pub const TICK: f32 = 1.0 / 60.0;
 /// return the final state hash. Native and wasm builds must agree on it; the
 /// determinism check compares them.
 pub fn scripted_run(seed: u32, ticks: u32) -> u32 {
+    scripted_mission(seed, ticks, M_ENDLESS, false)
+}
+
+/// The same for any mission, without its accept phase. With `armed`, the
+/// player holds every martial art from the start, each with an element (which
+/// ones depends on the seed), so the elements and their reactions are played
+/// too. A run that is won stands still from then on.
+pub fn scripted_mission(seed: u32, ticks: u32, mission: usize, armed: bool) -> u32 {
     let mut game = Game::new(seed);
-    game.running = true;
+    game.start(mission);
+    if armed {
+        for a in 0..N_ARTS {
+            game.give(a, 3, (seed as usize + a) as u32 % N_ELEMENTS as u32 + 1);
+        }
+    }
     let mut bot = Rng((seed ^ 0x9e37_79b9) | 1);
     for t in 0..ticks {
         if t % 30 == 0 {
