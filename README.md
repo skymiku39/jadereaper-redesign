@@ -4,7 +4,7 @@ A survivor game backbone that runs natively in the browser. The simulation is Ru
 
 ## Play it online
 
-https://skymiku39.github.io/jadereaper/ (needs a browser with WebGPU). Every push to `main` republishes it through the `Pages` workflow in `.github/workflows/pages.yml`, which checks the fonts and then deploys `index.html`, `style.css`, `src/`, `wasm/` and `assets/` as they are committed.
+This repository, the redesign, has no site of its own yet. The version it was copied from, [skymiku39/jadereaper](https://github.com/skymiku39/jadereaper), stays playable at https://skymiku39.github.io/jadereaper/ (needs a browser with WebGPU). Once GitHub Pages is enabled here, every push to `main` publishes through the `Pages` workflow in `.github/workflows/pages.yml`, which checks the fonts and then deploys `index.html`, `style.css`, `src/`, `wasm/` and `assets/` as they are committed; until then that workflow fails.
 
 ## Run it
 
