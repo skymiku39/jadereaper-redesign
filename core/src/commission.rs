@@ -198,7 +198,18 @@ impl Commission {
 
     /// Fold into the run's state hash.
     pub fn mix(&self, mix: &mut impl FnMut(u32)) {
-        for v in [self.x, self.y, self.left, self.held, self.hp] {
+        for v in [
+            self.x,
+            self.y,
+            self.left,
+            self.held,
+            self.hp,
+            self.gx,
+            self.gy,
+            self.start.0,
+            self.start.1,
+            self.spawn_acc,
+        ] {
             mix(v.to_bits());
         }
         mix(self.phase as u32);
@@ -255,6 +266,8 @@ impl Game {
                     c.attackers.clear();
                     c.spawn_acc = 0.0;
                     c.roused = false;
+                    // Harm left over from the last one, as on the step an escort arrived, does not carry over.
+                    c.dmg = 0.0;
                     let (x, y) = (c.x, c.y);
                     if c.kind == HUNT_BAND {
                         self.commission_place_band();
@@ -324,6 +337,7 @@ impl Game {
             let kind = if k == 0 { K_BRUTE } else { K_BLOT };
             let b = k as f32 * TAU / BAND as f32;
             let r = if k == 0 { 0.0 } else { 50.0 };
+            self.commission_make_room();
             let (before, id) = (self.enemies.len(), self.next_id);
             self.spawn_enemy_at(kind, gx + fmath::cos(b) * r, gy + fmath::sin(b) * r);
             if self.enemies.len() > before {
@@ -364,6 +378,30 @@ impl Game {
         }
     }
 
+    /// With the horde at its cap, a commission's enemy could not be added,
+    /// and a hunt with no band or a village with no attackers would be won
+    /// for nothing. So the horde enemy furthest from the player, off screen
+    /// and soon brought back round anyway, makes way.
+    fn commission_make_room(&mut self) {
+        if self.enemies.len() < super::MAX_ENEMIES {
+            return;
+        }
+        let (px, py) = (self.player.x, self.player.y);
+        let mut far: Option<(f32, usize)> = None;
+        for (i, e) in self.enemies.iter().enumerate() {
+            if self.commission.attackers.contains(&e.id) {
+                continue;
+            }
+            let d = (e.x - px) * (e.x - px) + (e.y - py) * (e.y - py);
+            if far.is_none_or(|(best, _)| d > best) {
+                far = Some((d, i));
+            }
+        }
+        if let Some((_, i)) = far {
+            self.enemies.swap_remove(i);
+        }
+    }
+
     /// How many of a hunt's band are left, or 0.
     pub(crate) fn commission_band_left(&self) -> usize {
         if self.commission.phase == DEFENDING && self.commission.kind == HUNT_BAND {
@@ -383,6 +421,7 @@ impl Game {
             let a = self.rng.range(0.0, TAU);
             let kind = if self.rng.f() < 0.2 { K_BRUTE } else { K_BLOT };
             let (x, y) = (self.commission.x + fmath::cos(a) * RING, self.commission.y + fmath::sin(a) * RING);
+            self.commission_make_room();
             let (before, id) = (self.enemies.len(), self.next_id);
             self.spawn_enemy_at(kind, x, y);
             if self.enemies.len() > before {
@@ -726,6 +765,50 @@ mod tests {
         g.player.hp = g.player.max_hp;
         g.tick();
         assert_eq!(g.commission.failed, 1);
+    }
+
+    /// Fill the horde to its cap with blots far from everything.
+    fn crowd(g: &mut Game) {
+        while g.enemies.len() < crate::game::MAX_ENEMIES {
+            let k = g.enemies.len() as f32;
+            g.spawn_enemy_at(K_BLOT, 20_000.0 + k, 20_000.0);
+        }
+    }
+
+    #[test]
+    fn a_hunt_at_the_enemy_cap_still_has_its_band() {
+        let mut g = offered(HUNT_BAND);
+        let spot = (g.commission.x, g.commission.y);
+        play(&mut g, 2.5, Some(spot));
+        crowd(&mut g);
+        play(&mut g, 8.0, Some(spot));
+        assert_eq!(g.commission.phase, DEFENDING);
+        assert_eq!(g.commission_band_left(), BAND);
+        assert_eq!(g.commission.done, 0, "won with nothing killed");
+        assert!(g.enemies.len() <= crate::game::MAX_ENEMIES);
+    }
+
+    #[test]
+    fn a_village_at_the_enemy_cap_still_gets_attackers() {
+        let mut g = offered(VILLAGE);
+        let spot = (g.commission.x, g.commission.y);
+        play(&mut g, 8.0, Some(spot));
+        assert_eq!(g.commission.phase, DEFENDING);
+        crowd(&mut g);
+        let before = g.commission.attackers.len();
+        play(&mut g, 5.0, Some(spot));
+        assert!(g.commission.attackers.len() > before, "no attacker came at the cap");
+        assert!(g.enemies.len() <= crate::game::MAX_ENEMIES);
+    }
+
+    #[test]
+    fn harm_from_one_commission_does_not_carry_into_the_next() {
+        let mut g = offered(VILLAGE);
+        g.commission.dmg = 50.0;
+        let spot = (g.commission.x, g.commission.y);
+        play(&mut g, 8.0, Some(spot));
+        assert_eq!(g.commission.phase, DEFENDING);
+        assert!(g.commission.hp > VILLAGE_HP - 5.0, "village started at {}", g.commission.hp);
     }
 
     #[test]

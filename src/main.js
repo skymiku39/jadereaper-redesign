@@ -432,7 +432,8 @@ async function boot() {
           else if (s[STATE.POINT_FELL] === 1) reason = 'over.fell';
           ui.gameOver(mission, run, save, null, reason);
         }
-      } else if (s[STATE.CHOOSING]) {
+      } else if (s[STATE.CHOOSING] && !replaying) {
+        // A replay picks its cards from its log, so its level-ups are not shown.
         mode = 'levelup';
         showLevelUp(s);
       }
