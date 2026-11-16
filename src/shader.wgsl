@@ -13,7 +13,7 @@ struct Globals {
   time: f32,
   qtime: f32,    // time stepped to the stop-motion frame rate
   px: f32,       // world units per device pixel
-  pad: f32,
+  quality: f32,  // 1 for full quality; 0 drops line boil, grain and the drop shadow
 };
 
 struct PartRects {
@@ -287,9 +287,13 @@ fn fs(i: VOut) -> @location(0) vec4f {
   // Line boil: nudge the shape a little, changing only on stepped frames.
   let bo = vec2f(seed * 17.0 + G.qtime * 3.1, seed * 5.0 - G.qtime * 1.7);
   let boil = vec2f(vnoise(i.p * 0.09 + bo), vnoise(i.p * 0.09 + bo + 31.7)) - 0.5;
-  let amp = select(2.0, 1.0, flat_part);
+  let full = G.quality > 0.5;
+  let amp = select(2.0, 1.0, flat_part) * select(0.0, 1.0, full);
   let p = i.p + boil * amp;
-  let grain = vnoise(i.p * 1.3 + seed * 9.0) * 0.6 + vnoise(i.p * 0.35 + seed * 3.0) * 0.4;
+  var grain = 0.5;
+  if (full) {
+    grain = vnoise(i.p * 1.3 + seed * 9.0) * 0.6 + vnoise(i.p * 0.35 + seed * 3.0) * 0.4;
+  }
 
   var fill = 0.0;     // coverage of the coloured shape
   var margin = 0.0;   // coverage including the white margin
@@ -322,8 +326,11 @@ fn fs(i: VOut) -> @location(0) vec4f {
     }
     if (!flat_part) {
       margin = smoothstep(aa, -aa, s.d - MARGIN);
-      let sd = shape(part, p - i.soff, h, seed).d;
-      shadow = smoothstep(3.0, -3.0, sd - MARGIN) * 0.3;
+      // The drop shadow costs a second evaluation of the shape.
+      if (full) {
+        let sd = shape(part, p - i.soff, h, seed).d;
+        shadow = smoothstep(3.0, -3.0, sd - MARGIN) * 0.3;
+      }
       col = col * (0.9 + 0.2 * grain);
       col = mix(col, INK, smoothstep(-3.2, -1.2, s.d) * 0.7);   // ink outline
       col = mix(col, PAPER, s.light);

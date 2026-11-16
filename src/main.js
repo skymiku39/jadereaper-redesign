@@ -188,9 +188,10 @@ async function boot() {
     applyFeel();
   }
 
-  /** Hand the look settings to the core: damage numbers, and how much the camera shakes. */
+  /** Hand the look settings to the core and the renderer: damage numbers, camera shake, quality. */
   function applyFeel() {
     core.jr_feel(save.numbers ? 1 : 0, save.motion ? 1 : 0);
+    renderer.setQuality(save.quality);
   }
 
   function onAction(action, value) {
@@ -225,6 +226,7 @@ async function boot() {
       case 'numbers': save.numbers = !save.numbers; saveSettings(); break;
       case 'motion': save.motion = !save.motion; saveSettings(); break;
       case 'music': save.music = !save.music; audio.setMusic(save.music); saveSettings(); break;
+      case 'quality': save.quality = !save.quality; saveSettings(); break;
       case 'vol-up': audio.setVolume(audio.volume + 0.1); saveSettings(); audio.play('confirm'); break;
       case 'vol-down': audio.setVolume(audio.volume - 0.1); saveSettings(); audio.play('confirm'); break;
       case 'clear-save':

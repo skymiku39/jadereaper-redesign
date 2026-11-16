@@ -19,6 +19,8 @@ const DEFAULTS = {
   numbers: true,
   motion: true,
   music: true,
+  // Full drawing quality; off for slow devices.
+  quality: true,
   lang: null, // null: use DEFAULT_LANG from i18n.js
 };
 
