@@ -21,6 +21,7 @@ pub const P_STONE: f32 = 13.0;
 pub const P_HEART: f32 = 14.0;
 pub const P_RING: f32 = 15.0;
 pub const P_SCRAP: f32 = 16.0;
+pub const P_DIGIT: f32 = 17.0;
 pub const P_GROUND_SHADOW: f32 = 18.0;
 
 // Upgrade ids.

@@ -20,6 +20,7 @@ export const PART_IDS = {
   heart: 14,
   ring: 15,
   scrap: 16,
+  digit: 17,
   ground_shadow: 18,
 };
 
@@ -36,6 +37,15 @@ export const UPGRADES = [
   { name: 'might', glyph: '力', max: 5 },
   { name: 'haste', glyph: '速', max: 5 },
   { name: 'mending', glyph: '癒', max: 5 },
+];
+
+/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall. */
+export const KINDS = [
+  { id: 0, name: 'blot', heavy: false },
+  { id: 1, name: 'wisp', heavy: false },
+  { id: 2, name: 'brute', heavy: true },
+  { id: 3, name: 'elite', heavy: true },
+  { id: 4, name: 'hound', heavy: false },
 ];
 
 /** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and

@@ -456,7 +456,7 @@ export function createUI({ onAction }) {
       : '';
   }
 
-  function settings({ volume, muted }) {
+  function settings({ volume, muted, numbers, motion }) {
     const on = Math.round(volume * 10);
     $('volPips').replaceChildren(...Array.from({ length: 10 }, (_, i) => {
       const pip = document.createElement('i');
@@ -466,6 +466,8 @@ export function createUI({ onAction }) {
     for (const btn of document.querySelectorAll('button[data-action="mute"]')) {
       btn.textContent = t(muted ? 'settings.soundOff' : 'settings.soundOn');
     }
+    $('numbersBtn').textContent = t(numbers ? 'settings.numbersOn' : 'settings.numbersOff');
+    $('motionBtn').textContent = t(motion ? 'settings.motionOn' : 'settings.motionOff');
     setText($('langBtn'), t('settings.language', { name: t('lang.name') }));
   }
 

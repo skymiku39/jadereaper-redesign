@@ -106,7 +106,7 @@ impl Game {
                 self.enemies[i].tags.left[k] = el.time;
                 let (targets, n) = self.nearest(i, el.reach, el.count);
                 for &j in targets.iter().take(n) {
-                    self.hurt_enemy(j, dmg * el.power, 0.0, 0.0);
+                    self.hurt_enemy_as(j, dmg * el.power, 0.0, 0.0, el.color);
                     self.enemies[j].tags.left[k] = el.time;
                     let (x, y) = (self.enemies[j].x, self.enemies[j].y);
                     self.pop(x, y, 26.0, el.color);
@@ -148,10 +148,10 @@ impl Game {
                     self.enemies[i].tags.end(a);
                     self.enemies[i].tags.end(b);
                     let (targets, n) = self.nearest(i, r.reach, r.count);
-                    self.hurt_enemy(i, amount, 0.0, 0.0);
+                    self.hurt_enemy_as(i, amount, 0.0, 0.0, r.color);
                     self.pop(x, y, 40.0, r.color);
                     for &j in targets.iter().take(n) {
-                        self.hurt_enemy(j, amount, 0.0, 0.0);
+                        self.hurt_enemy_as(j, amount, 0.0, 0.0, r.color);
                         let (jx, jy) = (self.enemies[j].x, self.enemies[j].y);
                         self.pop(jx, jy, 40.0, r.color);
                     }
@@ -166,7 +166,7 @@ impl Game {
                         let reach = r.reach + KINDS[e.kind as usize].r;
                         if e.hp > 0.0 && dx * dx + dy * dy < reach * reach {
                             let d = (dx * dx + dy * dy).sqrt().max(0.001);
-                            self.hurt_enemy(j, amount, dx / d * 120.0, dy / d * 120.0);
+                            self.hurt_enemy_as(j, amount, dx / d * 120.0, dy / d * 120.0, r.color);
                         }
                     }
                     self.pop(x, y, r.reach, r.color);
@@ -235,11 +235,11 @@ impl Game {
                         // rate, the last one as it runs out.
                         let rate = el.rate.max(TICK);
                         if (before / rate).ceil() != (after / rate).ceil() {
-                            self.hurt_enemy(i, amount * rate, 0.0, 0.0);
+                            self.hurt_enemy_as(i, amount * rate, 0.0, 0.0, el.color);
                         }
                     }
                     EF_SURGE if after <= 0.0 => {
-                        self.hurt_enemy(i, amount, 0.0, 0.0);
+                        self.hurt_enemy_as(i, amount, 0.0, 0.0, el.color);
                         let (x, y) = (self.enemies[i].x, self.enemies[i].y);
                         self.pop(x, y, 34.0, el.color);
                     }

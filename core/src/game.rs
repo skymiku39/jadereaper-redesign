@@ -85,6 +85,23 @@ pub struct Fx {
     top: bool,
 }
 
+/// A damage number floating up from where a hit landed. Drawing only: it
+/// takes no part in the run, its hash or its random numbers.
+pub struct Num {
+    x: f32,
+    y: f32,
+    value: f32,
+    life: f32,
+    /// The enemy it belongs to; more damage to it while the number is fresh adds up.
+    id: u32,
+    color: [f32; 3],
+}
+
+const MAX_NUMS: usize = 120;
+const NUM_LIFE: f32 = 0.7;
+/// The colour of plain damage: ink, which reads on the paper's white cutout edge.
+const NUM_PLAIN: [f32; 3] = [0.22, 0.2, 0.18];
+
 pub struct Player {
     pub x: f32,
     pub y: f32,
@@ -143,6 +160,11 @@ pub struct Game {
     pub shots: Vec<Shot>,
     pub gems: Vec<Gem>,
     pub fx: Vec<Fx>,
+    pub nums: Vec<Num>,
+    /// Draw damage numbers (a setting of the host).
+    pub show_numbers: bool,
+    /// How much the camera shakes, 0..1 (a setting of the host).
+    pub motion: f32,
     pub up: [u8; N_UPGRADES],
     /// The timer and the element of each martial art, by art id.
     pub arts: [ArtState; N_ARTS],
@@ -292,6 +314,9 @@ impl Game {
             shots: Vec::with_capacity(MAX_SHOTS),
             gems: Vec::with_capacity(MAX_GEMS),
             fx: Vec::with_capacity(MAX_FX),
+            nums: Vec::with_capacity(MAX_NUMS),
+            show_numbers: true,
+            motion: 1.0,
             up,
             arts: ArtState::fresh(),
             choices: [-1; 3],
@@ -461,7 +486,7 @@ impl Game {
     /// Rebuild the camera, the instance list and the HUD state.
     pub fn present(&mut self) {
         // Camera follows the player, with a decaying shake.
-        let s = self.shake * self.shake * 9.0;
+        let s = self.shake * self.shake * 9.0 * self.motion;
         let q = (self.anim * 30.0).floor();
         self.cam = (self.player.x + s * fmath::sin(q * 12.9898), self.player.y - 30.0 + s * fmath::cos(q * 78.233));
         self.build();
@@ -633,6 +658,7 @@ impl Game {
         self.reap();
         self.move_gems(dt);
         self.move_fx(dt);
+        self.move_nums(dt);
 
         // Level ups.
         while self.player.xp >= self.player.xp_next {
@@ -652,6 +678,16 @@ impl Game {
     }
 
     fn hurt_enemy(&mut self, i: usize, dmg: f32, kx: f32, ky: f32) {
+        self.hurt_enemy_as(i, dmg, kx, ky, NUM_PLAIN);
+    }
+
+    /// Hurt an enemy, with its damage number in `color`.
+    pub(crate) fn hurt_enemy_as(&mut self, i: usize, dmg: f32, kx: f32, ky: f32, color: [f32; 3]) {
+        let (id, x, y, r) = {
+            let e = &self.enemies[i];
+            (e.id, e.x, e.y, KINDS[e.kind as usize].hh)
+        };
+        self.add_num(id, x, y - r * 2.0 - 6.0, dmg, color);
         let e = &mut self.enemies[i];
         e.hp -= dmg;
         e.flash = 1.0;
@@ -1059,6 +1095,67 @@ impl Game {
         }
     }
 
+    /// Show damage over an enemy: added to its fresh number of the same colour, or a new one.
+    fn add_num(&mut self, id: u32, x: f32, y: f32, value: f32, color: [f32; 3]) {
+        // Also leaves out a value that is not a number.
+        if !self.show_numbers || value.partial_cmp(&0.0) != Some(core::cmp::Ordering::Greater) {
+            return;
+        }
+        if let Some(n) = self.nums.iter_mut().find(|n| n.id == id && n.color == color && n.life > NUM_LIFE * 0.6) {
+            n.value += value;
+            n.life = NUM_LIFE;
+            return;
+        }
+        if self.nums.len() >= MAX_NUMS {
+            return;
+        }
+        // A little sideways spread, from the enemy's id rather than the run's random numbers.
+        let jitter = ((hash2(id as i32, self.nums.len() as i32) & 255) as f32 / 255.0 - 0.5) * 18.0;
+        self.nums.push(Num { x: x + jitter, y, value, life: NUM_LIFE, id, color });
+    }
+
+    fn move_nums(&mut self, dt: f32) {
+        self.nums.retain_mut(|n| {
+            n.life -= dt;
+            n.y -= 38.0 * dt;
+            n.life > 0.0
+        });
+    }
+
+    /// Damage numbers: one brush digit per figure, popping in and fading out.
+    fn draw_nums(&mut self) {
+        for i in 0..self.nums.len() {
+            let n = &self.nums[i];
+            let (x, y, life, color) = (n.x, n.y, n.life, n.color);
+            let value = n.value.round().clamp(1.0, 99_999.0) as u32;
+            let t = life / NUM_LIFE;
+            let alpha = (t / 0.35).min(1.0);
+            let digits = if value >= 10_000 {
+                5
+            } else if value >= 1000 {
+                4
+            } else if value >= 100 {
+                3
+            } else if value >= 10 {
+                2
+            } else {
+                1
+            };
+            // Big for a moment when it appears, and bigger for larger hits.
+            let size = (1.0 + 0.35 * ((t - 0.85) / 0.15).max(0.0)) * (1.0 + 0.12 * (digits as f32 - 1.0).min(3.0));
+            let (hw, hh) = (6.0 * size, 9.5 * size);
+            let step = hw * 2.15;
+            let mut v = value;
+            for k in 0..digits {
+                let d = v % 10;
+                v /= 10;
+                let dx = (digits as f32 - 1.0) * 0.5 * step - k as f32 * step;
+                let c = [color[0], color[1], color[2], alpha];
+                self.put(x + dx, y, hw, hh, 0.0, P_DIGIT, 0.0, d as f32 * 0.1, c);
+            }
+        }
+    }
+
     fn add_fx(&mut self, f: Fx) {
         if self.fx.len() < MAX_FX {
             self.fx.push(f);
@@ -1269,6 +1366,7 @@ impl Game {
                 self.draw_fx(i);
             }
         }
+        self.draw_nums();
         self.draw_formation_marker();
         let mut canvas = Canvas {
             inst: &mut self.inst,

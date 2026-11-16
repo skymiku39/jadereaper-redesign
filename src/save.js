@@ -15,6 +15,9 @@ const DEFAULTS = {
   tuning: {},
   volume: 0.6,
   muted: false,
+  // Damage numbers, and camera shake with hit-stop.
+  numbers: true,
+  motion: true,
   lang: null, // null: use DEFAULT_LANG from i18n.js
 };
 

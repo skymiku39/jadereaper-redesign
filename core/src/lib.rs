@@ -33,8 +33,19 @@ fn g() -> &'static mut Game {
 #[no_mangle]
 pub extern "C" fn jr_reset(seed: u32) {
     let (w, h) = (g().view_w, g().view_h);
+    let (numbers, motion) = (g().show_numbers, g().motion);
     *g() = Game::new(seed);
     g().set_view(w, h);
+    g().show_numbers = numbers;
+    g().motion = motion;
+}
+
+/// How the game looks, from the host's settings: `numbers` 1 to draw damage
+/// numbers, `motion` 0..1 for how much the camera shakes. Neither changes how a run goes.
+#[no_mangle]
+pub extern "C" fn jr_feel(numbers: u32, motion: f32) {
+    g().show_numbers = numbers != 0;
+    g().motion = if motion.is_finite() { motion.clamp(0.0, 1.0) } else { 1.0 };
 }
 
 /// The tunes the next `jr_start` gives its run, indexed like `[[tune]]` in the content file.

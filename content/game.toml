@@ -26,7 +26,7 @@ max_arts = 6
 # ---------------------------------------------------------------- parts
 # Paper part ids, sent to the renderer in each instance. The name is also the
 # key for an image override in assets/parts.json. Ids must be 0..31 (the
-# shader has 32 image slots). Id 17 is free.
+# shader has 32 image slots). Ids 19 to 31 are free.
 
 [[part]]
 id = 0
@@ -95,6 +95,12 @@ name = "ring"
 [[part]]
 id = 16
 name = "scrap"
+
+# One brush digit of a damage number; the instance's seed picks which (0.0
+# for 0, 0.1 for 1 ... 0.9 for 9).
+[[part]]
+id = 17
+name = "digit"
 
 [[part]]
 id = 18

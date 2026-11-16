@@ -1318,6 +1318,13 @@ pub fn render_js(c: &Content) -> String {
     }
     o.push_str("];\n\n");
 
+    o.push_str("/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall. */\n");
+    o.push_str("export const KINDS = [\n");
+    for e in &c.enemies {
+        writeln!(o, "  {{ id: {}, name: {}, heavy: {} }},", e.id, js_str(&e.name), e.heavy).unwrap();
+    }
+    o.push_str("];\n\n");
+
     o.push_str("/** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and\n");
     o.push_str(" * whose name, glyph and card text it shows. */\n");
     o.push_str("export const ARTS = [\n");

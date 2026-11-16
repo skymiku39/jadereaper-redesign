@@ -44,6 +44,7 @@ const PART_STONE: i32 = 13;
 const PART_HEART: i32 = 14;
 const PART_RING: i32 = 15;
 const PART_SCRAP: i32 = 16;
+const PART_DIGIT: i32 = 17;
 const PART_GROUND_SHADOW: i32 = 18;
 // END GENERATED
 const PAPER = vec3f(0.965, 0.94, 0.875);
@@ -198,6 +199,24 @@ fn shape(part: i32, p: vec2f, h: vec2f, seed: f32) -> Shape {
     }
     case PART_SCRAP { // paper scrap
       s.d = sdBox(q, vec2f(0.9, 0.9)) * m;
+    }
+    case PART_DIGIT { // one brush digit, picked by the seed: seven strokes, some of them drawn
+      let n = clamp(i32(seed * 10.0 + 0.5), 0, 9);
+      // Which of the strokes a (top), b (top right), c (bottom right), d (bottom),
+      // e (bottom left), f (top left) and g (middle) each digit uses, one bit each.
+      var masks = array<u32, 10>(0x3fu, 0x06u, 0x5bu, 0x4fu, 0x66u, 0x6du, 0x7du, 0x07u, 0x7fu, 0x6fu);
+      let mask = masks[n];
+      let w = 0.62;
+      let k = vec2f(q.x + q.y * 0.12, q.y);   // a slight brush slant
+      var d = 1e3;
+      if ((mask & 0x01u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, -0.9), vec2f(w, -0.9))); }
+      if ((mask & 0x02u) != 0u) { d = min(d, sdSeg(k, vec2f(w, -0.9), vec2f(w, 0.0))); }
+      if ((mask & 0x04u) != 0u) { d = min(d, sdSeg(k, vec2f(w, 0.0), vec2f(w, 0.9))); }
+      if ((mask & 0x08u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, 0.9), vec2f(w, 0.9))); }
+      if ((mask & 0x10u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, 0.0), vec2f(-w, 0.9))); }
+      if ((mask & 0x20u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, -0.9), vec2f(-w, 0.0))); }
+      if ((mask & 0x40u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, 0.0), vec2f(w, 0.0))); }
+      s.d = (d - 0.2) * m;
     }
     case PART_GROUND_SHADOW { // soft ground shadow
       s.d = (length(q) - 0.6) * m;

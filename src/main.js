@@ -5,7 +5,7 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
 import { loadSave, writeSave, recordRun, recordMission, clearRecords, tuneValue, setTune } from './save.js';
-import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, EVENT } from './data.js';
+import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, EVENT, KINDS } from './data.js';
 import { pickLang, setLang, getLang, nextLang } from './i18n.js';
 import { packReplay, unpackReplay } from './replay.js';
 
@@ -28,6 +28,8 @@ async function boot() {
   // True while a replay from a link plays.
   let replaying = false;
   let settingsFrom = 'title';
+  // Seconds the game stands still after a heavy blow (hit-stop).
+  let hitstop = 0;
 
   const ui = createUI({ onAction });
   const input = createInput({ onKey });
@@ -179,6 +181,12 @@ async function boot() {
     save.muted = audio.muted;
     writeSave(save);
     ui.settings(save);
+    applyFeel();
+  }
+
+  /** Hand the look settings to the core: damage numbers, and how much the camera shakes. */
+  function applyFeel() {
+    core.jr_feel(save.numbers ? 1 : 0, save.motion ? 1 : 0);
   }
 
   function onAction(action, value) {
@@ -209,6 +217,8 @@ async function boot() {
         ui.records(save);
         break;
       case 'mute': audio.setMuted(!audio.muted); saveSettings(); break;
+      case 'numbers': save.numbers = !save.numbers; saveSettings(); break;
+      case 'motion': save.motion = !save.motion; saveSettings(); break;
       case 'vol-up': audio.setVolume(audio.volume + 0.1); saveSettings(); audio.play('confirm'); break;
       case 'vol-down': audio.setVolume(audio.volume - 0.1); saveSettings(); audio.play('confirm'); break;
       case 'clear-save':
@@ -269,6 +279,7 @@ async function boot() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
   ui.settings(save);
+  applyFeel();
   // Read the link before `toTitle`, which takes it out of the address bar.
   const link = new URLSearchParams(location.search).get('replay');
   toTitle();
@@ -293,7 +304,13 @@ async function boot() {
     }
 
     // Paused freezes everything. Other menus keep the paper puppets moving.
-    const step = mode === 'paused' ? 0 : dt;
+    // Hit-stop holds the game still for a moment, puppets and all.
+    let step = mode === 'paused' ? 0 : dt;
+    if (step > 0 && hitstop > 0) {
+      const held = Math.min(hitstop, step);
+      hitstop -= held;
+      step -= held;
+    }
     clock += step;
     core.jr_input(mode === 'playing' ? pad.mx : 0, mode === 'playing' ? pad.my : 0);
     core.jr_update(step);
@@ -303,7 +320,13 @@ async function boot() {
       const count = core.jr_event_count();
       if (count) {
         const ev = new Float32Array(core.memory.buffer, core.jr_events_ptr(), count * 4);
-        for (let i = 0; i < count; i++) audio.play(ev[i * 4]);
+        for (let i = 0; i < count; i++) {
+          const type = ev[i * 4];
+          audio.play(type);
+          // A heavy enemy falling, or two elements reacting, stops the game for a beat.
+          if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) hitstop = Math.max(hitstop, 0.07);
+          if (save.motion && type === EVENT.REACT) hitstop = Math.max(hitstop, 0.04);
+        }
       }
       const accepting = s[STATE.ACCEPTING] === 1;
       ui.hud({

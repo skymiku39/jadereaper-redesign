@@ -84,6 +84,8 @@ Leave 6 and 7 until the target devices and horde size are decided.
 - Music: a generative pentatonic loop with WebAudio (guqin-like plucks and a low drone), with its own volume setting, ducked during level-up cards.
 - A screen-shake setting (off, low, normal) for players who dislike it.
 
+**Done so far (2026-11-17).** Damage numbers (brush digits drawn by the shader, coloured by element and reaction), hit-stop on heavy kills and reactions, and settings that switch off the numbers, and shake with hit-stop together. Not yet: death tearing, spawn warnings, pickup arcs, the low-health state, music, and the frame-time measurement at the enemy cap.
+
 **Done when.** Each item above is in, a "reduce motion" preference turns off shake and hit-stop, and frame time at the enemy cap is no worse than today (about 8.3 ms median measured in the browser pane).
 
 **Risks.** Hit-stop and shake can make the game feel sluggish if overused; keep values small and tunable in one place.

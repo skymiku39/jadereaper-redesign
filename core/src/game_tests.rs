@@ -653,6 +653,50 @@ fn collecting_enough_xp_triggers_a_level_up_offer() {
     assert_eq!(g.pending, 1);
 }
 
+// ------------------------------------------------------------------- feel
+
+#[test]
+fn damage_numbers_add_up_on_one_enemy_and_fade() {
+    let mut g = base();
+    let e = put(&mut g, K_BLOT, 50.0, 0.0);
+    let other = put(&mut g, K_BLOT, -50.0, 0.0);
+    g.hurt_enemy(e, 12.0, 0.0, 0.0);
+    g.hurt_enemy(e, 8.0, 0.0, 0.0);
+    g.hurt_enemy(other, 5.0, 0.0, 0.0);
+    assert_eq!(g.nums.len(), 2);
+    assert!(near(g.nums[0].value, 20.0));
+    // Damage of another colour gets its own number.
+    g.hurt_enemy_as(e, 3.0, 0.0, 0.0, [1.0, 0.0, 0.0]);
+    assert_eq!(g.nums.len(), 3);
+    for _ in 0..60 {
+        g.move_nums(TICK);
+    }
+    assert!(g.nums.is_empty());
+    // With the setting off there are none.
+    g.show_numbers = false;
+    g.hurt_enemy(e, 12.0, 0.0, 0.0);
+    assert!(g.nums.is_empty());
+}
+
+#[test]
+fn the_look_settings_do_not_change_the_run() {
+    let run = |numbers: bool, motion: f32| {
+        let mut g = Game::new(42);
+        g.show_numbers = numbers;
+        g.motion = motion;
+        g.start(M_ENDLESS);
+        g.input = (1.0, 0.5);
+        for _ in 0..(60 * 40) {
+            g.update(TICK);
+            if g.choosing {
+                g.choose(0);
+            }
+        }
+        g.hash()
+    };
+    assert_eq!(run(true, 1.0), run(false, 0.0));
+}
+
 // ---------------------------------------------------------------- pressure
 
 #[test]
