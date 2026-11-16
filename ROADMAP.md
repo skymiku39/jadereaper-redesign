@@ -153,6 +153,8 @@ The first release is one story chapter plus endless mode (see the design documen
 - Performance on phones: cap the device pixel ratio lower on small screens and add a "low quality" setting that turns off line boil and the per-pixel shadow sample.
 - WebGL2 fallback: port `src/shader.wgsl` to GLSL ES 3.0 and add a second renderer behind the same `resize` and `draw` interface. The instance format and atlas stay the same. Detect WebGPU first and fall back automatically.
 
+**Done so far (2026-11-17).** The floating stick, tap for cards and menus, a pause button shown after the first touch, and the HUD kept clear of notches. Checked only with synthetic touch events in a phone-sized headless browser; not on a phone. Not yet: the lower pixel ratio and low-quality setting, and the WebGL2 fallback.
+
 **Done when.** The game is playable start to finish on a phone with touch only, and in a browser with WebGPU turned off, with the same look.
 
 **Risks.** Two shaders to maintain. Keeping the shape functions small and generating both from one source would help but is extra work; decide when you start.

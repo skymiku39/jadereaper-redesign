@@ -35,7 +35,7 @@ async function boot() {
   let heartbeat = 0;
 
   const ui = createUI({ onAction });
-  const input = createInput({ onKey });
+  const input = createInput({ onKey, surface: canvas });
 
   let renderer, core;
   try {
@@ -172,6 +172,7 @@ async function boot() {
   function setPaused(paused) {
     if (paused && mode === 'playing') {
       mode = 'paused';
+      input.release();
       ui.show('pause');
     } else if (!paused && mode === 'paused') {
       mode = 'playing';
@@ -209,6 +210,7 @@ async function boot() {
       case 'start': startRun(); break;
       case 'copy-replay': copyReplay(); break;
       case 'resume': setPaused(false); break;
+      case 'pause': setPaused(true); break;
       case 'restart': startRun(); break;
       case 'quit': toTitle(); break;
       case 'settings': settingsFrom = ui.screen; ui.show('settings'); break;

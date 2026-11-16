@@ -28,15 +28,15 @@ npm run smoke
 
 ## Controls
 
-| Action | Keyboard | Gamepad |
-| --- | --- | --- |
-| Move | WASD or arrow keys | Left stick or d-pad |
-| Pause | Esc or P | Start |
-| Menu move | Arrow keys or WASD | Stick or d-pad |
-| Menu confirm | Enter or Space | A |
-| Back | Esc | B |
-| Pick a card | 1, 2, 3 (1 to 6 when choosing a martial art for an element) | Stick, then A |
-| Mute | M | |
+| Action | Keyboard | Gamepad | Touch |
+| --- | --- | --- | --- |
+| Move | WASD or arrow keys | Left stick or d-pad | Put a finger on the game view and drag: a stick appears where it lands |
+| Pause | Esc or P | Start | The ❚❚ button, shown after the first touch |
+| Menu move | Arrow keys or WASD | Stick or d-pad | |
+| Menu confirm | Enter or Space | A | Tap |
+| Back | Esc | B | The Back button |
+| Pick a card | 1, 2, 3 (1 to 6 when choosing a martial art for an element) | Stick, then A | Tap the card |
+| Mute | M | | |
 
 Attacks are automatic. The game pauses itself when the window loses focus.
 
@@ -174,6 +174,6 @@ Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (
 - Saved best time, kills and level for endless, tries and wins per mission, sound and language settings
 - Traditional Chinese (the default) and English text, switchable in settings
 
-Not included yet: touch controls, meta progression between runs, and a WebGL fallback for browsers without WebGPU.
+Not included yet: a test on a real phone, meta progression between runs, and a WebGL fallback for browsers without WebGPU.
 
 The ranked plan for what comes next is in [ROADMAP.md](ROADMAP.md).

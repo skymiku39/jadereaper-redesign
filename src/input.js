@@ -1,11 +1,16 @@
-// Keyboard and gamepad input.
+// Keyboard, gamepad and touch input.
 //
 // `poll()` is called once per frame and returns the movement vector plus
 // one-shot menu actions (navigate, confirm, back, pause) from the gamepad.
+// On a touch screen, a finger put down on the game view becomes a stick:
+// the paper disc appears where it lands, and dragging from there moves.
+// Menus are buttons, so tapping them needs nothing here.
 // Keyboard menu actions are delivered through the `onKey` callback, because
 // Enter and Space already click the focused button natively.
 
 const DEADZONE = 0.22;
+/** How far a finger drags from where it landed for full speed, in CSS pixels. */
+const STICK_RADIUS = 56;
 const REPEAT_FIRST = 0.35;
 const REPEAT_NEXT = 0.14;
 
@@ -16,8 +21,71 @@ const MOVE_KEYS = {
   KeyD: [1, 0], ArrowRight: [1, 0],
 };
 
-export function createInput({ onKey }) {
+export function createInput({ onKey, surface }) {
   const held = new Set();
+  // The finger that steers, if any: where it landed and where it is now.
+  let touch = null;
+  const disc = document.createElement('div');
+  disc.className = 'touch-stick';
+  disc.hidden = true;
+  const knob = document.createElement('div');
+  knob.className = 'touch-knob';
+  disc.append(knob);
+  document.body.append(disc);
+
+  function placeStick() {
+    if (!touch) {
+      disc.hidden = true;
+      return;
+    }
+    disc.hidden = false;
+    disc.style.left = `${touch.x0}px`;
+    disc.style.top = `${touch.y0}px`;
+    const [dx, dy] = stickVector();
+    knob.style.transform = `translate(${dx * STICK_RADIUS}px, ${dy * STICK_RADIUS}px)`;
+  }
+
+  /** The stick's direction and strength, each axis in -1..1, from the drag. */
+  function stickVector() {
+    if (!touch) return [0, 0];
+    let dx = (touch.x - touch.x0) / STICK_RADIUS;
+    let dy = (touch.y - touch.y0) / STICK_RADIUS;
+    const len = Math.hypot(dx, dy);
+    if (len < 0.12) return [0, 0];
+    if (len > 1) { dx /= len; dy /= len; }
+    return [dx, dy];
+  }
+
+  if (surface) {
+    surface.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' || touch) return;
+      // Show the touch buttons (pause) from the first touch on.
+      document.body.classList.add('touch');
+      touch = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY };
+      // Keep the finger's moves even when it slides over the HUD. A pointer the
+      // browser does not know (as in a synthetic event) cannot be captured; that is fine.
+      try {
+        surface.setPointerCapture(e.pointerId);
+      } catch {
+        // Moves still arrive while the finger stays over the game view.
+      }
+      placeStick();
+      e.preventDefault();
+    });
+    surface.addEventListener('pointermove', (e) => {
+      if (!touch || e.pointerId !== touch.id) return;
+      touch.x = e.clientX;
+      touch.y = e.clientY;
+      placeStick();
+    });
+    const lift = (e) => {
+      if (!touch || e.pointerId !== touch.id) return;
+      touch = null;
+      placeStick();
+    };
+    surface.addEventListener('pointerup', lift);
+    surface.addEventListener('pointercancel', lift);
+  }
   let prevButtons = [];
   let navHeld = 0;
   let navDir = '';
@@ -40,7 +108,11 @@ export function createInput({ onKey }) {
     }
   });
   window.addEventListener('keyup', (e) => held.delete(e.code));
-  window.addEventListener('blur', () => held.clear());
+  window.addEventListener('blur', () => {
+    held.clear();
+    touch = null;
+    placeStick();
+  });
   window.addEventListener('gamepadconnected', (e) => { padName = e.gamepad.id; });
   window.addEventListener('gamepaddisconnected', () => { padName = ''; });
 
@@ -90,6 +162,9 @@ export function createInput({ onKey }) {
       navDir = '';
     }
 
+    const [tx, ty] = stickVector();
+    mx += tx;
+    my += ty;
     const len = Math.hypot(mx, my);
     if (len > 1) { mx /= len; my /= len; }
     out.mx = mx;
@@ -97,5 +172,11 @@ export function createInput({ onKey }) {
     return out;
   }
 
-  return { poll };
+  /** Let go of the stick, as when a menu opens over the game. */
+  function release() {
+    touch = null;
+    placeStick();
+  }
+
+  return { poll, release };
 }
