@@ -1,10 +1,27 @@
 // Paper UI: screens, HUD and menu focus. All DOM work lives here.
-import { MISSIONS, MISSION_IDS, UPGRADES } from './data.js';
+import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, ELEMENTS } from './data.js';
 import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['title', 'setup', 'settings', 'levelup', 'pause', 'over', 'won', 'error'];
+
+/** An element's colour as CSS. `color` is 0..1 RGB. */
+const elementCss = (element) => `rgb(${element.color.map((c) => Math.round(c * 255)).join(', ')})`;
+/** The element with this id, or null for 0 (no element). Ids start at 1. */
+const elementById = (id) => ELEMENTS[id - 1] || null;
+/** The martial art an upgrade levels, or undefined for a plain stat upgrade. */
+const artOfUpgrade = (upgradeId) => ARTS.find((art) => art.upgrade === upgradeId);
+
+/** A card face: one span per [class, text] pair. */
+function cardParts(card, parts) {
+  for (const [cls, text] of parts) {
+    const span = document.createElement('span');
+    span.className = cls;
+    span.textContent = text;
+    card.append(span);
+  }
+}
 
 /** The values a mission's text can mention, such as its time limit. */
 const missionVars = (mission) => ({ time: formatTime(mission.goal), goal: mission.goal });
@@ -14,6 +31,12 @@ export function createUI({ onAction }) {
   let current = null;
   let lockedUntil = 0;
   const cache = {};
+
+  // Each element's colour as a CSS variable (--element-metal and so on), so style.css can
+  // tint the guard and healing marks without its own copy of the colours.
+  for (const element of ELEMENTS) {
+    document.documentElement.style.setProperty(`--element-${element.name}`, elementCss(element));
+  }
 
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-action]');
@@ -111,13 +134,28 @@ export function createUI({ onAction }) {
     }
   }
 
-  /** Draw the HUD. The values after `progress` belong to single missions and are ignored in the others. */
+  /**
+   * Draw the HUD. The values after `progress` belong to single missions and are ignored in the others.
+   * `artElements` holds, per art id, the id of the element the art carries (0 for none); `guard` and
+   * `guardMax` are the metal guard and its cap, `regrow` the seconds of wood healing left.
+   */
   function hud({
     hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
     carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait, accept,
+    artElements = [], guard = 0, guardMax = 0, regrow = 0,
   }) {
     set('hpFill', 'width', `${Math.max(0, Math.min(100, (hp / maxHp) * 100)).toFixed(1)}%`);
     set('hpText', 'text', String(Math.ceil(hp)));
+    // The metal guard: a strip under the health and its points beside the number.
+    const guarded = guard > 0 && guardMax > 0;
+    set('guardFill', 'display', guarded ? '' : 'none');
+    set('guardText', 'display', guarded ? '' : 'none');
+    if (guarded) {
+      set('guardFill', 'width', `${Math.max(0, Math.min(100, (guard / guardMax) * 100)).toFixed(1)}%`);
+      set('guardText', 'text', `+${Math.ceil(guard)}`);
+    }
+    // Wood's slow healing.
+    set('regrowMark', 'display', regrow > 0 ? '' : 'none');
     set('xpFill', 'width', `${Math.max(0, Math.min(100, (xp / xpNext) * 100)).toFixed(1)}%`);
     set('levelText', 'text', t('hud.level', { n: level }));
     // A timed mission counts down to its goal; endless counts up.
@@ -181,7 +219,7 @@ export function createUI({ onAction }) {
     const marked = mission.id === MISSION_IDS.vendetta;
     const killsText = counted ? `${Math.min(kills, goal)} / ${goal}` : String(kills);
     set('killsText', 'text', marked ? `${progress} / ${goal}` : killsText);
-    const sig = getLang() + upgrades.join(',');
+    const sig = `${getLang()}${upgrades.join(',')}|${artElements.join(',')}`;
     if (cache.chips !== sig) {
       cache.chips = sig;
       $('chips').replaceChildren(...upgrades.flatMap((lvl, id) => {
@@ -192,6 +230,17 @@ export function createUI({ onAction }) {
         const glyph = document.createElement('b');
         glyph.textContent = UPGRADES[id].glyph;
         chip.append(glyph, String(lvl));
+        // An art that carries an element wears its colour and a small mark of it.
+        const art = artOfUpgrade(id);
+        const element = art ? elementById(artElements[art.id] || 0) : null;
+        if (element) {
+          chip.classList.add('chip-element');
+          chip.style.setProperty('--element', elementCss(element));
+          chip.title += ` · ${t(`element.${element.name}.name`)}`;
+          const mark = document.createElement('i');
+          mark.textContent = element.glyph;
+          chip.append(mark);
+        }
         return [chip];
       }));
     }
@@ -201,31 +250,85 @@ export function createUI({ onAction }) {
     $('hud').hidden = !visible;
   }
 
-  function levelUp(choices, upgrades) {
-    $('cards').replaceChildren(...choices.flatMap((id, slot) => {
+  /**
+   * The level-up screen. `choices` holds the three offered cards: an upgrade id, an element card
+   * (`UPGRADES.length + element id - 1`) or -1 for an empty slot; `upgrades` the upgrade levels.
+   * While `attach` is an element id, the screen instead asks which held art gets that element;
+   * `artElements` holds, per art id, the element the art carries now (0 for none).
+   */
+  function levelUp(choices, upgrades, { attach = 0, artElements = [] } = {}) {
+    const banner = $('levelBanner');
+    const attaching = elementById(attach);
+    if (attaching) {
+      // The banner names the element, so it is not static text for applyStatic to reset.
+      delete banner.dataset.i18n;
+      setText(banner, t('levelup.attach', {
+        name: t(`element.${attaching.name}.name`), glyph: attaching.glyph,
+      }));
+      $('cards').replaceChildren(...attachCards(upgrades, artElements));
+    } else {
+      banner.dataset.i18n = 'levelup.banner';
+      setText(banner, t('levelup.banner'));
+      $('cards').replaceChildren(...offerCards(choices, upgrades));
+    }
+    show('levelup');
+  }
+
+  /** One card per offered upgrade or element. A card's value is its slot. */
+  function offerCards(choices, upgrades) {
+    return choices.flatMap((id, slot) => {
       if (id < 0) return [];
-      const u = UPGRADES[id];
       const card = document.createElement('button');
       card.className = 'card';
       card.dataset.action = 'choose';
       card.dataset.value = String(slot);
+      if (id >= UPGRADES.length) {
+        const element = elementById(id - UPGRADES.length + 1);
+        if (!element) return [];
+        card.classList.add('element-card');
+        card.style.setProperty('--element', elementCss(element));
+        cardParts(card, [
+          ['key', String(slot + 1)],
+          ['glyph', element.glyph],
+          ['name', t(`element.${element.name}.name`)],
+          ['rank', t('levelup.element')],
+          ['desc', t(`element.${element.name}.desc`)],
+        ]);
+        return [card];
+      }
       const lvl = upgrades[id];
-      const parts = [
+      cardParts(card, [
         ['key', String(slot + 1)],
-        ['glyph', u.glyph],
+        ['glyph', UPGRADES[id].glyph],
         ['name', t(`upgrade.${id}.name`)],
         ['rank', lvl === 0 ? t('levelup.new') : t('levelup.rank', { from: lvl, to: lvl + 1 })],
         ['desc', t(`upgrade.${id}.desc`)],
-      ];
-      for (const [cls, text] of parts) {
-        const span = document.createElement('span');
-        span.className = cls;
-        span.textContent = text;
-        card.append(span);
-      }
+      ]);
       return [card];
-    }));
-    show('levelup');
+    });
+  }
+
+  /** One card per held art, in art id order. A card's value is the art's id. */
+  function attachCards(upgrades, artElements) {
+    const held = ARTS.filter((art) => upgrades[art.upgrade] > 0);
+    return held.map((art, i) => {
+      const card = document.createElement('button');
+      card.className = 'card art-card';
+      card.dataset.action = 'choose';
+      card.dataset.value = String(art.id);
+      const current = elementById(artElements[art.id] || 0);
+      if (current) {
+        card.classList.add('element-card');
+        card.style.setProperty('--element', elementCss(current));
+      }
+      cardParts(card, [
+        ['key', String(i + 1)],
+        ['glyph', UPGRADES[art.upgrade].glyph],
+        ['name', t(`upgrade.${art.upgrade}.name`)],
+        ['rank', current ? t('levelup.replaces', { name: t(`element.${current.name}.name`) }) : t('levelup.empty')],
+      ]);
+      return card;
+    });
   }
 
   function statRows(id, rows) {

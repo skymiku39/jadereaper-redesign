@@ -14,9 +14,9 @@ fn near(a: f32, b: f32) -> bool {
 fn base() -> Game {
     let mut g = Game::new(1);
     g.running = true;
-    g.t_scythe = 100.0;
-    g.t_talisman = 100.0;
-    g.t_pulse = 100.0;
+    g.arts[A_SCYTHE].timer = 100.0;
+    g.arts[A_TALISMAN].timer = 100.0;
+    g.arts[A_PULSE].timer = 100.0;
     g
 }
 
@@ -33,6 +33,7 @@ fn put(g: &mut Game, kind: u8, x: f32, y: f32) -> usize {
         flash: 0.0,
         seed: 0.5,
         bead_cd: 0.0,
+        tags: Default::default(),
         id,
         face: 1.0,
     });
@@ -58,7 +59,7 @@ fn scythe_level1_reach_arc_and_damage() {
     let side = put(&mut g, K_BLOT, 0.0, 100.0);
     // Very close enemies are hit even behind the player.
     let close_behind = put(&mut g, K_BLOT, -20.0, 0.0);
-    g.t_scythe = 0.0;
+    g.arts[A_SCYTHE].timer = 0.0;
     g.weapons(0.016);
     assert!(near(dealt(&g, near_e), 20.0)); // 14 + 6 * 1
     assert!(near(dealt(&g, far_e), 0.0));
@@ -82,7 +83,7 @@ fn scythe_max_level_reach_full_circle_and_damage() {
     let far_e = put(&mut g, K_BLOT, 206.0, 0.0);
     // Level 5 and up hit all around, including directly behind.
     let behind = put(&mut g, K_BLOT, -150.0, 0.0);
-    g.t_scythe = 0.0;
+    g.arts[A_SCYTHE].timer = 0.0;
     g.weapons(0.016);
     assert!(near(dealt(&g, near_e), 50.0)); // 14 + 6 * 6
     assert!(near(dealt(&g, far_e), 0.0));
@@ -97,7 +98,7 @@ fn scythe_full_circle_starts_at_level_5() {
         let mut g = base();
         g.up[U_SCYTHE] = lvl;
         let behind = put(&mut g, K_BLOT, -100.0, 0.0);
-        g.t_scythe = 0.0;
+        g.arts[A_SCYTHE].timer = 0.0;
         g.weapons(0.016);
         assert_eq!(dealt(&g, behind) > 0.0, expect_hit, "level {lvl}");
     }
@@ -109,7 +110,7 @@ fn scythe_follows_aim_direction() {
     g.player.aim = (0.0, 1.0);
     let down = put(&mut g, K_BLOT, 0.0, 100.0);
     let up = put(&mut g, K_BLOT, 0.0, -100.0);
-    g.t_scythe = 0.0;
+    g.arts[A_SCYTHE].timer = 0.0;
     g.weapons(0.016);
     assert!(near(dealt(&g, down), 20.0));
     assert!(near(dealt(&g, up), 0.0));
@@ -119,9 +120,9 @@ fn scythe_follows_aim_direction() {
 fn scythe_cooldown_is_0_9_seconds() {
     let mut g = base();
     let e = put(&mut g, K_BLOT, 50.0, 0.0);
-    g.t_scythe = 0.0;
+    g.arts[A_SCYTHE].timer = 0.0;
     g.weapons(0.016);
-    assert!(near(g.t_scythe, 0.9));
+    assert!(near(g.arts[A_SCYTHE].timer, 0.9));
     assert!(near(dealt(&g, e), 20.0));
     g.weapons(0.5); // 0.4 left, no swing
     assert!(near(dealt(&g, e), 20.0));
@@ -134,7 +135,7 @@ fn scythe_knockback_is_reduced_on_heavy_enemies() {
     let mut g = base();
     let blot = put(&mut g, K_BLOT, 50.0, 0.0);
     let brute = put(&mut g, K_BRUTE, 50.0, 0.0);
-    g.t_scythe = 0.0;
+    g.arts[A_SCYTHE].timer = 0.0;
     g.weapons(0.016);
     assert!(near(g.enemies[blot].kx, 240.0));
     assert!(near(g.enemies[brute].kx, 240.0 * 0.35));
@@ -147,7 +148,7 @@ fn talisman_is_off_until_taken() {
     let mut g = base();
     put(&mut g, K_BLOT, 100.0, 0.0);
     assert_eq!(g.up[U_TALISMAN], 0);
-    g.t_talisman = 0.0;
+    g.arts[A_TALISMAN].timer = 0.0;
     g.weapons(0.016);
     assert!(g.shots.is_empty());
 }
@@ -158,7 +159,7 @@ fn talisman_level1_one_shot_damage_pierce_and_cooldown() {
     g.up[U_TALISMAN] = 1;
     let e = put(&mut g, K_BLOT, 100.0, 0.0);
     put(&mut g, K_BLOT, 0.0, 200.0);
-    g.t_talisman = 0.0;
+    g.arts[A_TALISMAN].timer = 0.0;
     g.weapons(0.016);
     assert_eq!(g.shots.len(), 1); // 1 + 1 / 2
     let s = &g.shots[0];
@@ -166,7 +167,7 @@ fn talisman_level1_one_shot_damage_pierce_and_cooldown() {
     assert_eq!(s.pierce, 1); // 1 + 1 / 3
     assert!(near(s.vx, 540.0) && near(s.vy, 0.0)); // towards the nearest
     assert!(near(s.life, 1.3));
-    assert!(near(g.t_talisman, 0.95));
+    assert!(near(g.arts[A_TALISMAN].timer, 0.95));
     assert!(g.events.iter().any(|e| e[0] == EV_SHOOT));
     // The shot hits and, with pierce 1, is used up.
     for _ in 0..10 {
@@ -184,7 +185,7 @@ fn talisman_max_level_four_shots_and_pierce() {
     for k in 1..=5 {
         put(&mut g, K_BLOT, 100.0 * k as f32, 0.0);
     }
-    g.t_talisman = 0.0;
+    g.arts[A_TALISMAN].timer = 0.0;
     g.weapons(0.016);
     assert_eq!(g.shots.len(), 4); // 1 + 6 / 2 = 4
     for s in &g.shots {
@@ -198,7 +199,7 @@ fn talisman_max_level_pierces_through_enemies() {
     let mut g = base();
     g.up[U_TALISMAN] = UPGRADE_MAX[U_TALISMAN];
     let a = put(&mut g, K_BLOT, 100.0, 0.0);
-    g.t_talisman = 0.0;
+    g.arts[A_TALISMAN].timer = 0.0;
     g.weapons(0.016);
     assert_eq!(g.shots.len(), 1);
     let b = put(&mut g, K_BLOT, 250.0, 0.0);
@@ -215,12 +216,12 @@ fn talisman_range_and_idle_retry() {
     let mut g = base();
     g.up[U_TALISMAN] = 1;
     put(&mut g, K_BLOT, 521.0, 0.0); // just out of the 520 range
-    g.t_talisman = 0.0;
+    g.arts[A_TALISMAN].timer = 0.0;
     g.weapons(0.016);
     assert!(g.shots.is_empty());
-    assert!(near(g.t_talisman, 0.15)); // retries soon instead of 0.95
+    assert!(near(g.arts[A_TALISMAN].timer, 0.15)); // retries soon instead of 0.95
     put(&mut g, K_BLOT, 519.0, 0.0);
-    g.t_talisman = 0.0;
+    g.arts[A_TALISMAN].timer = 0.0;
     g.weapons(0.016);
     assert_eq!(g.shots.len(), 1);
 }
@@ -230,7 +231,7 @@ fn talisman_range_and_idle_retry() {
 #[test]
 fn beads_are_off_until_taken() {
     let mut g = base();
-    assert_eq!(g.bead_count(), 0);
+    assert_eq!(g.orbit_count(A_BEADS), 0);
     let e = put(&mut g, K_BLOT, 84.0, 0.0);
     g.weapons(0.016);
     assert!(near(dealt(&g, e), 0.0));
@@ -240,10 +241,10 @@ fn beads_are_off_until_taken() {
 fn beads_level1_two_beads_orbit_radius_and_damage() {
     let mut g = base();
     g.up[U_BEADS] = 1;
-    assert_eq!(g.bead_count(), 2);
+    assert_eq!(g.orbit_count(A_BEADS), 2);
     // At time 0 the beads sit at +/- radius on x (78 + 6 = 84).
-    let (b0x, b0y) = g.bead_pos(0, 2);
-    let (b1x, b1y) = g.bead_pos(1, 2);
+    let (b0x, b0y) = g.orbit_at(A_BEADS, 0);
+    let (b1x, b1y) = g.orbit_at(A_BEADS, 1);
     assert!(near(b0x, 84.0) && near(b0y, 0.0));
     assert!(near(b1x, -84.0) && near(b1y, 0.0));
     let on = put(&mut g, K_BLOT, 84.0, 0.0);
@@ -274,11 +275,11 @@ fn beads_per_enemy_cooldown() {
 fn beads_max_level_seven_beads_and_damage() {
     let mut g = base();
     g.up[U_BEADS] = UPGRADE_MAX[U_BEADS];
-    assert_eq!(g.bead_count(), 7); // 1 + 6
+    assert_eq!(g.orbit_count(A_BEADS), 7); // 1 + 6
     let radius = 78.0 + 36.0;
     let mut idx = Vec::new();
     for k in 0..7 {
-        let (bx, by) = g.bead_pos(k, 7);
+        let (bx, by) = g.orbit_at(A_BEADS, k);
         // Orbit is squashed vertically to 0.8.
         let a = k as f32 * TAU / 7.0;
         assert!(near(bx, a.cos() * radius) && near(by, a.sin() * radius * 0.8));
@@ -295,7 +296,7 @@ fn beads_orbit_moves_with_time() {
     let mut g = base();
     g.up[U_BEADS] = 1;
     g.time = 1.0;
-    let (x, y) = g.bead_pos(0, 2);
+    let (x, y) = g.orbit_at(A_BEADS, 0);
     assert!(near(x, 84.0 * 2.8f32.cos()));
     assert!(near(y, 84.0 * 2.8f32.sin() * 0.8));
 }
@@ -307,7 +308,7 @@ fn pulse_is_off_until_taken() {
     let mut g = Game::new(1);
     g.running = true;
     let e = put(&mut g, K_BLOT, 50.0, 0.0);
-    g.t_scythe = 100.0;
+    g.arts[A_SCYTHE].timer = 100.0;
     g.weapons(10.0);
     assert!(near(dealt(&g, e), 0.0));
 }
@@ -316,8 +317,8 @@ fn pulse_is_off_until_taken() {
 fn pulse_level1_first_fire_radius_damage_and_cooldown() {
     let mut g = base();
     g.up[U_PULSE] = 1;
-    g.t_pulse = Game::new(1).t_pulse;
-    assert!(near(g.t_pulse, 2.0)); // first pulse after 2 seconds
+    g.arts[A_PULSE].timer = Game::new(1).arts[A_PULSE].timer;
+    assert!(near(g.arts[A_PULSE].timer, 2.0)); // first pulse after 2 seconds
     let inside = put(&mut g, K_BLOT, 179.0, 0.0); // radius 150 + 30
     let outside = put(&mut g, K_BLOT, 181.0, 0.0);
     g.weapons(1.9);
@@ -326,7 +327,7 @@ fn pulse_level1_first_fire_radius_damage_and_cooldown() {
     assert!(near(dealt(&g, inside), 16.0)); // 10 + 6 * 1
     assert!(near(dealt(&g, outside), 0.0));
     assert!(near(g.enemies[inside].kx, 520.0));
-    assert!(near(g.t_pulse, 4.2));
+    assert!(near(g.arts[A_PULSE].timer, 4.2));
     assert!(g.events.iter().any(|e| e[0] == EV_PULSE));
     // Not again until 4.2 seconds pass.
     g.weapons(4.0);
@@ -341,7 +342,7 @@ fn pulse_max_level_radius_and_damage() {
     g.up[U_PULSE] = UPGRADE_MAX[U_PULSE];
     let inside = put(&mut g, K_BLOT, 329.0, 0.0); // radius 150 + 180
     let outside = put(&mut g, K_BLOT, 331.0, 0.0);
-    g.t_pulse = 0.0;
+    g.arts[A_PULSE].timer = 0.0;
     g.weapons(0.016);
     assert!(near(dealt(&g, inside), 46.0)); // 10 + 6 * 6
     assert!(near(dealt(&g, outside), 0.0));
@@ -356,7 +357,7 @@ fn pulse_hits_in_every_direction() {
     g.up[U_PULSE] = 1;
     let pts = [(100.0, 0.0), (-100.0, 0.0), (0.0, 100.0), (0.0, -100.0)];
     let idx: Vec<usize> = pts.iter().map(|&(x, y)| put(&mut g, K_BLOT, x, y)).collect();
-    g.t_pulse = 0.0;
+    g.arts[A_PULSE].timer = 0.0;
     g.weapons(0.016);
     for i in idx {
         assert!(near(dealt(&g, i), 16.0));
@@ -419,9 +420,9 @@ fn might_scales_weapon_damage() {
     g.up[U_BEADS] = 1;
     g.up[U_TALISMAN] = 1;
     let e = put(&mut g, K_BLOT, 84.0, 0.0);
-    g.t_scythe = 0.0;
-    g.t_pulse = 0.0;
-    g.t_talisman = 0.0;
+    g.arts[A_SCYTHE].timer = 0.0;
+    g.arts[A_PULSE].timer = 0.0;
+    g.arts[A_TALISMAN].timer = 0.0;
     g.weapons(0.016);
     // scythe 20 + pulse 16 + bead 9, each x1.6
     assert!(near(dealt(&g, e), (20.0 + 16.0 + 9.0) * 1.6));
@@ -435,14 +436,14 @@ fn haste_shortens_cooldowns() {
     g.up[U_TALISMAN] = 1;
     g.up[U_PULSE] = 1;
     put(&mut g, K_BLOT, 100.0, 0.0);
-    g.t_scythe = 0.0;
-    g.t_talisman = 0.0;
-    g.t_pulse = 0.0;
+    g.arts[A_SCYTHE].timer = 0.0;
+    g.arts[A_TALISMAN].timer = 0.0;
+    g.arts[A_PULSE].timer = 0.0;
     g.weapons(0.016);
     let h = 0.92f32.powi(5);
-    assert!(near(g.t_scythe, 0.9 * h));
-    assert!(near(g.t_talisman, 0.95 * h));
-    assert!(near(g.t_pulse, 4.2 * h));
+    assert!(near(g.arts[A_SCYTHE].timer, 0.9 * h));
+    assert!(near(g.arts[A_TALISMAN].timer, 0.95 * h));
+    assert!(near(g.arts[A_PULSE].timer, 4.2 * h));
 }
 
 #[test]
@@ -509,7 +510,9 @@ fn offer_gives_three_distinct_valid_choices() {
         assert!(g.events.iter().any(|e| e[0] == EV_LEVELUP));
         let c = g.choices;
         for k in 0..3 {
-            assert!(c[k] >= 0 && (c[k] as usize) < N_UPGRADES, "seed {seed}: {c:?}");
+            // The last card may be an element card instead of an upgrade.
+            let most = if k == 2 { N_UPGRADES + N_ELEMENTS } else { N_UPGRADES };
+            assert!(c[k] >= 0 && (c[k] as usize) < most, "seed {seed}: {c:?}");
             for j in 0..k {
                 assert_ne!(c[k], c[j], "seed {seed}: {c:?}");
             }
@@ -521,6 +524,7 @@ fn offer_gives_three_distinct_valid_choices() {
 fn offer_never_includes_maxed_upgrades() {
     for seed in 1..100u32 {
         let mut g = Game::new(seed);
+        g.tune[T_ELEMENT_CARDS] = 0.0;
         g.up = UPGRADE_MAX;
         // Leave three upgrades one level short.
         for id in [U_PULSE, U_SWIFT, U_MENDING] {
@@ -663,6 +667,8 @@ fn fold(g: &Game) -> u64 {
 
 fn whole_run() -> (u32, u32, f32, usize, u64) {
     let mut g = Game::new(42);
+    // No element cards: this run pins down how the game plays without elements.
+    g.tune[T_ELEMENT_CARDS] = 0.0;
     g.set_view(640.0, 360.0);
     g.running = true;
     g.input = (1.0, 0.5);

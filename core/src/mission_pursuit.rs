@@ -76,6 +76,7 @@ impl Game {
             flash: 0.0,
             seed,
             bead_cd: 0.0,
+            tags: Default::default(),
             id: PURSUIT_ID,
             face: 1.0,
         });
@@ -461,6 +462,7 @@ mod tests {
             flash: 0.0,
             seed: 0.5,
             bead_cd: 0.0,
+            tags: Default::default(),
             id: 1,
             face: 1.0,
         });

@@ -35,7 +35,7 @@ npm run smoke
 | Menu move | Arrow keys or WASD | Stick or d-pad |
 | Menu confirm | Enter or Space | A |
 | Back | Esc | B |
-| Pick upgrade | 1, 2, 3 | Stick, then A |
+| Pick a card | 1, 2, 3 (1 to 6 when choosing a martial art for an element) | Stick, then A |
 | Mute | M | |
 
 Attacks are automatic. The game pauses itself when the window loses focus.
@@ -52,11 +52,14 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 
 | Path | What it is |
 | --- | --- |
-| `content/game.toml` | Part, upgrade, event and mission ids, upgrade max levels and glyphs, mission goals, tunes (the numbers a mission's setup screen can change), state indices, ink colour |
+| `content/game.toml` | Part, upgrade, event and mission ids, upgrade max levels and glyphs, the martial arts, magic elements and reactions with all their numbers, mission goals, tunes (the numbers a mission's setup screen can change), state indices, ink colour |
 | `core/` | Rust simulation. No dependencies, no bindgen. |
-| `core/src/defs.rs` | Instance format, enemy table, re-exports the generated ids |
+| `core/src/defs.rs` | Instance format, enemy table, re-exports the generated ids and tables |
+| `core/src/schema.rs` | The shapes of the generated content tables (martial arts, elements, reactions) |
 | `core/src/generated.rs` | Generated from `content/game.toml` |
-| `core/src/game.rs` | State, simulation step, puppet posing, instance building |
+| `core/src/game.rs` | State, simulation step, level-up cards, puppet posing, instance building |
+| `core/src/arts.rs` | Martial arts: one function per behaviour (`arc`, `projectile`, `orbit`, `nova`) |
+| `core/src/elements.rs` | Magic elements: what each effect does on a hit, the tags on enemies and the reactions between them |
 | `core/src/fmath.rs` | Float functions that give the same result natively and in wasm |
 | `core/src/lib.rs` | The `jr_*` functions exported to JavaScript, and tests |
 | `wasm/` | Built core |
@@ -91,10 +94,10 @@ The scripts need Node 26 (see `.node-version`) and the dev dependencies that `np
 Each frame the host calls `jr_input`, then `jr_update(dt)`. The core turns that real time into whole simulation steps of 1/60 s, so the same seed and inputs always play the same run. The host then reads three buffers out of wasm memory:
 
 - Instances: 12 floats per paper part (`x, y, half width, half height, rotation, part id, flash, seed, r, g, b, a`). These bytes go to the GPU unchanged.
-- State: 32 floats for the HUD (health, experience, time, offered upgrades and so on). Indices are the `[[state]]` entries in `content/game.toml`, generated as `STATE` in JavaScript and `S_*` in Rust.
+- State: a fixed run of floats for the HUD (health, experience, time, offered cards and so on; `state_floats` in the content file says how many). Indices are the `[[state]]` entries in `content/game.toml`, generated as `STATE` in JavaScript and `S_*` in Rust.
 - Events: 4 floats each (`type, x, y, value`), used for sound.
 
-When the core sets the "choosing" flag the host shows the upgrade cards and answers with `jr_choose(slot)`. A run starts with `jr_start(seed, mission)`; the core sets "won" when the mission's goal is met and "over" when the run is lost, and stops the run either way. A run is lost when the player dies; three missions can also be lost while the player lives (the pursuit target escapes, the escorted villager falls, the shrine falls), and each sets its own state flag so the game-over screen can say why.
+When the core sets the "choosing" flag the host shows the offered cards and answers with `jr_choose(slot)`. A card is an upgrade id, or `number of upgrades + element id - 1` for an element card. After an element card the choice stays open and the "attach" state holds that element's id: the host then shows the held martial arts and answers with `jr_choose(art id)`, which puts the element on that art in place of the one it carried. A run starts with `jr_start(seed, mission)`; the core sets "won" when the mission's goal is met and "over" when the run is lost, and stops the run either way. A run is lost when the player dies; three missions can also be lost while the player lives (the pursuit target escapes, the escorted villager falls, the shrine falls), and each sets its own state flag so the game-over screen can say why.
 
 ## Build the core
 
@@ -119,7 +122,11 @@ Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (
 - New enemy: add a row to `KINDS` in `core/src/defs.rs` and a spawn rule in `Game::spawn`.
 - New mission: add a `[[mission]]` entry (next id, name, goal) to `content/game.toml`, its win rule in `Game::mission_won` and its progress in `Game::progress` in `core/src/game.rs`, and its text as `mission.<name>.name` and `.desc` in every language in `src/i18n.js` (a timed mission also has `.hud`, the label beside its countdown). The title screen builds its button from the generated list, and the button opens the mission's setup screen; how the HUD shows the goal is in `hud` in `src/ui.js`. A mission with its own state (things on the map, a target, waves) keeps its rules, numbers, drawing and tests in `core/src/mission_<name>.rs`, held as one field on `Game` and called from a few hooks in `game.rs`. Some of these files are declared in `core/src/lib.rs` and some from `game.rs` with `#[path]` (those reach private parts of `Game`); the two ways are not unified yet.
 - New tune (a number of a mission that the setup screen can change for a test run): add a `[[tune]]` entry (next id, name, mission or `"any"`, default, min, max, step) to `content/game.toml`, read it in the core as `self.tune[T_<NAME>]` instead of a constant, and add its label as `tune.<name>` in every language in `src/i18n.js`. A tune named `<mission>_goal` is that mission's goal. The setup screen builds its steppers from the generated list. A run with any tune off its default is a test run and is not recorded; the checks and the recorded runs only ever use the defaults.
-- New upgrade: add an `[[upgrade]]` entry (next id, name, max level, glyph) to `content/game.toml`, its effect in `Game::weapons` or where the stat is read, and its card text as `upgrade.<id>.name` and `upgrade.<id>.desc` in every language in `src/i18n.js`.
+- New passive upgrade: add an `[[upgrade]]` entry (next id, name, max level, glyph) to `content/game.toml`, its effect where the stat is read in the core, and its card text as `upgrade.<id>.name` and `upgrade.<id>.desc` in every language in `src/i18n.js`.
+- New martial art of an existing behaviour: add an `[[upgrade]]` entry for its card and an `[[art]]` entry of the same name (behaviour, part, and its numbers per level; the comment above `[[art]]` in the content file says what each means), plus the card text. No Rust or JavaScript changes. A new behaviour is a new function in `core/src/arts.rs` and a name in `BEHAVIOURS` in `tools/gen/src/content.rs`. The player holds at most `max_arts` arts.
+- New element: add an `[[element]]` entry (next id, name, glyph, colour, effect and the effect's numbers) and its text as `element.<name>.name` and `.desc`, then run `tools/subset-fonts.sh` for the new glyph. An element with an existing effect needs no code; a new effect is a new arm in `Game::strike` (and `Game::tick_tags` if it does something over time) in `core/src/elements.rs`, and a name in `EFFECTS` in the generator. The `start_element` tune's `max` and its label list the element ids, so raise them too.
+- New reaction: add a `[[reaction]]` entry naming two elements that leave a tag, its kind and its numbers. A new kind is a new arm in `Game::react`.
+- Changing a number of an art, an element or a reaction is an edit of the content file and `./build.sh`.
 - New text: add a key to every language in `src/i18n.js`, then use `t(key)` in code or a `data-i18n` attribute in `index.html`. Missing keys fall back to English.
 - New language: add its code to `LANGS` and a table to `STRINGS` in `src/i18n.js`, and to start new players in it, set `DEFAULT_LANG`.
 - New part shape: add a `[[part]]` entry to `content/game.toml`, then a `case PART_<NAME>` in `shape()` in `src/shader.wgsl` (and in `isFlat` if it is a flat mark).
@@ -127,7 +134,8 @@ Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (
 ## What is in the backbone
 
 - Four enemy kinds (blot, wisp, brute, elite every 90 seconds) with time-scaled health and spawn rate, capped at 500 on screen
-- Four weapons (scythe, talisman, jade beads, spirit pulse) and six passive upgrades, with level-up choices
+- Four martial arts (scythe, talisman, jade beads, spirit pulse), defined as data, and six passive upgrades, with level-up choices
+- Seven magic elements (metal, wood, water, fire, earth, lightning, holy). An element card turns up among the level-up cards now and then; the player puts it on one martial art, which then adds the element's effect to every hit: a guard, a slow heal, a delayed second blow, a burn, a throw and hold, a chain to nearby enemies, or extra damage to spirits. Three pairs react when both tags meet on one enemy (fire and lightning, water and lightning, water and fire). Every number is a first pick that nobody has played yet. Two tunes on every setup screen help to try them: the chance of an element card and an element to start with
 - Experience gems, health drops, pickup magnet, knockback, invulnerability frames, camera shake
 - Every mission opens with an accept phase (`core/src/accept.rs`): the player starts away from a circle, walks to it and stands in it for a few seconds, and only then does the mission begin. No enemies come before that. The distance and the time are tunes; a time of 0 skips the phase. Each edge-of-screen marker carries a tag with the distance to what it points at.
 - Missions picked on the title screen: "Hold Out" (stay alive for five minutes), "Cull" (cut down 1,500 spirits), endless, and nine prototypes tuned against bots only: break the formation (destroy five nodes that spawn spirits), arena (ten waves, one at a time), retrieval (carry three relics home, slower while carrying), pursuit (kill a fleeing target before it reaches the exit), escort (walk a villager to a shrine), hold the shrine (stand in its circle for five minutes), break out (reach a far exit), boss fight (a boss with a charge, a ring of ink shots and a summoned pack) and vendetta (kill a marked group at a far place)

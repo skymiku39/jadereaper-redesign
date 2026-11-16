@@ -5,7 +5,7 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
 import { loadSave, writeSave, recordRun, recordMission, clearRecords, tuneValue, setTune } from './save.js';
-import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES } from './data.js';
+import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, EVENT } from './data.js';
 import { pickLang, setLang, getLang, nextLang } from './i18n.js';
 
 async function boot() {
@@ -42,6 +42,13 @@ async function boot() {
   // Views are rebuilt on every read because wasm memory can grow and detach them.
   const readState = () => new Float32Array(core.memory.buffer, core.jr_state_ptr(), STATE_FLOATS);
   const upgradeLevels = (s) => Array.from(s.subarray(STATE.UPGRADE0, STATE.UPGRADE0 + UPGRADES.length));
+  // Per art id, the id of the element the art carries (0 for none).
+  const artElements = (s) => Array.from(s.subarray(STATE.ART_ELEMENT0, STATE.ART_ELEMENT0 + ARTS.length));
+  /** Show the level-up screen: the offered cards, or the held arts while an element waits for one. */
+  const showLevelUp = (s) => ui.levelUp(
+    Array.from(s.subarray(STATE.CHOICE0, STATE.CHOICE0 + 3)), upgradeLevels(s),
+    { attach: s[STATE.ATTACH], artElements: artElements(s) },
+  );
 
   function toTitle() {
     core.jr_reset(seed());
@@ -152,10 +159,16 @@ async function boot() {
 
   /** The core may offer another choice straight away if several levels were gained at once. */
   function afterChoice() {
+    // jr_choose reports an element put on an art, and jr_update clears events first, so play it now.
+    const count = core.jr_event_count();
+    if (count) {
+      const ev = new Float32Array(core.memory.buffer, core.jr_events_ptr(), count * 4);
+      for (let i = 0; i < count; i++) if (ev[i * 4] === EVENT.ATTACH) audio.play(EVENT.ATTACH);
+    }
     core.jr_update(0);
     const s = readState();
     if (s[STATE.CHOOSING]) {
-      ui.levelUp(Array.from(s.subarray(STATE.CHOICE0, STATE.CHOICE0 + 3)), upgradeLevels(s));
+      showLevelUp(s);
     } else {
       mode = 'playing';
       ui.show(null);
@@ -228,6 +241,8 @@ async function boot() {
         level: s[STATE.LEVEL], time: s[STATE.TIME], kills: s[STATE.KILLS], enemies: s[STATE.ENEMIES],
         // Until the mission is accepted the core plays no mission, so the HUD shows none either.
         upgrades: upgradeLevels(s), mission: accepting ? MISSIONS[MISSION_IDS.endless] : mission,
+        // What the elements on the arts are doing: the metal guard and wood's slow healing.
+        artElements: artElements(s), guard: s[STATE.GUARD], guardMax: s[STATE.GUARD_MAX], regrow: s[STATE.REGROW],
         accept: accepting ? { held: s[STATE.ACCEPT_HELD], need: s[STATE.ACCEPT_NEED] } : null,
         goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],
         // Values of single missions; the HUD ignores them in the others.
@@ -268,7 +283,7 @@ async function boot() {
         }
       } else if (s[STATE.CHOOSING]) {
         mode = 'levelup';
-        ui.levelUp(Array.from(s.subarray(STATE.CHOICE0, STATE.CHOICE0 + 3)), upgradeLevels(s));
+        showLevelUp(s);
       }
     }
 

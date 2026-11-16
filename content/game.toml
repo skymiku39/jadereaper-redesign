@@ -17,7 +17,11 @@
 ink = [0.17, 0.15, 0.13]
 
 # Size of the HUD state buffer in floats.
-state_floats = 60
+state_floats = 80
+
+# How many martial arts the player can hold at once. An art not yet held is
+# not offered once this many are.
+max_arts = 6
 
 # ---------------------------------------------------------------- parts
 # Paper part ids, sent to the renderer in each instance. The name is also the
@@ -161,6 +165,226 @@ name = "mending"
 max = 5
 glyph = "癒"
 
+# ------------------------------------------------------------------ arts
+# Martial arts (武學): how the player attacks. Each has one `behaviour`, which
+# is code in core/src/arts.rs, and the numbers below. A new art of an existing
+# behaviour is a new [[upgrade]] (its card, glyph and top level) and an
+# [[art]] of the same name, with its text in src/i18n.js.
+#
+# Ids index a table, so they run 0, 1, 2... without gaps; arts act in id order.
+# `part` is the part drawn for the swing, shot, bead or ring. `start_level` is
+# the level held when a run starts (left out: not held). `first_delay` is the
+# wait before the first use.
+#
+# These keys take one number, or a list with one number per level:
+#   damage     per hit, before the might passive
+#   cooldown   seconds between uses, before the haste passive
+#              (orbit: seconds before the same enemy can be hit again)
+#   count      arc: slash marks drawn; projectile: shots; orbit: beads
+#   reach      arc and nova: radius; orbit: distance from the player
+#   width      arc only: an enemy is hit when the cosine of the angle between
+#              the aim and the enemy is above this; -2 hits all round
+#   pierce     projectile only: enemies one shot can hit
+#   knockback  speed the enemy is pushed away at
+#              (projectile: a share of the shot's speed instead)
+# `speed`, `life` and `range` are the same at every level: a projectile's
+# speed, its seconds of flight and how near an enemy must be to be shot at;
+# for orbit, `speed` is the turn rate in radians per second.
+
+[[art]]
+id = 0
+name = "scythe"
+behaviour = "arc"
+part = "slash"
+start_level = 1
+first_delay = 0.6
+damage = [20, 26, 32, 38, 44, 50]
+cooldown = 0.9
+count = [1, 1, 1, 1, 2, 2]
+reach = [119, 133, 147, 161, 175, 189]
+width = [-0.15, -0.15, -0.15, -0.15, -2, -2]
+knockback = 240
+
+[[art]]
+id = 1
+name = "talisman"
+behaviour = "projectile"
+part = "talisman"
+first_delay = 0.5
+damage = [12, 16, 20, 24, 28, 32]
+cooldown = 0.95
+count = [1, 2, 2, 3, 3, 4]
+pierce = [1, 1, 2, 2, 2, 3]
+knockback = 0.3
+speed = 540
+life = 1.3
+range = 520
+
+[[art]]
+id = 2
+name = "beads"
+behaviour = "orbit"
+part = "bead"
+damage = [9, 12, 15, 18, 21, 24]
+cooldown = 0.45
+count = [2, 3, 4, 5, 6, 7]
+reach = [84, 90, 96, 102, 108, 114]
+knockback = 160
+speed = 2.8
+
+[[art]]
+id = 3
+name = "pulse"
+behaviour = "nova"
+part = "ring"
+first_delay = 2.0
+damage = [16, 22, 28, 34, 40, 46]
+cooldown = 4.2
+reach = [180, 210, 240, 270, 300, 330]
+knockback = 520
+
+# -------------------------------------------------------------- elements
+# Magic elements (魔法): what a martial art adds to its hits once the element's
+# card is put on it. An art carries one element at most; a new card replaces
+# the old one. Ids run from 1 (0 means no element). `glyph` is the mark on
+# cards and HUD chips, `color` tints the art and the tag on enemies. Text is
+# element.<name>.name and .desc in src/i18n.js.
+#
+# `effect` is code in core/src/elements.rs; the numbers mean, per effect:
+#   guard   acts on the player: each hit adds `power` guard, up to `cap`.
+#           Guard takes damage before health. After `time` seconds without
+#           a hit it fades by `rate` per second.
+#   regrow  acts on the player: a hit starts `time` seconds of healing
+#           `power` health per second. More hits only restart the time.
+#   surge   `time` seconds after the hit, the enemy takes `power` times the
+#           hit's damage. A second hit before then keeps the larger amount.
+#   burn    for `time` seconds the enemy takes `power` times the hit's damage
+#           per second, in ticks `rate` seconds apart. A new hit restarts the
+#           time and does not add up.
+#   root    the enemy is pushed away at `power` and cannot move for `time`
+#           seconds. It cannot be rooted again for `rest` seconds after that.
+#   chain   `power` times the hit's damage jumps to the `count` nearest
+#           enemies within `reach`. The tag lasts `time` seconds.
+#   bane    the hit does `power` times more damage to corpse enemies and
+#           `minor` times more to the others. The tag lasts `time` seconds.
+# guard and regrow leave no tag on the enemy, so they take no part in reactions.
+# Every number is a first pick, to be settled by playing.
+
+[[element]]
+id = 1
+name = "metal"
+glyph = "金"
+color = [0.80, 0.70, 0.36]
+effect = "guard"
+power = 3
+cap = 30
+time = 2.0
+rate = 6
+
+[[element]]
+id = 2
+name = "wood"
+glyph = "木"
+color = [0.36, 0.62, 0.30]
+effect = "regrow"
+power = 1.5
+time = 3.0
+
+[[element]]
+id = 3
+name = "water"
+glyph = "水"
+color = [0.25, 0.48, 0.70]
+effect = "surge"
+power = 0.7
+time = 0.8
+
+[[element]]
+id = 4
+name = "fire"
+glyph = "火"
+color = [0.82, 0.34, 0.18]
+effect = "burn"
+power = 0.6
+time = 3.0
+rate = 0.5
+
+[[element]]
+id = 5
+name = "earth"
+glyph = "土"
+color = [0.55, 0.42, 0.26]
+effect = "root"
+power = 260
+time = 0.6
+rest = 2.0
+
+[[element]]
+id = 6
+name = "lightning"
+glyph = "雷"
+color = [0.56, 0.40, 0.78]
+effect = "chain"
+power = 0.4
+count = 3
+reach = 150
+time = 2.0
+
+[[element]]
+id = 7
+name = "holy"
+glyph = "聖"
+color = [0.92, 0.86, 0.62]
+effect = "bane"
+power = 0.6
+minor = 0.2
+time = 2.0
+
+# ------------------------------------------------------------- reactions
+# What happens when a hit leaves an element's tag on an enemy that already
+# holds the tag of the other element of a pair. The reaction ends both tags
+# and whatever they were still going to do (a burn stops, a surge never comes).
+# A pair has one reaction at most; they are tried in id order.
+#
+# `kind` is code in core/src/elements.rs:
+#   burst   every enemy within `reach` of the struck one takes `power` times
+#           the hit's damage.
+#   relay   the surge waiting on the enemy goes off at once at `power` times
+#           its size, and the same again on the `count` nearest enemies
+#           within `reach`.
+# `color` is the colour of the ring it draws.
+
+[[reaction]]
+id = 0
+name = "blast"
+a = "fire"
+b = "lightning"
+kind = "burst"
+power = 1.5
+reach = 110
+color = [0.90, 0.50, 0.16]
+
+[[reaction]]
+id = 1
+name = "conduct"
+a = "water"
+b = "lightning"
+kind = "relay"
+power = 1.5
+count = 3
+reach = 150
+color = [0.42, 0.52, 0.86]
+
+[[reaction]]
+id = 2
+name = "steam"
+a = "water"
+b = "fire"
+kind = "burst"
+power = 0.9
+reach = 160
+color = [0.80, 0.80, 0.78]
+
 # --------------------------------------------------------------- events
 # Event types the core reports to the host (used for sound). 0 is not used.
 
@@ -211,6 +435,16 @@ name = "elite"
 [[event]]
 id = 12
 name = "win"
+
+# Two element tags met on an enemy. The value is the reaction's id.
+[[event]]
+id = 13
+name = "react"
+
+# An element card was put on a martial art. The value is the element's id.
+[[event]]
+id = 14
+name = "attach"
 
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...
@@ -743,6 +977,27 @@ min = 0
 max = 10
 step = 1
 
+# The chance that a level-up offers an element card as its last card.
+[[tune]]
+id = 44
+name = "element_cards"
+mission = "any"
+default = 0.35
+min = 0.0
+max = 1.0
+step = 0.05
+
+# The element the first martial art carries when the run starts, by element
+# id (1 metal ... 7 holy). 0 starts with none. For trying one element out.
+[[tune]]
+id = 45
+name = "start_element"
+mission = "any"
+default = 0
+min = 0
+max = 7
+step = 1
+
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
 # first float. A field with `len` is a run of floats; its constant gets a 0
@@ -908,3 +1163,30 @@ index = 41
 [[state]]
 name = "accept_need"
 index = 42
+
+# Choosing where an element card goes: the id of the element being attached,
+# 0 when none is. While it is set, `jr_choose` takes the id of a held art.
+[[state]]
+name = "attach"
+index = 60
+
+# The player's guard (the metal element): how much is held, and the most it can be.
+[[state]]
+name = "guard"
+index = 61
+
+[[state]]
+name = "guard_max"
+index = 62
+
+# Seconds of the slow heal (the wood element) left.
+[[state]]
+name = "regrow"
+index = 63
+
+# The element each martial art carries, by element id; 0 for none.
+[[state]]
+name = "art_element"
+index = 64
+
+len = "art"

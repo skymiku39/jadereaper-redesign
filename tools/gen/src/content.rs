@@ -244,6 +244,77 @@ pub struct Tune {
     pub step: String,
 }
 
+/// What a martial art does. The core has one function per behaviour.
+pub const BEHAVIOURS: [&str; 4] = ["arc", "projectile", "orbit", "nova"];
+
+/// The numbers of a martial art that can differ per level, in the order of `Art::levels`.
+pub const ART_LEVEL_KEYS: [&str; 7] = ["damage", "cooldown", "count", "reach", "width", "pierce", "knockback"];
+
+/// The level keys that are whole numbers.
+const ART_WHOLE_KEYS: [&str; 2] = ["count", "pierce"];
+
+/// A martial art (武學): one behaviour with its numbers. Its level is the level of the upgrade of the same name.
+#[derive(Clone, Debug)]
+pub struct Art {
+    pub id: u32,
+    pub name: String,
+    pub behaviour: String,
+    /// The part drawn for its swing, shot, bead or ring.
+    pub part: String,
+    /// The level the player holds it at when a run starts; 0 for not held.
+    pub start_level: u32,
+    pub first_delay: String,
+    pub speed: String,
+    pub life: String,
+    pub range: String,
+    /// One list per key of `ART_LEVEL_KEYS`, each with one value per level, as written.
+    pub levels: Vec<Vec<String>>,
+}
+
+/// What an element does on a hit. The core has one piece of code per effect.
+/// `guard` and `regrow` act on the player and leave no tag on the enemy.
+pub const EFFECTS: [&str; 7] = ["guard", "regrow", "surge", "burn", "root", "chain", "bane"];
+
+/// The optional numbers of an element, in the order of `Element::numbers`. Each defaults to 0.
+pub const ELEMENT_KEYS: [&str; 7] = ["power", "minor", "time", "cap", "rate", "reach", "rest"];
+
+/// A magic element (魔法) that a martial art can carry.
+#[derive(Clone, Debug)]
+pub struct Element {
+    pub id: u32,
+    pub name: String,
+    pub glyph: String,
+    pub color: [String; 3],
+    pub effect: String,
+    /// One value per key of `ELEMENT_KEYS`, as written.
+    pub numbers: Vec<String>,
+    pub count: u32,
+}
+
+impl Element {
+    /// Whether a hit leaves this element's tag on the enemy.
+    pub fn tags(&self) -> bool {
+        self.effect != "guard" && self.effect != "regrow"
+    }
+}
+
+/// How a reaction plays out. The core has one piece of code per kind.
+pub const REACTION_KINDS: [&str; 2] = ["burst", "relay"];
+
+/// What happens when an enemy holds the tags of two elements at once.
+#[derive(Clone, Debug)]
+pub struct Reaction {
+    pub id: u32,
+    pub name: String,
+    pub a: String,
+    pub b: String,
+    pub kind: String,
+    pub power: String,
+    pub reach: String,
+    pub count: u32,
+    pub color: [String; 3],
+}
+
 #[derive(Clone, Debug)]
 pub struct StateField {
     pub name: String,
@@ -257,8 +328,13 @@ pub struct StateField {
 pub struct Content {
     pub ink: [String; 3],
     pub state_floats: u32,
+    /// How many martial arts the player can hold at once.
+    pub max_arts: u32,
     pub parts: Vec<Part>,
     pub upgrades: Vec<Upgrade>,
+    pub arts: Vec<Art>,
+    pub elements: Vec<Element>,
+    pub reactions: Vec<Reaction>,
     pub events: Vec<Event>,
     pub missions: Vec<Mission>,
     pub tunes: Vec<Tune>,
@@ -348,6 +424,98 @@ impl<'a> Fields<'a> {
         }
     }
 
+    /// A number that may be left out, in which case it is 0.
+    fn number_or_zero(&mut self, key: &'a str) -> Option<String> {
+        if self.t.entries.iter().any(|e| e.key == key) {
+            self.number(key)
+        } else {
+            self.used.push(key);
+            Some("0".to_string())
+        }
+    }
+
+    /// A whole number that may be left out, in which case it is 0.
+    fn uint_or_zero(&mut self, key: &'a str) -> Option<u32> {
+        if self.t.entries.iter().any(|e| e.key == key) {
+            self.uint(key)
+        } else {
+            self.used.push(key);
+            Some(0)
+        }
+    }
+
+    /// Three numbers from 0 to 1, as written.
+    fn rgb(&mut self, key: &'a str) -> Option<[String; 3]> {
+        let e = match self.get(key) {
+            Some(e) => e,
+            None => {
+                self.missing(key);
+                return None;
+            }
+        };
+        let items = match &e.value {
+            Value::Array(items) if items.len() == 3 => items,
+            _ => {
+                self.wrong(e, "an array of 3 numbers");
+                return None;
+            }
+        };
+        let mut out: Vec<String> = Vec::new();
+        for v in items {
+            let text = match v {
+                Value::Int(i) => i.to_string(),
+                Value::Num(s) => s.clone(),
+                _ => break,
+            };
+            match text.parse::<f64>() {
+                Ok(x) if (0.0..=1.0).contains(&x) => out.push(text),
+                _ => break,
+            }
+        }
+        if out.len() != 3 {
+            self.errs.push(format!("line {}: `{key}` values must be numbers from 0 to 1", e.line));
+            return None;
+        }
+        Some([out[0].clone(), out[1].clone(), out[2].clone()])
+    }
+
+    /// One of a fixed set of words.
+    fn word(&mut self, key: &'a str, allowed: &[&str]) -> Option<String> {
+        let line = self.t.entries.iter().find(|e| e.key == key).map_or(self.t.line, |e| e.line);
+        let w = self.string(key)?;
+        if !allowed.contains(&w.as_str()) {
+            self.errs.push(format!("line {line}: `{key}` is \"{w}\", but must be one of: {}", allowed.join(", ")));
+            return None;
+        }
+        Some(w)
+    }
+
+    /// A number for every level, or a list with one number per level, kept as
+    /// written with its line. A key left out is 0 at every level.
+    fn per_level(&mut self, key: &'a str) -> Option<(Vec<String>, usize)> {
+        let e = match self.get(key) {
+            Some(e) => e,
+            None => return Some((vec!["0".to_string()], self.t.line)),
+        };
+        let text = |v: &Value| match v {
+            Value::Int(i) => Some(i.to_string()),
+            Value::Num(s) => Some(s.clone()),
+            _ => None,
+        };
+        let list: Option<Vec<String>> = match &e.value {
+            Value::Array(items) if !items.is_empty() => items.iter().map(text).collect(),
+            Value::Array(_) => None,
+            v => text(v).map(|s| vec![s]),
+        };
+        match list {
+            Some(list) => Some((list, e.line)),
+            None => {
+                self.wrong(e, "a number or a list of numbers");
+                None
+            }
+        }
+    }
+
     fn name(&mut self) -> Option<String> {
         let line = self.t.entries.iter().find(|e| e.key == "name").map_or(self.t.line, |e| e.line);
         let n = self.string("name")?;
@@ -369,7 +537,7 @@ impl<'a> Fields<'a> {
 }
 
 /// Table names the content file may use, also valid as a `len` reference.
-const TABLES: [&str; 6] = ["part", "upgrade", "event", "mission", "tune", "state"];
+const TABLES: [&str; 9] = ["part", "upgrade", "art", "element", "reaction", "event", "mission", "tune", "state"];
 
 /// Parse and check the content file. Returns every problem found.
 pub fn load(src: &str) -> Result<Content, Vec<String>> {
@@ -378,37 +546,21 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
 
     // Top level.
     let mut f = Fields { t: &tables[0], used: Vec::new(), errs: &mut errs };
-    let mut ink = None;
-    match f.get("ink") {
-        None => f.missing("ink"),
-        Some(e) => match &e.value {
-            Value::Array(items) if items.len() == 3 => {
-                let mut out: Vec<String> = Vec::new();
-                for v in items {
-                    let text = match v {
-                        Value::Int(i) => i.to_string(),
-                        Value::Num(s) => s.clone(),
-                        _ => break,
-                    };
-                    match text.parse::<f64>() {
-                        Ok(x) if (0.0..=1.0).contains(&x) => out.push(text),
-                        _ => break,
-                    }
-                }
-                if out.len() == 3 {
-                    ink = Some([out[0].clone(), out[1].clone(), out[2].clone()]);
-                } else {
-                    f.errs.push(format!("line {}: `ink` values must be numbers from 0 to 1", e.line));
-                }
-            }
-            _ => f.wrong(e, "an array of 3 numbers"),
-        },
-    }
+    let ink = f.rgb("ink");
     let state_floats = f.uint("state_floats");
+    let max_arts = f.uint("max_arts");
     f.finish();
+    if max_arts == Some(0) {
+        errs.push("`max_arts` must be 1 or more".to_string());
+    }
 
     let mut parts = Vec::new();
     let mut upgrades = Vec::new();
+    // An art with its per-level lists as written: (art, [(values, line) per level key], line).
+    type RawLevels = Vec<(Vec<String>, usize)>;
+    let mut arts: Vec<(Art, RawLevels, usize)> = Vec::new();
+    let mut elements = Vec::new();
+    let mut reactions = Vec::new();
     let mut events = Vec::new();
     let mut missions = Vec::new();
     let mut tunes = Vec::new();
@@ -436,6 +588,80 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         f.errs.push(format!("line {}: upgrade `glyph` must be one character", t.line));
                     }
                     upgrades.push((Upgrade { id, name, max, glyph }, t.line));
+                }
+            }
+            "art" => {
+                let (id, name) = (f.uint("id"), f.name());
+                let (behaviour, part) = (f.word("behaviour", &BEHAVIOURS), f.string("part"));
+                let start_level = f.uint_or_zero("start_level");
+                let first_delay = f.number_or_zero("first_delay");
+                let (speed, life, range) =
+                    (f.number_or_zero("speed"), f.number_or_zero("life"), f.number_or_zero("range"));
+                let raw: Option<RawLevels> = ART_LEVEL_KEYS.iter().map(|key| f.per_level(key)).collect();
+                if let (
+                    Some(id),
+                    Some(name),
+                    Some(behaviour),
+                    Some(part),
+                    Some(start_level),
+                    Some(first_delay),
+                    Some(speed),
+                    Some(life),
+                    Some(range),
+                    Some(raw),
+                ) = (id, name, behaviour, part, start_level, first_delay, speed, life, range, raw)
+                {
+                    let art = Art {
+                        id,
+                        name,
+                        behaviour,
+                        part,
+                        start_level,
+                        first_delay,
+                        speed,
+                        life,
+                        range,
+                        levels: Vec::new(),
+                    };
+                    arts.push((art, raw, t.line));
+                }
+            }
+            "element" => {
+                let (id, name, glyph) = (f.uint("id"), f.name(), f.string("glyph"));
+                let (color, effect) = (f.rgb("color"), f.word("effect", &EFFECTS));
+                let numbers: Option<Vec<String>> = ELEMENT_KEYS.iter().map(|key| f.number_or_zero(key)).collect();
+                let count = f.uint_or_zero("count");
+                if let (Some(id), Some(name), Some(glyph), Some(color), Some(effect), Some(numbers), Some(count)) =
+                    (id, name, glyph, color, effect, numbers, count)
+                {
+                    if glyph.chars().count() != 1 {
+                        f.errs.push(format!("line {}: element `glyph` must be one character", t.line));
+                    }
+                    if id == 0 {
+                        f.errs.push(format!("line {}: element id 0 is reserved for no element", t.line));
+                    }
+                    elements.push((Element { id, name, glyph, color, effect, numbers, count }, t.line));
+                }
+            }
+            "reaction" => {
+                let (id, name) = (f.uint("id"), f.name());
+                let (a, b) = (f.string("a"), f.string("b"));
+                let kind = f.word("kind", &REACTION_KINDS);
+                let (power, reach) = (f.number("power"), f.number_or_zero("reach"));
+                let (count, color) = (f.uint_or_zero("count"), f.rgb("color"));
+                if let (
+                    Some(id),
+                    Some(name),
+                    Some(a),
+                    Some(b),
+                    Some(kind),
+                    Some(power),
+                    Some(reach),
+                    Some(count),
+                    Some(color),
+                ) = (id, name, a, b, kind, power, reach, count, color)
+                {
+                    reactions.push((Reaction { id, name, a, b, kind, power, reach, count, color }, t.line));
                 }
             }
             "event" => {
@@ -549,10 +775,109 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         }
     }
 
+    // Martial arts: ids index a table, each levels with the upgrade of the same
+    // name, and every per-level list has one value per level of that upgrade.
+    unique(&mut errs, "art", arts.iter().map(|(a, _, l)| (a.id, a.name.as_str(), *l)));
+    let mut art_ids: Vec<u32> = arts.iter().map(|(a, _, _)| a.id).collect();
+    art_ids.sort_unstable();
+    art_ids.dedup();
+    if art_ids.iter().enumerate().any(|(i, id)| i as u32 != *id) {
+        errs.push(format!("art ids must run 0 to {} without gaps", arts.len().saturating_sub(1)));
+    }
+    for (art, raw, line) in arts.iter_mut() {
+        if !parts.iter().any(|(p, _)| p.name == art.part) {
+            errs.push(format!("line {line}: art `{}` draws part `{}`, which is not defined", art.name, art.part));
+        }
+        let Some((upgrade, _)) = upgrades.iter().find(|(u, _)| u.name == art.name) else {
+            errs.push(format!("line {line}: art `{}` needs an [[upgrade]] of the same name to level it", art.name));
+            continue;
+        };
+        let max = upgrade.max as usize;
+        if art.start_level as usize > max {
+            errs.push(format!("line {line}: art `{}` starts above its top level {max}", art.name));
+        }
+        for (key, (values, at)) in ART_LEVEL_KEYS.iter().zip(raw.iter()) {
+            if values.len() != 1 && values.len() != max {
+                errs.push(format!(
+                    "line {at}: art `{}` has {} values for `{key}`, but {max} levels (give one value or one per level)",
+                    art.name,
+                    values.len()
+                ));
+            }
+            if ART_WHOLE_KEYS.contains(key) && values.iter().any(|v| v.parse::<u32>().is_err()) {
+                errs.push(format!("line {at}: art `{}` `{key}` must be whole numbers of 0 or more", art.name));
+            }
+            let value = |level: usize| {
+                if values.len() == 1 {
+                    values[0].clone()
+                } else {
+                    values[level.min(values.len() - 1)].clone()
+                }
+            };
+            art.levels.push((0..max).map(value).collect());
+        }
+    }
+    if let Some(most) = max_arts {
+        let held = arts.iter().filter(|(a, _, _)| a.start_level > 0).count();
+        if held > most as usize {
+            errs.push(format!("{held} arts are held at the start, but `max_arts` is {most}"));
+        }
+    }
+
+    // Elements: ids run from 1 (0 means no element).
+    unique(&mut errs, "element", elements.iter().map(|(e, l)| (e.id, e.name.as_str(), *l)));
+    let mut element_ids: Vec<u32> = elements.iter().map(|(e, _)| e.id).collect();
+    element_ids.sort_unstable();
+    element_ids.dedup();
+    if element_ids.iter().enumerate().any(|(i, id)| i as u32 + 1 != *id) {
+        errs.push(format!("element ids must run 1 to {} without gaps", elements.len()));
+    }
+
+    // Reactions: each joins two different elements that leave a tag, and no pair has two.
+    unique(&mut errs, "reaction", reactions.iter().map(|(r, l)| (r.id, r.name.as_str(), *l)));
+    let mut reaction_ids: Vec<u32> = reactions.iter().map(|(r, _)| r.id).collect();
+    reaction_ids.sort_unstable();
+    reaction_ids.dedup();
+    if reaction_ids.iter().enumerate().any(|(i, id)| i as u32 != *id) {
+        errs.push(format!("reaction ids must run 0 to {} without gaps", reactions.len().saturating_sub(1)));
+    }
+    let mut pairs: Vec<(&str, &str)> = Vec::new();
+    for (r, line) in &reactions {
+        let mut surge = false;
+        for side in [&r.a, &r.b] {
+            match elements.iter().find(|(e, _)| &e.name == side) {
+                None => errs
+                    .push(format!("line {line}: reaction `{}` names element `{side}`, which is not defined", r.name)),
+                Some((e, _)) if !e.tags() => errs.push(format!(
+                    "line {line}: reaction `{}` names element `{side}`, which leaves no tag on enemies",
+                    r.name
+                )),
+                Some((e, _)) => surge |= e.effect == "surge",
+            }
+        }
+        if r.a == r.b {
+            errs.push(format!("line {line}: reaction `{}` needs two different elements", r.name));
+        }
+        if r.kind == "relay" && !surge {
+            errs.push(format!(
+                "line {line}: reaction `{}` is a relay, so one of its elements must have the surge effect",
+                r.name
+            ));
+        }
+        let pair = if r.a <= r.b { (r.a.as_str(), r.b.as_str()) } else { (r.b.as_str(), r.a.as_str()) };
+        if pairs.contains(&pair) {
+            errs.push(format!("line {line}: elements `{}` and `{}` already have a reaction", pair.0, pair.1));
+        }
+        pairs.push(pair);
+    }
+
     // State fields: resolve `len`, then check bounds and overlap.
     let count = |table: &str| match table {
         "part" => parts.len(),
         "upgrade" => upgrades.len(),
+        "art" => arts.len(),
+        "element" => elements.len(),
+        "reaction" => reactions.len(),
         "event" => events.len(),
         "mission" => missions.len(),
         "tune" => tunes.len(),
@@ -608,11 +933,21 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     missions.sort_by_key(|m| m.id);
     let mut tunes: Vec<Tune> = tunes.into_iter().map(|(t, _)| t).collect();
     tunes.sort_by_key(|t| t.id);
+    let mut arts: Vec<Art> = arts.into_iter().map(|(a, _, _)| a).collect();
+    arts.sort_by_key(|a| a.id);
+    let mut elements: Vec<Element> = elements.into_iter().map(|(e, _)| e).collect();
+    elements.sort_by_key(|e| e.id);
+    let mut reactions: Vec<Reaction> = reactions.into_iter().map(|(r, _)| r).collect();
+    reactions.sort_by_key(|r| r.id);
     Ok(Content {
         ink: ink.unwrap(),
         state_floats: state_floats.unwrap(),
+        max_arts: max_arts.unwrap(),
         parts,
         upgrades,
+        arts,
+        elements,
+        reactions,
         events,
         missions,
         tunes,
@@ -649,6 +984,7 @@ pub fn render_rust(c: &Content) -> String {
     let mut o = String::new();
     o.push_str("//! Generated from `content/game.toml` by `tools/gen`. Do not edit: change the\n");
     o.push_str("//! content file and run `./build.sh`. Re-exported by `crate::defs`.\n\n");
+    o.push_str("use crate::schema::*;\n\n");
 
     o.push_str("// Part ids.\n");
     for p in &c.parts {
@@ -662,6 +998,97 @@ pub fn render_rust(c: &Content) -> String {
     writeln!(o, "pub const N_UPGRADES: usize = {};", c.upgrades.len()).unwrap();
     let maxes: Vec<String> = c.upgrades.iter().map(|u| u.max.to_string()).collect();
     writeln!(o, "pub const UPGRADE_MAX: [u8; N_UPGRADES] = [{}];", maxes.join(", ")).unwrap();
+
+    o.push_str("\n// Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.\n");
+    for a in &c.arts {
+        writeln!(o, "pub const A_{}: usize = {};", upper(&a.name), a.id).unwrap();
+    }
+    writeln!(o, "pub const N_ARTS: usize = {};", c.arts.len()).unwrap();
+    writeln!(o, "/// How many martial arts the player can hold at once.").unwrap();
+    writeln!(o, "pub const MAX_ARTS: usize = {};", c.max_arts).unwrap();
+    o.push_str("#[rustfmt::skip]\n");
+    o.push_str("pub const ARTS: [ArtDef; N_ARTS] = [\n");
+    for a in &c.arts {
+        writeln!(
+            o,
+            "    ArtDef {{ upgrade: U_{}, behaviour: B_{}, part: P_{}, start_level: {}, first_delay: {}, speed: {}, life: {}, range: {}, levels: &[",
+            upper(&a.name),
+            upper(&a.behaviour),
+            upper(&a.part),
+            a.start_level,
+            float_lit(&a.first_delay),
+            float_lit(&a.speed),
+            float_lit(&a.life),
+            float_lit(&a.range)
+        )
+        .unwrap();
+        let levels = a.levels.first().map_or(0, |l| l.len());
+        for level in 0..levels {
+            let fields: Vec<String> = ART_LEVEL_KEYS
+                .iter()
+                .zip(&a.levels)
+                .map(|(key, values)| {
+                    let v = &values[level];
+                    if ART_WHOLE_KEYS.contains(key) {
+                        format!("{key}: {v}")
+                    } else {
+                        format!("{key}: {}", float_lit(v))
+                    }
+                })
+                .collect();
+            writeln!(o, "        ArtLevel {{ {} }},", fields.join(", ")).unwrap();
+        }
+        o.push_str("    ] },\n");
+    }
+    o.push_str("];\n");
+
+    o.push_str("\n// Magic elements. Id 0 means no element; `ELEMENTS[0]` is that empty entry.\n");
+    for e in &c.elements {
+        writeln!(o, "pub const E_{}: u8 = {};", upper(&e.name), e.id).unwrap();
+    }
+    writeln!(o, "pub const N_ELEMENTS: usize = {};", c.elements.len()).unwrap();
+    let rgb = |c: &[String; 3]| c.iter().map(|v| float_lit(v)).collect::<Vec<String>>().join(", ");
+    o.push_str("#[rustfmt::skip]\n");
+    o.push_str("pub const ELEMENTS: [ElementDef; N_ELEMENTS + 1] = [\n");
+    o.push_str("    ElementDef::NONE,\n");
+    for e in &c.elements {
+        let numbers: Vec<String> =
+            ELEMENT_KEYS.iter().zip(&e.numbers).map(|(key, v)| format!("{key}: {}", float_lit(v))).collect();
+        writeln!(
+            o,
+            "    ElementDef {{ effect: EF_{}, tags: {}, color: [{}], {}, count: {} }},",
+            upper(&e.effect),
+            e.tags(),
+            rgb(&e.color),
+            numbers.join(", "),
+            e.count
+        )
+        .unwrap();
+    }
+    o.push_str("];\n");
+
+    o.push_str("\n// Reactions between two element tags on one enemy, tried in this order.\n");
+    for r in &c.reactions {
+        writeln!(o, "pub const R_{}: usize = {};", upper(&r.name), r.id).unwrap();
+    }
+    writeln!(o, "pub const N_REACTIONS: usize = {};", c.reactions.len()).unwrap();
+    o.push_str("#[rustfmt::skip]\n");
+    o.push_str("pub const REACTIONS: [ReactionDef; N_REACTIONS] = [\n");
+    for r in &c.reactions {
+        writeln!(
+            o,
+            "    ReactionDef {{ a: E_{}, b: E_{}, kind: RK_{}, power: {}, reach: {}, count: {}, color: [{}] }},",
+            upper(&r.a),
+            upper(&r.b),
+            upper(&r.kind),
+            float_lit(&r.power),
+            float_lit(&r.reach),
+            r.count,
+            rgb(&r.color)
+        )
+        .unwrap();
+    }
+    o.push_str("];\n");
 
     o.push_str("\n// Event types, read by the host for sound.\n");
     for e in &c.events {
@@ -738,6 +1165,53 @@ pub fn render_js(c: &Content) -> String {
     o.push_str("export const UPGRADES = [\n");
     for u in &c.upgrades {
         writeln!(o, "  {{ name: {}, glyph: {}, max: {} }},", js_str(&u.name), js_str(&u.glyph), u.max).unwrap();
+    }
+    o.push_str("];\n\n");
+
+    o.push_str("/** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and\n");
+    o.push_str(" * whose name, glyph and card text it shows. */\n");
+    o.push_str("export const ARTS = [\n");
+    for a in &c.arts {
+        let upgrade = c.upgrades.iter().find(|u| u.name == a.name).map_or(0, |u| u.id);
+        writeln!(
+            o,
+            "  {{ id: {}, name: {}, upgrade: {}, behaviour: {} }},",
+            a.id,
+            js_str(&a.name),
+            upgrade,
+            js_str(&a.behaviour)
+        )
+        .unwrap();
+    }
+    o.push_str("];\n\n");
+    o.push_str("/** How many martial arts the player can hold at once. */\n");
+    writeln!(o, "export const MAX_ARTS = {};\n", c.max_arts).unwrap();
+
+    o.push_str("/** Magic elements. Ids start at 1 (0 means no element), so element `id` is ELEMENTS[id - 1].\n");
+    o.push_str(
+        " * `color` is linear-ish RGB, 0..1. `tags` says whether a hit leaves the element's tag on the enemy.\n",
+    );
+    o.push_str(" * Names and descriptions are in src/i18n.js as element.<name>.name and .desc. */\n");
+    o.push_str("export const ELEMENTS = [\n");
+    for e in &c.elements {
+        writeln!(
+            o,
+            "  {{ id: {}, name: {}, glyph: {}, color: [{}], tags: {} }},",
+            e.id,
+            js_str(&e.name),
+            js_str(&e.glyph),
+            e.color.join(", "),
+            e.tags()
+        )
+        .unwrap();
+    }
+    o.push_str("];\n\n");
+
+    o.push_str("/** Reactions between the tags of elements `a` and `b` on one enemy. */\n");
+    o.push_str("export const REACTIONS = [\n");
+    for r in &c.reactions {
+        writeln!(o, "  {{ id: {}, name: {}, a: {}, b: {} }},", r.id, js_str(&r.name), js_str(&r.a), js_str(&r.b))
+            .unwrap();
     }
     o.push_str("];\n\n");
 

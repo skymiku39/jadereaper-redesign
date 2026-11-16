@@ -32,7 +32,8 @@ export function createInput({ onKey }) {
     } else if (e.code === 'Escape' || e.code === 'KeyP') {
       if (!e.repeat) onKey({ pause: true });
       e.preventDefault();
-    } else if (/^Digit[1-3]$/.test(e.code)) {
+    } else if (/^Digit[1-6]$/.test(e.code)) {
+      // Up to three offered cards, or up to six held arts when an element is put on one.
       onKey({ pick: Number(e.code.slice(5)) - 1 });
     } else if (e.code === 'KeyM' && !e.repeat) {
       onKey({ mute: true });

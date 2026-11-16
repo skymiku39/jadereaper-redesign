@@ -31,8 +31,12 @@
     <div class="hud-row">
       <div class="tag hp-tag">
         <span class="heart">♥</span>
-        <div class="hp"><div class="hp-fill" id="hpFill"></div></div>
+        <!-- Shown while a wood art's slow healing runs. -->
+        <span class="regrow-mark" id="regrowMark" style="display:none" title="Healing" data-i18n-title="hud.regrow">+</span>
+        <!-- The metal guard is a thin strip along the bottom of the health bar. -->
+        <div class="hp"><div class="hp-fill" id="hpFill"></div><div class="guard-fill" id="guardFill" style="display:none"></div></div>
         <span id="hpText">100</span>
+        <span class="guard-text" id="guardText" style="display:none" title="Guard" data-i18n-title="hud.guard"></span>
       </div>
       <div class="tag time-tag"><small id="goalText"></small><span id="timeText">0:00</span></div>
       <div class="tag kills-tag"><span class="seal-dot">斬</span> <span id="killsText">0</span></div>
@@ -112,7 +116,8 @@
 
   <section class="screen" id="levelup" hidden>
     <div class="levelup-wrap">
-      <h2 class="banner" data-i18n="levelup.banner">Level up — choose one</h2>
+      <!-- ui.js swaps this for the attach question after an element card is picked. -->
+      <h2 class="banner" id="levelBanner" data-i18n="levelup.banner">Level up — choose one</h2>
       <div class="cards" id="cards"></div>
     </div>
   </section>

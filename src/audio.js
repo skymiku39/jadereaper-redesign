@@ -100,6 +100,15 @@ export function createAudio() {
     [EVENT.WIN]: () => {
       [0, 2, 4, 5, 4, 5].forEach((n, i) => tone({ dur: 0.5, type: 'triangle', f0: PENTATONIC[n], gain: 0.28, delay: i * 0.13 }));
     },
+    // Two element tags met on an enemy: a bright crackle over a high ping.
+    [EVENT.REACT]: () => {
+      noise({ dur: 0.09, type: 'highpass', f0: 5200, f1: 2600, gain: 0.22 });
+      tone({ dur: 0.1, type: 'square', f0: 1568, f1: 2349, gain: 0.08 });
+    },
+    // An element was put on an art: a short rising run.
+    [EVENT.ATTACH]: () => {
+      [1, 3, 5].forEach((n, i) => tone({ dur: 0.16, type: 'triangle', f0: PENTATONIC[n], gain: 0.2, delay: i * 0.05 }));
+    },
     ui: () => noise({ dur: 0.035, f0: 2600, q: 4, gain: 0.2 }),
     confirm: () => {
       noise({ dur: 0.05, f0: 1800, q: 2, gain: 0.25 });
@@ -108,7 +117,7 @@ export function createAudio() {
   };
 
   // Minimum gap between repeats of the same sound, in seconds.
-  const GAP = { [EVENT.HIT]: 0.045, [EVENT.KILL]: 0.06, [EVENT.PICKUP]: 0.05 };
+  const GAP = { [EVENT.HIT]: 0.045, [EVENT.KILL]: 0.06, [EVENT.PICKUP]: 0.05, [EVENT.REACT]: 0.08 };
 
   function play(id) {
     if (!ctx || muted || ctx.state !== 'running' || !SOUNDS[id]) return;
