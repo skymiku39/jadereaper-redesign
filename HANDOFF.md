@@ -1,16 +1,23 @@
 # Handoff
 
-The repository is the user's one-person version of the game (decided 2026-11-15 and 2026-11-16). The goal is to build the user's own design in `docs/design.md`; nobody else signs work off. Remotes: `origin` is the user's repository `skymiku39/jadereaper`, `upstream` is `pomodorozhong/jadereaper` (read-only for this account; do not open issues or PRs there unless asked).
+The repository is the user's one-person version of the game (decided 2026-11-15 and 2026-11-16). The goal is to build the user's own design in `docs/design.md`; nobody else signs work off. This repository, `skymiku39/jadereaper-redesign` (public, not a fork), was made on 2026-11-17 because the user feared that the redesign would break the version that can be played. It is a copy, with history, of `skymiku39/jadereaper` at `docs/elements-and-reactions` (7483868). The old repository and its Pages site at https://skymiku39.github.io/jadereaper/ stay as they are: do not push to it or merge there unless the user asks. The user said the original author agreed to this separate public copy; there is no license file. The only remote is `origin`, this repository; the local folder is `~/jadereaper-redesign` in WSL. PR numbers below are the old repository's.
 
 Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.localhost` path writes `.git` files as root and breaks later commits.
 
 ## In progress
 
-Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
+Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### docs/elements-and-reactions
+### docs/redesign-setup
 
-Design answers from the user on 2026-11-17, written into `docs/design.md` 4.5 and section 9 and into `ROADMAP.md` step 1. Cut from `main` at 6121c27. Committed, pushed and opened as PR 9 on 2026-11-17 (the user said "推送並開 PR"); documents only, no code, so no checks were run locally. The user then said "先不要更新網頁": do not merge it, since a merge to `main` redeploys Pages, until the user says so.
+Setting this repository up after the copy (the user said "先完成新 repo 設定" on 2026-11-17). Cut from `main` at 7483868. Committed as 4c8dcbc, then pushed and opened as this repository's first PR on 2026-11-17 (the user said "提交", then "推送並開 PR"). The user has not said to merge it.
+
+- **Changed:** the repository name in `tools/sync-labels.sh`, `.github/ISSUE_TEMPLATE/config.yml` and `proposal.yml`, and `docs/design.md` line 7; `README.md` "Play it online" now says this repository has no site yet and points to the old one as the playable version; `docs/README.md` no longer names the old site's address. `CONTRIBUTING.md` did not name the repository and is unchanged.
+- **Pages:** not enabled here, so the `Pages` workflow fails on every push to `main` (it did on 7483868). Whether the redesign gets its own site, or the workflow is switched off, is the user's call (P-34).
+- **Checked on 2026-11-17 in this folder:** `cargo test --release` (175 passed, 5 ignored; 18 content tests), `./build.sh` (changes no committed file), `npm ci`, `npm run determinism`, `npm run smoke`. The Core and Smoke runs on `main` at 7483868 passed; Fonts did not run for that push.
+- **Not checked:** `cargo fmt --check`, `cargo clippy` and the font checks were not run here; this branch changes only documents, two issue templates and one line of a script. `tools/sync-labels.sh` was not run against the new repository, so its labels are GitHub's defaults.
+
+The element decisions below came with the copy. On the old repository they were PR 9 from `docs/elements-and-reactions`, closed without merging on 2026-11-17 at the user's word; here they are on `main`. Design answers from the user on 2026-11-17, written into `docs/design.md` 4.5 and section 9 and into `ROADMAP.md` step 1.
 
 - **Decided by the user:** seven elements (the five phases plus lightning and holy) instead of the four Elden Ring placeholders; metal is a protective shield, wood is a slow heal, fire burns, lightning chains, and water, earth and holy follow the proposal the user picked; reactions are output-with-output pairs only, with no weakness rules; at most six martial arts.
 - **Decided here, not by the user** (the user said "隨你處理"): the three reaction pairs (fire and lightning, water and lightning, water and fire) and that metal and wood, acting on the player, leave no tag and take no part in reactions.
@@ -69,6 +76,7 @@ Done: the rest of CI (roadmap step 5), merged as PR 2, and the fixed time step, 
 
 ## Pending
 
+- **P-34** Whether this repository gets its own Pages site, and what "重新設計" covers: the user said to copy the existing code and redesign here, but not yet which parts of the design or code are to be redone. Blocks: choosing the first piece of work here.
 - **P-21** The user's call on the survive mission: it can be won by only running away. In a native simulation of 40 seeds, a bot that moves away from nearby enemies and always takes the first card won 40 of 40 at a mean level of 1.4; a bot walking in circles won 0 of 40 and lasted 102 s on average. The arena has no edge and enemies are slower than the player. It needs pressure that running cannot escape (a bounded arena, spawns that surround, faster chasers); open in `docs/design.md` 4.2.1. Blocks: nothing, but it shapes the next mission prototypes.
 - **P-22** The user has not yet said whether the game looks right at the fixed step (PR 3). Blocks: nothing.
 - **P-29** What makes the encirclement in `escape` real, since enemies neither block nor outrun the player: guards standing at the exit, a slowdown inside a crowd, or a higher enemy cap. Same root as P-21. Blocks: `escape` being a mission at all.
