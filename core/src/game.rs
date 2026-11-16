@@ -581,6 +581,16 @@ impl Game {
     fn step(&mut self, dt: f32) {
         self.time += dt;
         self.walk(dt);
+        // A walled field: the player cannot leave the circle around where the mission began.
+        let wall = self.tune[T_ARENA_RADIUS];
+        if wall > 0.0 {
+            let p = &mut self.player;
+            let d = (p.x * p.x + p.y * p.y).sqrt();
+            if d > wall {
+                p.x *= wall / d;
+                p.y *= wall / d;
+            }
+        }
         self.tick_boons(dt);
 
         let moved = self.retrieval.step(self.player.x, self.player.y);
@@ -651,7 +661,14 @@ impl Game {
         if self.enemies.len() >= MAX_ENEMIES {
             return;
         }
-        let a = self.rng.range(0.0, TAU);
+        let mut a = self.rng.range(0.0, TAU);
+        // An ambush: now and then an enemy comes from where the player is heading,
+        // so running in a straight line runs into something.
+        let ambush = self.tune[T_AMBUSH];
+        if ambush > 0.0 && self.player.moving && self.rng.f() < ambush {
+            let (ax, ay) = self.player.aim;
+            a = fmath::atan2(ay, ax) + self.rng.range(-0.6, 0.6);
+        }
         let ring = self.spawn_ring();
         let (x, y) = (self.player.x + fmath::cos(a) * ring, self.player.y + fmath::sin(a) * ring);
         self.spawn_enemy_at(kind, x, y);
@@ -1170,6 +1187,7 @@ impl Game {
         self.inst.clear();
         self.pointers.clear();
         self.draw_ground();
+        self.draw_wall();
         self.draw_hold_ground();
         self.accept_draw_ground();
         if self.mission == M_ESCAPE {
@@ -1319,6 +1337,32 @@ impl Game {
                     );
                 }
             }
+        }
+    }
+
+    /// The edge of a walled field (the `arena_radius` tune): a ring of stones around the origin.
+    fn draw_wall(&mut self) {
+        let wall = self.tune[T_ARENA_RADIUS];
+        if wall <= 0.0 {
+            return;
+        }
+        // One stone about every 70 units; `put` drops the ones out of view.
+        let n = ((TAU * wall / 70.0) as usize).clamp(12, 400);
+        for k in 0..n {
+            let a = k as f32 * TAU / n as f32;
+            let (x, y) = (fmath::cos(a) * (wall + 34.0), fmath::sin(a) * (wall + 34.0));
+            let seed = (hash2(k as i32, 77) & 255) as f32 / 255.0;
+            self.put(
+                x,
+                y,
+                22.0 + seed * 8.0,
+                12.0 + seed * 5.0,
+                0.0,
+                P_STONE,
+                0.0,
+                seed,
+                [INK[0], INK[1], INK[2], 0.6],
+            );
         }
     }
 

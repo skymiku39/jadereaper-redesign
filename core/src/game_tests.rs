@@ -653,6 +653,77 @@ fn collecting_enough_xp_triggers_a_level_up_offer() {
     assert_eq!(g.pending, 1);
 }
 
+// ---------------------------------------------------------------- pressure
+
+#[test]
+fn hounds_join_the_horde_only_at_the_share_of_their_tune() {
+    assert!(KINDS[K_HOUND as usize].speed > 190.0, "a hound must outrun the player");
+    let count = |share: f32| {
+        let mut g = Game::new(5);
+        g.tune[T_CHASERS] = share;
+        g.start(M_ENDLESS);
+        let mut hounds = 0;
+        for _ in 0..(60 * 20) {
+            g.player.hp = g.player.max_hp;
+            let before = g.enemies.len();
+            g.tick();
+            if g.choosing {
+                g.choose(0);
+            }
+            hounds += g.enemies.iter().skip(before).filter(|e| e.kind == K_HOUND).count();
+        }
+        hounds
+    };
+    assert_eq!(count(0.0), 0);
+    assert!(count(0.5) > 5);
+}
+
+#[test]
+fn an_ambush_comes_from_where_the_player_is_heading() {
+    let mut g = base();
+    g.tune[T_AMBUSH] = 1.0;
+    g.player.moving = true;
+    g.player.aim = (0.0, -1.0);
+    for _ in 0..40 {
+        g.spawn_enemy(K_BLOT);
+    }
+    // All of them are ahead (up the screen), none behind.
+    assert!(g.enemies.iter().all(|e| e.y < -300.0), "an enemy came from behind");
+
+    // Standing still, or with the tune at 0, they come from every side.
+    for (ambush, moving) in [(1.0, false), (0.0, true)] {
+        let mut g = base();
+        g.tune[T_AMBUSH] = ambush;
+        g.player.moving = moving;
+        g.player.aim = (0.0, -1.0);
+        for _ in 0..40 {
+            g.spawn_enemy(K_BLOT);
+        }
+        assert!(g.enemies.iter().any(|e| e.y > 300.0));
+    }
+}
+
+#[test]
+fn a_walled_field_keeps_the_player_inside() {
+    let mut g = base();
+    g.tune[T_ARENA_RADIUS] = 400.0;
+    g.spawn_acc = -1000.0;
+    g.input = (1.0, 0.0);
+    for _ in 0..(60 * 10) {
+        g.step(TICK);
+    }
+    assert!(near(g.player.x, 400.0), "the player is at {}", g.player.x);
+
+    // Without a wall he walks on.
+    let mut g = base();
+    g.spawn_acc = -1000.0;
+    g.input = (1.0, 0.0);
+    for _ in 0..(60 * 10) {
+        g.step(TICK);
+    }
+    assert!(g.player.x > 1500.0);
+}
+
 // --------------------------------------------------------------- whole run
 
 /// Fold the observable state into one number (FNV-1a style).

@@ -44,15 +44,17 @@ pub const K_BLOT: u8 = 0;
 pub const K_WISP: u8 = 1;
 pub const K_BRUTE: u8 = 2;
 pub const K_ELITE: u8 = 3;
-pub const N_KINDS: usize = 4;
+pub const K_HOUND: u8 = 4;
+pub const N_KINDS: usize = 5;
 #[rustfmt::skip]
-pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite"];
+pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound"];
 #[rustfmt::skip]
 pub const KINDS: [Kind; N_KINDS] = [
     Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES },
     Kind { hp: 7.0, speed: 118.0, r: 12.0, dmg: 4.0, xp: 1.0, part: P_WISP, color: [0.36, 0.40, 0.56], hw: 22.0, hh: 13.0, rate: 9.0, corpse: true, heavy: false, hover: true, from: 25.0, share: 0.3, ramp: 0.0, every: 0.0, share_tune: N_TUNES },
     Kind { hp: 70.0, speed: 44.0, r: 26.0, dmg: 12.0, xp: 5.0, part: P_BRUTE, color: [0.58, 0.31, 0.24], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 60.0, share: 0.25, ramp: 400.0, every: 0.0, share_tune: N_TUNES },
     Kind { hp: 600.0, speed: 56.0, r: 44.0, dmg: 20.0, xp: 40.0, part: P_BRUTE, color: [0.74, 0.25, 0.18], hw: 52.0, hh: 52.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 90.0, share_tune: N_TUNES },
+    Kind { hp: 10.0, speed: 215.0, r: 11.0, dmg: 6.0, xp: 1.0, part: P_WISP, color: [0.52, 0.20, 0.16], hw: 17.0, hh: 10.0, rate: 12.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_CHASERS },
 ];
 
 // Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.
@@ -218,15 +220,18 @@ pub const T_ACCEPT_DIST: usize = 42;
 pub const T_ACCEPT_TIME: usize = 43;
 pub const T_ELEMENT_CARDS: usize = 44;
 pub const T_START_ELEMENT: usize = 45;
-pub const N_TUNES: usize = 46;
+pub const T_CHASERS: usize = 46;
+pub const T_AMBUSH: usize = 47;
+pub const T_ARENA_RADIUS: usize = 48;
+pub const N_TUNES: usize = 49;
 #[rustfmt::skip]
-pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element"];
+pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius"];
 #[rustfmt::skip]
-pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0];
+pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0];
 #[rustfmt::skip]
-pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0];
+pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 #[rustfmt::skip]
-pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0];
+pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0];
 // The tune that holds each mission's goal; N_TUNES where the goal cannot be changed.
 #[rustfmt::skip]
 pub const MISSION_GOAL_TUNE: [usize; N_MISSIONS] = [N_TUNES, T_SURVIVE_GOAL, T_KILLS_GOAL, T_FORMATION_GOAL, T_ARENA_GOAL, T_RETRIEVAL_GOAL, T_PURSUIT_GOAL, N_TUNES, T_HOLD_GOAL, T_ESCAPE_GOAL, T_BOSS_GOAL, T_VENDETTA_GOAL];

@@ -170,6 +170,9 @@ export const TUNES = [
   { id: 43, name: 'accept_time', mission: 'any', def: 3, min: 0, max: 10, step: 1 },
   { id: 44, name: 'element_cards', mission: 'any', def: 0.35, min: 0.0, max: 1.0, step: 0.05 },
   { id: 45, name: 'start_element', mission: 'any', def: 0, min: 0, max: 7, step: 1 },
+  { id: 46, name: 'chasers', mission: 'any', def: 0.0, min: 0.0, max: 0.6, step: 0.05 },
+  { id: 47, name: 'ambush', mission: 'any', def: 0.0, min: 0.0, max: 1.0, step: 0.1 },
+  { id: 48, name: 'arena_radius', mission: 'any', def: 0, min: 0, max: 3000, step: 100 },
 ];
 
 /** Size of the state array written by the core, in floats. */

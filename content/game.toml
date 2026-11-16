@@ -250,6 +250,23 @@ pose_rate = 2.5
 heavy = true
 every = 90
 
+# Faster than the player (190), so it cannot be outrun, but it falls to one
+# blow. Only the `chasers` tune sends it.
+[[enemy]]
+id = 4
+name = "hound"
+part = "wisp"
+color = [0.52, 0.20, 0.16]
+hp = 10
+speed = 215
+radius = 11
+damage = 6
+xp = 1
+half_width = 17
+half_height = 10
+pose_rate = 12
+tune = "chasers"
+
 # ------------------------------------------------------------------ arts
 # Martial arts (武學): how the player attacks. Each has one `behaviour`, which
 # is code in core/src/arts.rs, and the numbers below. A new art of an existing
@@ -1084,6 +1101,42 @@ default = 0
 min = 0
 max = 7
 step = 1
+
+# Three ways to put pressure on a player who only runs, each off at its
+# default. They are here to be tried against each other.
+#
+# The share of the horde that are hounds, which outrun the player.
+[[tune]]
+id = 46
+name = "chasers"
+mission = "any"
+default = 0.0
+min = 0.0
+max = 0.6
+step = 0.05
+
+# The chance that an enemy comes from where the player is heading instead of
+# from any side.
+[[tune]]
+id = 47
+name = "ambush"
+mission = "any"
+default = 0.0
+min = 0.0
+max = 1.0
+step = 0.1
+
+# The radius of a walled field around where the mission begins, which the
+# player cannot leave. 0 is no wall. Missions that send the player far away
+# cannot be finished inside a small one.
+[[tune]]
+id = 48
+name = "arena_radius"
+mission = "any"
+default = 0
+min = 0
+max = 3000
+step = 100
 
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
