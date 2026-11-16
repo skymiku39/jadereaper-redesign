@@ -193,12 +193,16 @@ export function createUI({ onAction }) {
     // A commission in endless: what it asks, and how long is left.
     const offered = commission?.phase === 1;
     const hunt = commission?.kind === 2;
+    const escort = commission?.kind === 3;
+    // The village, or the villager being escorted: either has a health bar.
     const village = commission?.phase === 2 && !hunt;
     const left = commission ? formatTime(Math.ceil(commission.left)) : '';
     if (offered) {
       label = commission.held > 0
         ? t('commission.accept', { n: Math.ceil(commission.need - commission.held) })
-        : t(hunt ? 'commission.offerHunt' : 'commission.offer', { time: left });
+        : t(hunt ? 'commission.offerHunt' : escort ? 'commission.offerEscort' : 'commission.offer', { time: left });
+    } else if (village && escort) {
+      label = t('commission.escort', { n: Math.floor(commission.walked * 100), time: left });
     } else if (village) {
       label = t('commission.defend', { time: left });
     } else if (commission?.phase === 2) {
@@ -215,7 +219,7 @@ export function createUI({ onAction }) {
     set('pointRow', 'display', holding || village ? '' : 'none');
     if (holding || village) {
       const [hpNow, hpMax] = holding ? [pointHp, pointMax] : [commission.hp, commission.max];
-      set('pointLabel', 'text', t(holding ? 'hud.shrine' : 'hud.village'));
+      set('pointLabel', 'text', t(holding ? 'hud.shrine' : escort ? 'hud.villager' : 'hud.village'));
       set('pointFill', 'width', `${Math.max(0, Math.min(100, (hpNow / hpMax) * 100)).toFixed(1)}%`);
       set('pointText', 'text', String(Math.ceil(hpNow)));
     }

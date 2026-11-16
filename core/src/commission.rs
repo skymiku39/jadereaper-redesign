@@ -10,6 +10,10 @@
 //! - A hunt: a marked band waits at a place further on and only moves once
 //!   the player comes close. It is done when all of them are dead, and failed
 //!   if time runs out first.
+//! - An escort: a villager walks from the spot to a place further on, but only
+//!   while the player is near, and enemies go for the villager on the way. It
+//!   is done when the villager arrives, and failed if the villager falls or
+//!   time runs out.
 //!
 //! Done, the player gets one more level-up and some health back; failed,
 //! nothing is lost but the reward. Then the next one comes after a pause. Only
@@ -58,9 +62,18 @@ const BAND: usize = 5;
 /// The band is this much tougher than the horde.
 const BAND_HP: f32 = 2.5;
 
+/// An escort: seconds to finish it, how far the villager walks, how fast,
+/// how near the player must stay for the villager to walk, and its health.
+const ESCORT: f32 = 90.0;
+const ROUTE: f32 = 800.0;
+const PACE: f32 = 70.0;
+const NEARBY: f32 = 260.0;
+const VILLAGER_HP: f32 = 120.0;
+
 /// The kinds of commission.
 pub const VILLAGE: u8 = 1;
 pub const HUNT_BAND: u8 = 2;
+pub const ESCORT_VILLAGER: u8 = 3;
 
 const GOLD: [f32; 4] = [0.85, 0.72, 0.30, 1.0];
 const MARK: [f32; 4] = [0.76, 0.27, 0.18, 0.85];
@@ -76,10 +89,13 @@ pub struct Commission {
     pub phase: u8,
     /// `VILLAGE` or `HUNT_BAND`.
     pub kind: u8,
-    /// Where a hunt's band waits, and whether the player has come close enough to rouse it.
+    /// Where a hunt's band waits, or where an escort's villager is going; and
+    /// whether the player has come close enough to rouse the band.
     pub gx: f32,
     pub gy: f32,
     pub roused: bool,
+    /// Where an escort began, for how far along it is.
+    pub start: (f32, f32),
     /// Where the village is.
     pub x: f32,
     pub y: f32,
@@ -108,6 +124,7 @@ impl Default for Commission {
             gx: 0.0,
             gy: 0.0,
             roused: false,
+            start: (0.0, 0.0),
             x: 0.0,
             y: 0.0,
             left: FIRST,
@@ -132,7 +149,8 @@ impl Commission {
             return None;
         }
         match self.kind {
-            VILLAGE => Some((self.x, self.y)),
+            // The village, or the villager on its way (which is where `x`, `y` are during an escort).
+            VILLAGE | ESCORT_VILLAGER => Some((self.x, self.y)),
             _ if !self.roused => Some((self.gx, self.gy)),
             _ => None,
         }
@@ -146,13 +164,25 @@ impl Commission {
 
     /// An enemy at distance `d` from the village (its own radius `r` included) deals `dmg` this step.
     pub fn gnaw(&mut self, d: f32, r: f32, dmg: f32) {
-        if self.kind == VILLAGE && d < r + BODY {
+        if self.kind != HUNT_BAND && d < r + BODY {
             self.dmg += dmg * GNAW;
         }
     }
 
     pub fn max_hp(&self) -> f32 {
-        VILLAGE_HP
+        if self.kind == ESCORT_VILLAGER {
+            VILLAGER_HP
+        } else {
+            VILLAGE_HP
+        }
+    }
+
+    /// How much of an escort's way is walked, 0..1.
+    pub fn walked(&self, start: (f32, f32)) -> f32 {
+        let (dx, dy) = (self.gx - start.0, self.gy - start.1);
+        let total = (dx * dx + dy * dy).sqrt().max(1.0);
+        let (lx, ly) = (self.gx - self.x, self.gy - self.y);
+        (1.0 - (lx * lx + ly * ly).sqrt() / total).clamp(0.0, 1.0)
     }
 
     /// How long the current phase lasts in all, for the HUD.
@@ -160,6 +190,7 @@ impl Commission {
         match (self.phase, self.kind) {
             (OFFERED, _) => STAND,
             (DEFENDING, VILLAGE) => DEFEND,
+            (DEFENDING, ESCORT_VILLAGER) => ESCORT,
             (DEFENDING, _) => HUNT,
             _ => 0.0,
         }
@@ -197,7 +228,7 @@ impl Game {
                 if self.commission.left <= 0.0 {
                     let a = self.rng.range(0.0, TAU);
                     let d = self.rng.range(NEAR, FAR);
-                    let kind = if self.rng.f() < 0.5 { VILLAGE } else { HUNT_BAND };
+                    let kind = [VILLAGE, HUNT_BAND, ESCORT_VILLAGER][(self.rng.next_u32() % 3) as usize];
                     let c = &mut self.commission;
                     c.kind = kind;
                     c.x = self.player.x + fmath::cos(a) * d;
@@ -215,14 +246,24 @@ impl Game {
                 c.held = if dx * dx + dy * dy <= RADIUS * RADIUS { c.held + dt } else { 0.0 };
                 if c.held >= STAND {
                     c.phase = DEFENDING;
-                    c.left = if c.kind == VILLAGE { DEFEND } else { HUNT };
-                    c.hp = VILLAGE_HP;
+                    c.left = match c.kind {
+                        VILLAGE => DEFEND,
+                        ESCORT_VILLAGER => ESCORT,
+                        _ => HUNT,
+                    };
+                    c.hp = c.max_hp();
                     c.attackers.clear();
                     c.spawn_acc = 0.0;
                     c.roused = false;
                     let (x, y) = (c.x, c.y);
                     if c.kind == HUNT_BAND {
                         self.commission_place_band();
+                    } else if c.kind == ESCORT_VILLAGER {
+                        let a = self.rng.range(0.0, TAU);
+                        let c = &mut self.commission;
+                        c.start = (c.x, c.y);
+                        c.gx = c.x + fmath::cos(a) * ROUTE;
+                        c.gy = c.y + fmath::sin(a) * ROUTE;
                     }
                     self.event(EV_LEVELUP, x, y, 0.0);
                 } else if c.left <= 0.0 {
@@ -232,7 +273,43 @@ impl Game {
                 }
             }
             _ if self.commission.kind == VILLAGE => self.commission_defend(dt),
+            _ if self.commission.kind == ESCORT_VILLAGER => self.commission_escort(dt),
             _ => self.commission_hunt(),
+        }
+    }
+
+    /// An escort under way: the villager walks on while the player is near,
+    /// enemies keep coming at it, and it ends when the villager arrives,
+    /// falls, or time runs out.
+    fn commission_escort(&mut self, dt: f32) {
+        let (px, py) = (self.player.x, self.player.y);
+        let c = &mut self.commission;
+        let (dx, dy) = (px - c.x, py - c.y);
+        let (wx, wy) = (c.gx - c.x, c.gy - c.y);
+        let left = (wx * wx + wy * wy).sqrt();
+        if dx * dx + dy * dy < NEARBY * NEARBY && left > 0.0 {
+            let step = (PACE * dt).min(left);
+            c.x += wx / left * step;
+            c.y += wy / left * step;
+        }
+        let arrived = left <= 1.0;
+        // The attackers come at the villager, as at a village; that also ends it if it falls.
+        if !arrived {
+            self.commission_defend(dt);
+        }
+        let c = &mut self.commission;
+        if c.phase != DEFENDING {
+            return;
+        }
+        let (x, y) = (c.x, c.y);
+        if arrived {
+            c.phase = WAITING;
+            c.left = PAUSE;
+            c.done += 1;
+            c.attackers.clear();
+            self.pending += 1;
+            self.player.hp = (self.player.hp + HEAL).min(self.player.max_hp);
+            self.event(EV_COMMISSION_DONE, x, y, 0.0);
         }
     }
 
@@ -329,11 +406,17 @@ impl Game {
         } else if c.left <= 0.0 {
             c.phase = WAITING;
             c.left = PAUSE;
-            c.done += 1;
             c.attackers.clear();
-            self.pending += 1;
-            self.player.hp = (self.player.hp + HEAL).min(self.player.max_hp);
-            self.event(EV_COMMISSION_DONE, x, y, 0.0);
+            if c.kind == ESCORT_VILLAGER {
+                // The villager did not get there in time.
+                c.failed += 1;
+                self.event(EV_COMMISSION_FAILED, x, y, 0.0);
+            } else {
+                c.done += 1;
+                self.pending += 1;
+                self.player.hp = (self.player.hp + HEAL).min(self.player.max_hp);
+                self.event(EV_COMMISSION_DONE, x, y, 0.0);
+            }
         }
     }
 
@@ -372,6 +455,19 @@ impl Game {
             self.put(x, y - 30.0, 13.0, 30.0, 0.0, P_TALISMAN, 0.0, 0.6, [0.76, 0.27, 0.18, 1.0]);
             return;
         }
+        if self.commission.kind == ESCORT_VILLAGER && phase == DEFENDING {
+            let (gx, gy) = (self.commission.gx, self.commission.gy);
+            let life = (self.commission.hp / VILLAGER_HP).clamp(0.0, 1.0);
+            self.put(gx, gy, RADIUS * 1.1, RADIUS * 0.85, 0.0, P_RING, 0.0, 0.5, GOLD);
+            // The villager: a small robed figure in undyed paper, reddening as it is hurt.
+            let robe =
+                [0.80 + 0.1 * (1.0 - life), 0.72 * life + 0.3 * (1.0 - life), 0.55 * life + 0.25 * (1.0 - life), 1.0];
+            let bob = if (self.anim * 6.0).floor() as i32 & 1 == 0 { 0.0 } else { -2.0 };
+            self.put(x, y, 14.0, 5.0, 0.0, P_GROUND_SHADOW, 0.0, 0.0, [INK[0], INK[1], INK[2], 0.2]);
+            self.put(x, y - 18.0 + bob, 14.0, 18.0, 0.0, P_PLAYER_BODY, flash, 0.61, robe);
+            self.put(x, y - 42.0 + bob, 10.0, 10.0, 0.0, P_ELLIPSE, flash, 0.27, [0.93, 0.86, 0.72, 1.0]);
+            return;
+        }
         // The village: three paper houses on a stone wash, reddening as it is harmed.
         let life = (self.commission.hp / VILLAGE_HP).clamp(0.0, 1.0);
         let roof = [0.55 + 0.25 * (1.0 - life), 0.30 * life + 0.15, 0.22 * life + 0.12, 1.0];
@@ -397,6 +493,13 @@ impl Game {
             match members.min_by(|a, b| d(a).total_cmp(&d(b))) {
                 Some(e) if c.roused => (e.x, e.y),
                 _ => (c.gx, c.gy),
+            }
+        } else if c.phase == DEFENDING && c.kind == ESCORT_VILLAGER {
+            let (vx, vy) = (c.x - self.cam.0, c.y - self.cam.1);
+            if vx.abs() <= self.view_w - 44.0 && vy.abs() <= self.view_h - 44.0 {
+                (c.gx, c.gy)
+            } else {
+                (c.x, c.y)
             }
         } else {
             (c.x, c.y)
@@ -575,6 +678,54 @@ mod tests {
         play(&mut g, HUNT + 1.0, Some(spot));
         assert_eq!(g.commission.failed, 1);
         assert_eq!(g.commission.done, 0);
+    }
+
+    #[test]
+    fn an_escort_walks_only_with_the_player_and_is_done_on_arrival() {
+        let mut g = offered(ESCORT_VILLAGER);
+        let spot = (g.commission.x, g.commission.y);
+        play(&mut g, 8.0, Some(spot));
+        assert_eq!(g.commission.phase, DEFENDING);
+        // Away from the player, the villager waits.
+        g.player.x += 2000.0;
+        let at = (g.commission.x, g.commission.y);
+        for _ in 0..120 {
+            g.commission.hp = VILLAGER_HP;
+            g.player.hp = g.player.max_hp;
+            g.tick();
+        }
+        assert_eq!((g.commission.x, g.commission.y), at);
+        // Beside it, it walks to the end and the commission is done.
+        for _ in 0..((ESCORT - 3.0) / TICK) as u32 {
+            g.commission.hp = VILLAGER_HP;
+            g.player.hp = g.player.max_hp;
+            g.player.x = g.commission.x + 30.0;
+            g.player.y = g.commission.y;
+            g.tick();
+            while g.choosing {
+                g.choose(0);
+                if g.choosing {
+                    g.choose(A_SCYTHE);
+                }
+            }
+            if g.commission.phase != DEFENDING {
+                break;
+            }
+        }
+        assert_eq!(g.commission.done, 1, "walked {}", g.commission.walked(g.commission.start));
+    }
+
+    #[test]
+    fn an_escort_fails_when_the_villager_falls() {
+        let mut g = offered(ESCORT_VILLAGER);
+        let spot = (g.commission.x, g.commission.y);
+        play(&mut g, 8.0, Some(spot));
+        assert_eq!(g.commission.phase, DEFENDING);
+        g.commission.hp = 0.1;
+        g.commission.dmg = 1.0;
+        g.player.hp = g.player.max_hp;
+        g.tick();
+        assert_eq!(g.commission.failed, 1);
     }
 
     #[test]

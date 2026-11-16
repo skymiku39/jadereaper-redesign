@@ -304,5 +304,6 @@ pub const S_COMMISSION_MAX: usize = 75;
 pub const S_COMMISSION_DONE: usize = 76;
 pub const S_COMMISSION_KIND: usize = 77;
 pub const S_COMMISSION_BAND: usize = 78;
+pub const S_COMMISSION_WALKED: usize = 79;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];

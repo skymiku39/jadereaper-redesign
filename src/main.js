@@ -392,7 +392,7 @@ async function boot() {
         commission: {
           phase: s[STATE.COMMISSION], left: s[STATE.COMMISSION_LEFT], need: s[STATE.COMMISSION_NEED],
           held: s[STATE.COMMISSION_HELD], hp: s[STATE.COMMISSION_HP], max: s[STATE.COMMISSION_MAX],
-          kind: s[STATE.COMMISSION_KIND], band: s[STATE.COMMISSION_BAND],
+          kind: s[STATE.COMMISSION_KIND], band: s[STATE.COMMISSION_BAND], walked: s[STATE.COMMISSION_WALKED],
         },
         notice: notice && clock < notice.until ? notice.key : null,
         goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],

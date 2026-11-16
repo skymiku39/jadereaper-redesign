@@ -1673,6 +1673,7 @@ impl Game {
         s[S_COMMISSION_DONE] = c.done as f32;
         s[S_COMMISSION_KIND] = c.kind as f32;
         s[S_COMMISSION_BAND] = band as f32;
+        s[S_COMMISSION_WALKED] = c.walked(c.start);
         s[S_GUARD] = p.guard;
         s[S_GUARD_MAX] = guard_cap;
         s[S_REGROW] = p.regrow;

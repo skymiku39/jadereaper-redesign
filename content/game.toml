@@ -1442,3 +1442,8 @@ index = 77
 [[state]]
 name = "commission_band"
 index = 78
+
+# How far an escort's villager has walked, 0..1.
+[[state]]
+name = "commission_walked"
+index = 79

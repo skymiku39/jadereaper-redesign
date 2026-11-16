@@ -243,6 +243,7 @@ export const STATE = {
   COMMISSION_DONE: 76,
   COMMISSION_KIND: 77,
   COMMISSION_BAND: 78,
+  COMMISSION_WALKED: 79,
 };
 
 export const INK = [0.17, 0.15, 0.13];
