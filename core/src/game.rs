@@ -97,7 +97,7 @@ pub struct Num {
     color: [f32; 3],
 }
 
-const MAX_NUMS: usize = 120;
+const MAX_NUMS: usize = 40;
 const NUM_LIFE: f32 = 0.7;
 /// The colour of plain damage: ink, which reads on the paper's white cutout edge.
 const NUM_PLAIN: [f32; 3] = [0.22, 0.2, 0.18];
@@ -1161,7 +1161,7 @@ impl Game {
         if !self.show_numbers || value.partial_cmp(&0.0) != Some(core::cmp::Ordering::Greater) {
             return;
         }
-        if let Some(n) = self.nums.iter_mut().find(|n| n.id == id && n.color == color && n.life > NUM_LIFE * 0.6) {
+        if let Some(n) = self.nums.iter_mut().find(|n| n.id == id && n.color == color && n.life > NUM_LIFE * 0.25) {
             n.value += value;
             n.life = NUM_LIFE;
             return;
