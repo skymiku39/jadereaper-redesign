@@ -18,6 +18,7 @@ const DEFAULTS = {
   // Damage numbers, and camera shake with hit-stop.
   numbers: true,
   motion: true,
+  music: true,
   lang: null, // null: use DEFAULT_LANG from i18n.js
 };
 

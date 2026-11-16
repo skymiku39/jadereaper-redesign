@@ -456,7 +456,7 @@ export function createUI({ onAction }) {
       : '';
   }
 
-  function settings({ volume, muted, numbers, motion }) {
+  function settings({ volume, muted, numbers, motion, music }) {
     const on = Math.round(volume * 10);
     $('volPips').replaceChildren(...Array.from({ length: 10 }, (_, i) => {
       const pip = document.createElement('i');
@@ -468,7 +468,24 @@ export function createUI({ onAction }) {
     }
     $('numbersBtn').textContent = t(numbers ? 'settings.numbersOn' : 'settings.numbersOff');
     $('motionBtn').textContent = t(motion ? 'settings.motionOn' : 'settings.motionOff');
+    $('musicBtn').textContent = t(music ? 'settings.musicOn' : 'settings.musicOff');
     setText($('langBtn'), t('settings.language', { name: t('lang.name') }));
+  }
+
+  /** Redden the edges of the screen while health is low. */
+  function lowHealth(on) {
+    if (cache.low === on) return;
+    cache.low = on;
+    document.body.classList.toggle('low-health', on);
+  }
+
+  /** Flash the experience bar on a level-up. */
+  function flashLevel() {
+    const bar = document.querySelector('#hud .xp');
+    bar.classList.remove('flash');
+    // Restart the animation even when the last one has not finished.
+    void bar.offsetWidth;
+    bar.classList.add('flash');
   }
 
   /** Mark the HUD while a replay plays. */
@@ -499,7 +516,7 @@ export function createUI({ onAction }) {
 
   return {
     show, navigate, confirm, hud, pointers, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
-    replaying, replayCopied,
+    replaying, replayCopied, lowHealth, flashLevel,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };

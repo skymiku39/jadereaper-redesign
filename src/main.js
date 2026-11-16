@@ -16,6 +16,7 @@ async function boot() {
   const audio = createAudio();
   audio.setVolume(save.volume);
   audio.setMuted(save.muted);
+  audio.setMusic(save.music);
 
   // 'title' | 'playing' | 'levelup' | 'paused' | 'over' | 'won'
   let mode = 'title';
@@ -30,6 +31,8 @@ async function boot() {
   let settingsFrom = 'title';
   // Seconds the game stands still after a heavy blow (hit-stop).
   let hitstop = 0;
+  // Seconds until the next heartbeat while health is low.
+  let heartbeat = 0;
 
   const ui = createUI({ onAction });
   const input = createInput({ onKey });
@@ -219,6 +222,7 @@ async function boot() {
       case 'mute': audio.setMuted(!audio.muted); saveSettings(); break;
       case 'numbers': save.numbers = !save.numbers; saveSettings(); break;
       case 'motion': save.motion = !save.motion; saveSettings(); break;
+      case 'music': save.music = !save.music; audio.setMusic(save.music); saveSettings(); break;
       case 'vol-up': audio.setVolume(audio.volume + 0.1); saveSettings(); audio.play('confirm'); break;
       case 'vol-down': audio.setVolume(audio.volume - 0.1); saveSettings(); audio.play('confirm'); break;
       case 'clear-save':
@@ -326,7 +330,16 @@ async function boot() {
           // A heavy enemy falling, or two elements reacting, stops the game for a beat.
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) hitstop = Math.max(hitstop, 0.07);
           if (save.motion && type === EVENT.REACT) hitstop = Math.max(hitstop, 0.04);
+          if (type === EVENT.LEVELUP) ui.flashLevel();
         }
+      }
+      // Low health: the edges of the screen redden, and a heartbeat sounds.
+      const low = s[STATE.HP] > 0 && s[STATE.HP] < s[STATE.MAX_HP] * 0.25;
+      ui.lowHealth(low);
+      heartbeat -= dt;
+      if (low && heartbeat <= 0) {
+        audio.play('heartbeat');
+        heartbeat = 0.9;
       }
       const accepting = s[STATE.ACCEPTING] === 1;
       ui.hud({
@@ -380,6 +393,9 @@ async function boot() {
       }
     }
 
+    // The music steps back while a menu is open, and while nothing is being played.
+    audio.duck(mode !== 'playing');
+    if (mode !== 'playing') ui.lowHealth(false);
     renderer.draw(core.memory.buffer, core.jr_instances_ptr(), core.jr_instance_count(), s[STATE.CAM_X], s[STATE.CAM_Y], clock);
     requestAnimationFrame(frame);
   }

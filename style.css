@@ -480,3 +480,25 @@ button.card { font-family: var(--hand); }
 /* Marks the HUD while a replay from a link plays. */
 .replay-tag { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%) rotate(-1.5deg); color: var(--vermilion, #b8412b); font-size: 18px; }
 .replay-tag[hidden] { display: none; }
+
+/* Low health: a vermilion wash creeps in from the edges and pulses. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(194, 69, 45, 0.45) 100%);
+}
+body.low-health::after { opacity: 1; animation: low-pulse 0.9s ease-in-out infinite; }
+@keyframes low-pulse { 50% { opacity: 0.55; } }
+
+/* The experience bar glows for a moment on a level-up. */
+#hud .xp.flash .xp-fill { animation: xp-flash 0.6s ease-out; }
+@keyframes xp-flash { 0% { filter: brightness(2.2) saturate(0.6); } 100% { filter: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  body.low-health::after { animation: none; }
+  #hud .xp.flash .xp-fill { animation: none; }
+}

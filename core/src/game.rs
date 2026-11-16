@@ -1056,6 +1056,39 @@ impl Game {
                     top: false,
                 });
             }
+            self.tear(&e);
+        }
+    }
+
+    /// The paper of a fallen enemy tears into a few pieces that spin away.
+    /// Drawing only: the pieces come from the enemy's id, not the run's random
+    /// numbers, so they change nothing about how the run goes.
+    fn tear(&mut self, e: &Enemy) {
+        let k = &KINDS[e.kind as usize];
+        let pieces = if k.heavy { 3 } else { 2 };
+        for p in 0..pieces {
+            let h = hash2(e.id as i32, p);
+            let r = |shift: u32| ((h >> shift) & 255) as f32 / 255.0;
+            // Each piece flies off to its own side, up and out.
+            let side = if p % 2 == 0 { -1.0 } else { 1.0 };
+            let (vx, vy) = (side * (60.0 + 90.0 * r(0)), -90.0 - 80.0 * r(8));
+            self.add_fx(Fx {
+                x: e.x + side * k.hw * 0.3,
+                y: e.y - k.hh,
+                vx,
+                vy,
+                life: 0.45,
+                max: 0.45,
+                part: P_SCRAP,
+                hw: k.hw * (0.35 + 0.15 * r(16)),
+                hh: k.hh * (0.3 + 0.15 * r(24)),
+                rot: r(4) * TAU,
+                vr: side * (6.0 + 6.0 * r(12)),
+                grow: -6.0,
+                color: [k.color[0], k.color[1], k.color[2], 0.95],
+                seed: r(20),
+                top: true,
+            });
         }
     }
 
