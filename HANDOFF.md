@@ -8,12 +8,14 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### docs/redesign-setup
+### docs/redesign-pages
 
-Setting this repository up after the copy (the user said "先完成新 repo 設定" on 2026-11-17). Cut from `main` at 7483868. Committed as 4c8dcbc, then pushed and opened as this repository's first PR on 2026-11-17 (the user said "提交", then "推送並開 PR"). The user has not said to merge it.
+Cut from `main` at 5b60ebd. The user said "啟用新網站" on 2026-11-17, so Pages was enabled on this repository with GitHub Actions as its source (a repository setting, not a commit), and the failed `Pages` run on 5b60ebd was run again and deployed. https://skymiku39.github.io/jadereaper-redesign/ answers 200 for the page and for `wasm/jadereaper_core.wasm`; nobody has opened it in a browser or played it there. This branch only brings `README.md` and this file up to date with that. Committed, pushed and opened as this repository's second PR on 2026-11-17 (the user said "提交並開 PR"); documents only, so no checks were run locally. The user has not said to merge it.
+
+Merged on 2026-11-17 by rebase as PR 1 (the user said "通過後合併"; its Core and Smoke checks passed, and `docs/redesign-setup` is deleted locally and on `origin`): setting this repository up after the copy (the user said "先完成新 repo 設定"). What follows describes PR 1.
 
 - **Changed:** the repository name in `tools/sync-labels.sh`, `.github/ISSUE_TEMPLATE/config.yml` and `proposal.yml`, and `docs/design.md` line 7; `README.md` "Play it online" now says this repository has no site yet and points to the old one as the playable version; `docs/README.md` no longer names the old site's address. `CONTRIBUTING.md` did not name the repository and is unchanged.
-- **Pages:** not enabled here, so the `Pages` workflow fails on every push to `main` (it did on 7483868). Whether the redesign gets its own site, or the workflow is switched off, is the user's call (P-34).
+- **Pages:** was not enabled when PR 1 was written, so the `Pages` workflow failed on 7483868 and on the first run of 5b60ebd. It is enabled now (see above).
 - **Checked on 2026-11-17 in this folder:** `cargo test --release` (175 passed, 5 ignored; 18 content tests), `./build.sh` (changes no committed file), `npm ci`, `npm run determinism`, `npm run smoke`. The Core and Smoke runs on `main` at 7483868 passed; Fonts did not run for that push.
 - **Not checked:** `cargo fmt --check`, `cargo clippy` and the font checks were not run here; this branch changes only documents, two issue templates and one line of a script. `tools/sync-labels.sh` was not run against the new repository, so its labels are GitHub's defaults.
 
@@ -76,7 +78,7 @@ Done: the rest of CI (roadmap step 5), merged as PR 2, and the fixed time step, 
 
 ## Pending
 
-- **P-34** Whether this repository gets its own Pages site, and what "重新設計" covers: the user said to copy the existing code and redesign here, but not yet which parts of the design or code are to be redone. Blocks: choosing the first piece of work here.
+- **P-34** What "重新設計" covers (the Pages half is answered: the user had the site enabled on 2026-11-17): the user said to copy the existing code and redesign here, but not yet which parts of the design or code are to be redone. Blocks: choosing the first piece of work here.
 - **P-21** The user's call on the survive mission: it can be won by only running away. In a native simulation of 40 seeds, a bot that moves away from nearby enemies and always takes the first card won 40 of 40 at a mean level of 1.4; a bot walking in circles won 0 of 40 and lasted 102 s on average. The arena has no edge and enemies are slower than the player. It needs pressure that running cannot escape (a bounded arena, spawns that surround, faster chasers); open in `docs/design.md` 4.2.1. Blocks: nothing, but it shapes the next mission prototypes.
 - **P-22** The user has not yet said whether the game looks right at the fixed step (PR 3). Blocks: nothing.
 - **P-29** What makes the encirclement in `escape` real, since enemies neither block nor outrun the player: guards standing at the exit, a slowdown inside a crowd, or a higher enemy cap. Same root as P-21. Blocks: `escape` being a mission at all.
