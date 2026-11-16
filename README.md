@@ -140,7 +140,7 @@ npm run shot -- --give scythe:3:fire --give pulse:2:lightning --tune spawn_rate=
 cargo run --release --manifest-path core/Cargo.toml --bin sim
 ```
 
-Without options it prints a row for each of three bots (one stands still, one walks a square, one backs away from whatever is near) and four ways of picking cards, 24 endless runs of up to five minutes each, in about a quarter of a minute. The columns are runs won and runs that ended in death, and the mean time, level, kills, kills per minute and health lost per minute. `--element each` prints a row for no element and one for each element carried by every art, which is how the numbers in `[[element]]` are compared; `--mission`, `--tune name=value`, `--seeds`, `--seconds` and `--csv` do what they say. The options are listed at the top of the file.
+Without options it prints a row for each of four bots (one stands still, one walks a square, one backs away from whatever is near, and one heads for whatever the mission's edge markers point at while keeping clear of enemies) and four ways of picking cards, 24 endless runs of up to five minutes each, in about a quarter of a minute. The columns are runs won and runs that ended in death, and the mean time, level, kills, kills per minute and health lost per minute. `--element each` prints a row for no element and one for each element carried by every art, which is how the numbers in `[[element]]` are compared; `--mission all` prints a table per mission; `--mission`, `--tune name=value`, `--seeds`, `--seconds` and `--csv` do what they say. The options are listed at the top of the file.
 
 The bots are crude: they show which of two numbers is larger, not how the game feels.
 

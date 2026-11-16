@@ -3,10 +3,12 @@
 //!
 //!     cargo run --release --manifest-path core/Cargo.toml --bin sim -- [options]
 //!
-//!   --mission <name>      the mission to play (default endless)
+//!   --mission <name>      the mission to play, or all (default endless)
 //!   --seeds <n>           runs per row (default 24)
 //!   --seconds <n>         a run stops here if nothing ended it (default 300)
-//!   --bot <name>          still, circle, kite, or all (default all)
+//!   --bot <name>          still, circle, kite, seek, or all (default all)
+//!                         seek heads for whatever the mission's edge markers
+//!                         point at (its goal) while keeping clear of enemies
 //!   --pick <name>         first, random, arts, passives, or all (default all)
 //!   --element <name>      none, an element's name, or each (default none):
 //!                         every martial art the bot holds carries that
@@ -29,6 +31,7 @@ enum Bot {
     Still,
     Circle,
     Kite,
+    Seek,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -39,7 +42,8 @@ enum Pick {
     Passives,
 }
 
-const BOTS: [(&str, Bot); 3] = [("still", Bot::Still), ("circle", Bot::Circle), ("kite", Bot::Kite)];
+const BOTS: [(&str, Bot); 4] =
+    [("still", Bot::Still), ("circle", Bot::Circle), ("kite", Bot::Kite), ("seek", Bot::Seek)];
 const PICKS: [(&str, Pick); 4] =
     [("first", Pick::First), ("random", Pick::Random), ("arts", Pick::Arts), ("passives", Pick::Passives)];
 
@@ -64,8 +68,38 @@ struct Outcome {
     hurt: f32,
 }
 
-/// Where the bot wants to go, each axis in -1..1.
-fn steer(bot: Bot, g: &Game, tick: u32) -> (f32, f32) {
+/// Away from the enemies close by, each weighing more the nearer it is, and
+/// the offset to the nearest enemy of all.
+fn avoid(g: &Game) -> ((f32, f32), (f32, f32)) {
+    let (px, py) = (g.player.x, g.player.y);
+    let (mut ax, mut ay) = (0.0f32, 0.0f32);
+    let mut nearest = (f32::MAX, 0.0f32, 0.0f32);
+    for e in &g.enemies {
+        let (dx, dy) = (px - e.x, py - e.y);
+        let d2 = (dx * dx + dy * dy).max(1.0);
+        if d2 < nearest.0 {
+            nearest = (d2, dx, dy);
+        }
+        if d2 < 170.0 * 170.0 {
+            ax += dx / d2;
+            ay += dy / d2;
+        }
+    }
+    ((ax, ay), (nearest.1, nearest.2))
+}
+
+fn unit((x, y): (f32, f32)) -> (f32, f32) {
+    let len = (x * x + y * y).sqrt();
+    if len > 0.0 {
+        (x / len, y / len)
+    } else {
+        (0.0, 0.0)
+    }
+}
+
+/// Where the bot wants to go, each axis in -1..1. `target` is the last place
+/// the mission's markers pointed at, for the seeking bot.
+fn steer(bot: Bot, g: &Game, tick: u32, target: Option<(f32, f32)>) -> (f32, f32) {
     match bot {
         Bot::Still => (0.0, 0.0),
         Bot::Circle => {
@@ -74,31 +108,25 @@ fn steer(bot: Bot, g: &Game, tick: u32) -> (f32, f32) {
             SIDES[(tick / 90 % 4) as usize]
         }
         Bot::Kite => {
-            // Back away from what is close, each enemy weighing more the nearer it is.
-            let (px, py) = (g.player.x, g.player.y);
-            let (mut ax, mut ay) = (0.0f32, 0.0f32);
-            let mut nearest = (f32::MAX, 0.0f32, 0.0f32);
-            for e in &g.enemies {
-                let (dx, dy) = (px - e.x, py - e.y);
-                let d2 = (dx * dx + dy * dy).max(1.0);
-                if d2 < nearest.0 {
-                    nearest = (d2, dx, dy);
-                }
-                if d2 < 170.0 * 170.0 {
-                    ax += dx / d2;
-                    ay += dy / d2;
-                }
-            }
+            let ((ax, ay), nearest) = avoid(g);
             if ax == 0.0 && ay == 0.0 {
                 // Nothing close: walk at the nearest enemy, to fight and to pick gems up.
-                (ax, ay) = (-nearest.1, -nearest.2);
-            }
-            let len = (ax * ax + ay * ay).sqrt();
-            if len > 0.0 {
-                (ax / len, ay / len)
+                unit((-nearest.0, -nearest.1))
             } else {
-                (0.0, 0.0)
+                unit((ax, ay))
             }
+        }
+        Bot::Seek => {
+            let ((ax, ay), _) = avoid(g);
+            let away = unit((ax, ay));
+            let Some((tx, ty)) = target else { return away };
+            let (dx, dy) = (tx - g.player.x, ty - g.player.y);
+            // On the spot: stay, stepping aside only from what comes close.
+            if dx * dx + dy * dy < 40.0 * 40.0 {
+                return (away.0 * 0.6, away.1 * 0.6);
+            }
+            let toward = unit((dx, dy));
+            unit((toward.0 + away.0 * 0.8, toward.1 + away.1 * 0.8))
         }
     }
 }
@@ -135,13 +163,23 @@ fn run(setup: &Setup, seed: u32) -> Outcome {
     let mut rng = Rng((seed ^ 0x51ed_270b) | 1);
     let mut hurt = 0.0;
     let ticks = (setup.seconds / TICK) as u32;
+    let mut target = None;
     for tick in 0..ticks {
+        // The seeking bot looks at the mission's markers now and then; they are made when the game is drawn.
+        if setup.bot == Bot::Seek && tick % 15 == 0 {
+            g.present();
+            let (px, py) = (g.player.x, g.player.y);
+            let d = |p: &[f32; 4]| (p[0] - px) * (p[0] - px) + (p[1] - py) * (p[1] - py);
+            if let Some(p) = g.pointers.iter().min_by(|a, b| d(a).total_cmp(&d(b))) {
+                target = Some((p[0], p[1]));
+            }
+        }
         if setup.element > 0 {
             for art in g.arts.iter_mut() {
                 art.element = setup.element;
             }
         }
-        g.input = steer(setup.bot, &g, tick);
+        g.input = steer(setup.bot, &g, tick, target);
         let before = g.player.hp;
         g.tick();
         hurt += (before - g.player.hp).max(0.0);
@@ -195,7 +233,7 @@ fn fail(message: &str) -> ! {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let mut mission = M_ENDLESS;
+    let mut missions = vec![M_ENDLESS];
     let (mut seeds, mut seconds) = (24u32, 300.0f32);
     let (mut bots, mut picks) = (find(&BOTS, "all", "bot"), find(&PICKS, "all", "pick"));
     let mut elements: Vec<u8> = vec![0];
@@ -212,7 +250,12 @@ fn main() {
                 continue;
             }
             "--mission" => {
-                mission = MISSION_NAMES.iter().position(|n| *n == value()).unwrap_or_else(|| fail("unknown mission"))
+                missions = match value() {
+                    "all" => (0..N_MISSIONS).collect(),
+                    name => {
+                        vec![MISSION_NAMES.iter().position(|n| *n == name).unwrap_or_else(|| fail("unknown mission"))]
+                    }
+                }
             }
             "--seeds" => seeds = value().parse().unwrap_or_else(|_| fail("--seeds takes a whole number")),
             "--seconds" => seconds = value().parse().unwrap_or_else(|_| fail("--seconds takes a number")),
@@ -245,7 +288,25 @@ fn main() {
 
     if csv {
         println!("mission,bot,pick,element,runs,won,died,seconds,level,kills,kills_per_min,hurt_per_min");
-    } else {
+    }
+    for &mission in &missions {
+        print_mission(mission, &bots, &picks, &elements, seeds, seconds, tune, csv, fixed);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn print_mission(
+    mission: usize,
+    bots: &[Bot],
+    picks: &[Pick],
+    elements: &[u8],
+    seeds: u32,
+    seconds: f32,
+    tune: [f32; N_TUNES],
+    csv: bool,
+    fixed: bool,
+) {
+    if !csv {
         println!(
             "{} · {seeds} runs a row · up to {seconds} s{}",
             MISSION_NAMES[mission],
@@ -256,9 +317,9 @@ fn main() {
             "bot", "pick", "element", "won", "died", "seconds", "level", "kills", "kills/min", "hurt/min"
         );
     }
-    for &bot in &bots {
-        for &pick in &picks {
-            for &element in &elements {
+    for &bot in bots {
+        for &pick in picks {
+            for &element in elements {
                 let setup = Setup { mission, seconds, tune, bot, pick, element };
                 let runs = row(&setup, seeds);
                 let n = runs.len().max(1) as f32;
