@@ -1387,9 +1387,21 @@ impl Game {
                 self.draw_fx(i);
             }
         }
+        let lure = 95.0 * self.stat(ST_PICKUP_RANGE);
         for i in 0..self.gems.len() {
             let g = &self.gems[i];
-            let (x, y, seed, heart) = (g.x, g.y, g.seed, g.heart);
+            let (mut x, mut y, seed, heart) = (g.x, g.y, g.seed, g.heart);
+            // A gem being pulled in is drawn on a curve rather than a straight line:
+            // pushed sideways most halfway in, not at all at either end. Drawing only.
+            if g.pull {
+                let (dx, dy) = (self.player.x - x, self.player.y - y);
+                let d = (dx * dx + dy * dy).sqrt().max(0.001);
+                let t = (d / lure).min(1.0);
+                let side = if seed < 0.5 { 1.0 } else { -1.0 };
+                let bulge = 22.0 * fmath::sin(t * core::f32::consts::PI) * side;
+                x += -dy / d * bulge;
+                y += dx / d * bulge;
+            }
             // Two-pose rock, like a paper tag on a string.
             let pose = (((self.anim * 4.0 + seed * 9.0).floor() as i32) & 1) as f32;
             let rot = pose * 0.3 - 0.15;
