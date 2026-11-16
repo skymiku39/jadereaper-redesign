@@ -40,6 +40,18 @@ pub const N_UPGRADES: usize = 10;
 pub const UPGRADE_NAMES: [&str; N_UPGRADES] = ["scythe", "talisman", "beads", "pulse", "vitality", "swift", "lure", "might", "haste", "mending"];
 pub const UPGRADE_MAX: [u8; N_UPGRADES] = [6, 6, 6, 6, 5, 5, 5, 5, 5, 5];
 
+// Passive upgrades: the stat each one raises and by how much per level.
+pub const N_PASSIVES: usize = 6;
+#[rustfmt::skip]
+pub const PASSIVES: [PassiveDef; N_PASSIVES] = [
+    PassiveDef { upgrade: U_VITALITY, stat: ST_MAX_HP, amount: 20.0 },
+    PassiveDef { upgrade: U_SWIFT, stat: ST_MOVE_SPEED, amount: 0.08 },
+    PassiveDef { upgrade: U_LURE, stat: ST_PICKUP_RANGE, amount: 0.3 },
+    PassiveDef { upgrade: U_MIGHT, stat: ST_DAMAGE, amount: 0.12 },
+    PassiveDef { upgrade: U_HASTE, stat: ST_COOLDOWN, amount: 0.92 },
+    PassiveDef { upgrade: U_MENDING, stat: ST_REGEN, amount: 0.4 },
+];
+
 // Enemy kinds. Kind 0 fills whatever share of the horde the others leave.
 pub const K_BLOT: u8 = 0;
 pub const K_WISP: u8 = 1;

@@ -121,3 +121,18 @@ pub struct Kind {
     /// The tune that holds its share instead of `share`; `N_TUNES` for none.
     pub share_tune: usize,
 }
+
+/// The stats a passive upgrade can raise. `Game::stat` says how each one adds up.
+pub const ST_MAX_HP: u8 = 0;
+pub const ST_MOVE_SPEED: u8 = 1;
+pub const ST_PICKUP_RANGE: u8 = 2;
+pub const ST_DAMAGE: u8 = 3;
+pub const ST_COOLDOWN: u8 = 4;
+pub const ST_REGEN: u8 = 5;
+
+/// A passive upgrade: `stat` changes by `amount` per level of `upgrade`.
+pub struct PassiveDef {
+    pub upgrade: usize,
+    pub stat: u8,
+    pub amount: f32,
+}

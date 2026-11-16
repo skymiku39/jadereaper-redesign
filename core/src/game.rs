@@ -575,8 +575,16 @@ impl Game {
         }
     }
 
-    fn lvl(&self, id: usize) -> f32 {
-        self.up[id] as f32
+    /// What the passive upgrades make of a stat (an `ST_*` id), from their levels:
+    /// a factor for speed, range, damage and cooldown, health per second for regen.
+    /// The most health is raised when the upgrade is picked, not here.
+    pub(crate) fn stat(&self, stat: u8) -> f32 {
+        let held = PASSIVES.iter().filter(|p| p.stat == stat);
+        match stat {
+            ST_COOLDOWN => held.fold(1.0, |f, p| f * fmath::powu(p.amount, self.up[p.upgrade] as u32)),
+            ST_REGEN => held.fold(0.0, |sum, p| sum + p.amount * self.up[p.upgrade] as f32),
+            _ => 1.0 + held.fold(0.0, |sum, p| sum + p.amount * self.up[p.upgrade] as f32),
+        }
     }
 
     // ---------------------------------------------------------------- step
@@ -594,8 +602,8 @@ impl Game {
             my /= len;
             len = 1.0;
         }
-        let speed = 190.0 * (1.0 + 0.08 * self.lvl(U_SWIFT)) * self.retrieval.speed_factor();
-        let regen = 0.4 * self.lvl(U_MENDING);
+        let speed = 190.0 * self.stat(ST_MOVE_SPEED) * self.retrieval.speed_factor();
+        let regen = self.stat(ST_REGEN);
         let p = &mut self.player;
         p.moving = len > 0.15;
         if p.moving {
@@ -1066,7 +1074,7 @@ impl Game {
 
     fn move_gems(&mut self, dt: f32) {
         let (px, py) = (self.player.x, self.player.y);
-        let lure = 95.0 * (1.0 + 0.3 * self.lvl(U_LURE));
+        let lure = 95.0 * self.stat(ST_PICKUP_RANGE);
         let mut i = 0;
         while i < self.gems.len() {
             let g = &mut self.gems[i];
@@ -1250,9 +1258,10 @@ impl Game {
             }
             if self.up[id] < UPGRADE_MAX[id] {
                 self.up[id] += 1;
-                if id == U_VITALITY {
-                    self.player.max_hp += 20.0;
-                    self.player.hp += 20.0;
+                // A passive that raises the most health does it once, when picked.
+                for p in PASSIVES.iter().filter(|p| p.upgrade == id && p.stat == ST_MAX_HP) {
+                    self.player.max_hp += p.amount;
+                    self.player.hp += p.amount;
                 }
             }
         }

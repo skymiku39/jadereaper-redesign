@@ -171,6 +171,48 @@ name = "mending"
 max = 5
 glyph = "癒"
 
+# -------------------------------------------------------------- passives
+# What each passive upgrade does: one `stat`, changed by `amount` per level of
+# the [[upgrade]] of the same name. How the levels add up depends on the stat:
+#   max_hp        `amount` more health, and as much healed, each time it is picked
+#   move_speed    walking speed times 1 + amount x level
+#   pickup_range  the range gems are pulled from, times 1 + amount x level
+#   damage        every martial art's damage times 1 + amount x level
+#   cooldown      every martial art's cooldown times amount ^ level
+#   regen         `amount` x level health back per second
+# Every upgrade is either an [[art]] or a passive. The six here are the
+# prototype's and are to be redesigned (docs/design.md, section 4.5).
+
+[[passive]]
+name = "vitality"
+stat = "max_hp"
+amount = 20
+
+[[passive]]
+name = "swift"
+stat = "move_speed"
+amount = 0.08
+
+[[passive]]
+name = "lure"
+stat = "pickup_range"
+amount = 0.3
+
+[[passive]]
+name = "might"
+stat = "damage"
+amount = 0.12
+
+[[passive]]
+name = "haste"
+stat = "cooldown"
+amount = 0.92
+
+[[passive]]
+name = "mending"
+stat = "regen"
+amount = 0.4
+
 # --------------------------------------------------------------- enemies
 # Enemy kinds. Ids index a table, so they run 0, 1, 2... without gaps.
 # `radius` is what it collides with, `half_width` and `half_height` how large

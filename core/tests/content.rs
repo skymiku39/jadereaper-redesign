@@ -116,6 +116,20 @@ fn overlapping_state_is_rejected() {
 }
 
 #[test]
+fn passives_are_checked() {
+    let c = real();
+    assert!(!c.passives.is_empty());
+    assert_error(&errors_after("stat = \"regen\"", "stat = \"luck\""), "must be one of");
+    assert_error(&errors_after("name = \"mending\"\nstat", "name = \"mended\"\nstat"), "needs an [[upgrade]]");
+    // Without its passive, the mending upgrade would do nothing.
+    assert_error(
+        &errors_after("name = \"mending\"\nstat", "name = \"mended\"\nstat"),
+        "neither an [[art]] nor a [[passive]]",
+    );
+    assert_error(&errors_after("name = \"lure\"\nstat", "name = \"scythe\"\nstat"), "both a martial art and a passive");
+}
+
+#[test]
 fn enemies_are_checked() {
     let c = real();
     assert!(!c.enemies.is_empty());

@@ -268,6 +268,17 @@ pub struct Enemy {
     pub share_tune: Option<String>,
 }
 
+/// The stats a passive upgrade can raise. The core reads each where it is used.
+pub const STATS: [&str; 6] = ["max_hp", "move_speed", "pickup_range", "damage", "cooldown", "regen"];
+
+/// A passive upgrade: one stat, changed by `amount` per level of the upgrade of the same name.
+#[derive(Clone, Debug)]
+pub struct Passive {
+    pub name: String,
+    pub stat: String,
+    pub amount: String,
+}
+
 /// What a martial art does. The core has one function per behaviour.
 pub const BEHAVIOURS: [&str; 4] = ["arc", "projectile", "orbit", "nova"];
 
@@ -357,6 +368,7 @@ pub struct Content {
     pub parts: Vec<Part>,
     pub upgrades: Vec<Upgrade>,
     pub enemies: Vec<Enemy>,
+    pub passives: Vec<Passive>,
     pub arts: Vec<Art>,
     pub elements: Vec<Element>,
     pub reactions: Vec<Reaction>,
@@ -576,8 +588,8 @@ impl<'a> Fields<'a> {
 }
 
 /// Table names the content file may use, also valid as a `len` reference.
-const TABLES: [&str; 10] =
-    ["part", "upgrade", "enemy", "art", "element", "reaction", "event", "mission", "tune", "state"];
+const TABLES: [&str; 11] =
+    ["part", "upgrade", "passive", "enemy", "art", "element", "reaction", "event", "mission", "tune", "state"];
 
 /// Parse and check the content file. Returns every problem found.
 pub fn load(src: &str) -> Result<Content, Vec<String>> {
@@ -602,6 +614,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     let mut elements = Vec::new();
     let mut reactions = Vec::new();
     let mut enemies = Vec::new();
+    let mut passives = Vec::new();
     let mut events = Vec::new();
     let mut missions = Vec::new();
     let mut tunes = Vec::new();
@@ -629,6 +642,12 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         f.errs.push(format!("line {}: upgrade `glyph` must be one character", t.line));
                     }
                     upgrades.push((Upgrade { id, name, max, glyph }, t.line));
+                }
+            }
+            "passive" => {
+                let (name, stat, amount) = (f.name(), f.word("stat", &STATS), f.number("amount"));
+                if let (Some(name), Some(stat), Some(amount)) = (name, stat, amount) {
+                    passives.push((Passive { name, stat, amount }, t.line));
                 }
             }
             "enemy" => {
@@ -879,6 +898,29 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         }
     }
 
+    // Passives: each is levelled by the upgrade of the same name, and every
+    // upgrade is either a martial art or a passive, so none does nothing.
+    let mut passive_names: BTreeMap<&str, usize> = BTreeMap::new();
+    for (p, line) in &passives {
+        if let Some(first) = passive_names.insert(&p.name, *line) {
+            errs.push(format!("line {line}: duplicate passive name `{}` (first at line {first})", p.name));
+        }
+        if !upgrades.iter().any(|(u, _)| u.name == p.name) {
+            errs.push(format!("line {line}: passive `{}` needs an [[upgrade]] of the same name to level it", p.name));
+        }
+        if arts.iter().any(|(a, _, _)| a.name == p.name) {
+            errs.push(format!("line {line}: `{}` is both a martial art and a passive", p.name));
+        }
+    }
+    for (u, line) in &upgrades {
+        if !passives.iter().any(|(p, _)| p.name == u.name) && !arts.iter().any(|(a, _, _)| a.name == u.name) {
+            errs.push(format!(
+                "line {line}: upgrade `{}` is neither an [[art]] nor a [[passive]], so it would do nothing",
+                u.name
+            ));
+        }
+    }
+
     // Martial arts: ids index a table, each levels with the upgrade of the same
     // name, and every per-level list has one value per level of that upgrade.
     unique(&mut errs, "art", arts.iter().map(|(a, _, l)| (a.id, a.name.as_str(), *l)));
@@ -980,6 +1022,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         "part" => parts.len(),
         "upgrade" => upgrades.len(),
         "enemy" => enemies.len(),
+        "passive" => passives.len(),
         "art" => arts.len(),
         "element" => elements.len(),
         "reaction" => reactions.len(),
@@ -1038,6 +1081,10 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     missions.sort_by_key(|m| m.id);
     let mut tunes: Vec<Tune> = tunes.into_iter().map(|(t, _)| t).collect();
     tunes.sort_by_key(|t| t.id);
+    // Passives keep the order of their upgrades.
+    let mut passives: Vec<(Passive, usize)> = passives;
+    passives.sort_by_key(|(p, _)| upgrades.iter().find(|u| u.name == p.name).map_or(0, |u| u.id));
+    let passives: Vec<Passive> = passives.into_iter().map(|(p, _)| p).collect();
     let mut enemies: Vec<Enemy> = enemies.into_iter().map(|(e, _)| e).collect();
     enemies.sort_by_key(|e| e.id);
     let mut arts: Vec<Art> = arts.into_iter().map(|(a, _, _)| a).collect();
@@ -1053,6 +1100,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         parts,
         upgrades,
         enemies,
+        passives,
         arts,
         elements,
         reactions,
@@ -1114,6 +1162,22 @@ pub fn render_rust(c: &Content) -> String {
     name_table(&mut o, "UPGRADE_NAMES", "N_UPGRADES", c.upgrades.iter().map(|u| u.name.as_str()));
     let maxes: Vec<String> = c.upgrades.iter().map(|u| u.max.to_string()).collect();
     writeln!(o, "pub const UPGRADE_MAX: [u8; N_UPGRADES] = [{}];", maxes.join(", ")).unwrap();
+
+    o.push_str("\n// Passive upgrades: the stat each one raises and by how much per level.\n");
+    writeln!(o, "pub const N_PASSIVES: usize = {};", c.passives.len()).unwrap();
+    o.push_str("#[rustfmt::skip]\n");
+    o.push_str("pub const PASSIVES: [PassiveDef; N_PASSIVES] = [\n");
+    for p in &c.passives {
+        writeln!(
+            o,
+            "    PassiveDef {{ upgrade: U_{}, stat: ST_{}, amount: {} }},",
+            upper(&p.name),
+            upper(&p.stat),
+            float_lit(&p.amount)
+        )
+        .unwrap();
+    }
+    o.push_str("];\n");
 
     o.push_str("\n// Enemy kinds. Kind 0 fills whatever share of the horde the others leave.\n");
     for e in &c.enemies {

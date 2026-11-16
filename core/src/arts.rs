@@ -74,8 +74,8 @@ impl Game {
 
     /// Use every held art that is ready, in id order.
     pub(crate) fn weapons(&mut self, dt: f32) {
-        let might = 1.0 + 0.12 * self.lvl(U_MIGHT);
-        let haste = fmath::powu(0.92, self.up[U_HASTE] as u32);
+        let might = self.stat(ST_DAMAGE);
+        let haste = self.stat(ST_COOLDOWN);
         for (a, def) in ARTS.iter().enumerate() {
             let Some(n) = self.art_numbers(a) else { continue };
             match def.behaviour {
