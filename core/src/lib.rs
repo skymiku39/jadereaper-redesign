@@ -83,7 +83,10 @@ pub extern "C" fn jr_set_view(w: f32, h: f32) {
 /// Movement input, each axis in -1..1.
 #[no_mangle]
 pub extern "C" fn jr_input(mx: f32, my: f32) {
-    g().input = (mx, my);
+    // While a replay plays, the moves come from its log.
+    if !g().replay.playing {
+        g().input = (mx, my);
+    }
 }
 
 /// Advance by `dt` seconds of real time. The simulation moves in whole steps
@@ -122,7 +125,42 @@ pub extern "C" fn jr_scripted_mission(seed: u32, ticks: u32, mission: u32, armed
 /// Pick one of the offered upgrades (0..2).
 #[no_mangle]
 pub extern "C" fn jr_choose(i: u32) {
-    g().choose(i as usize);
+    // While a replay plays, the picks come from its log.
+    if !g().replay.playing {
+        g().choose(i as usize);
+    }
+}
+
+/// What the player has done this run: `jr_log_len()` x 4 u32
+/// `[step, kind, a, b]`, kind 0 a move (a and b the bits of the two axes),
+/// kind 1 a pick (a what `jr_choose` was given). See `replay.rs`.
+#[no_mangle]
+pub extern "C" fn jr_log_ptr() -> *const u32 {
+    g().replay.log.as_ptr() as *const u32
+}
+
+#[no_mangle]
+pub extern "C" fn jr_log_len() -> u32 {
+    g().replay.log.len() as u32
+}
+
+/// Play a log back in the run just started with `jr_start` (same seed,
+/// mission and tunes as the run it was logged in). Hand the entries over with
+/// `jr_replay_push`, in order. From then on `jr_input` and `jr_choose` are ignored.
+#[no_mangle]
+pub extern "C" fn jr_replay_begin() {
+    g().replay.begin();
+}
+
+#[no_mangle]
+pub extern "C" fn jr_replay_push(step: u32, kind: u32, a: u32, b: u32) {
+    g().replay.push([step, kind, a, b]);
+}
+
+/// 1 while a replay plays.
+#[no_mangle]
+pub extern "C" fn jr_replaying() -> u32 {
+    g().replay.playing as u32
 }
 
 /// Give the player a martial art (an id from `[[art]]`) at a level, carrying

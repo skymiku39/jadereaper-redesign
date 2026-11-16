@@ -9,7 +9,24 @@
 // WebGPU, it checks that the "Cannot start" screen shows the WebGPU reason.
 
 import { chromium } from 'playwright';
+import { readFile } from 'node:fs/promises';
 import { serve } from './serve.mjs';
+import { unpackReplay } from '../src/replay.js';
+import { MISSIONS, TUNES } from '../src/generated.js';
+
+/** Play a replay link on the committed wasm in Node up to `ticks` steps; returns the state hash there. */
+async function replayInNode(link, ticks) {
+  const r = await unpackReplay(new URL(link).searchParams.get('replay'));
+  const bytes = await readFile(new URL('../wasm/jadereaper_core.wasm', import.meta.url));
+  const core = (await WebAssembly.instantiate(bytes, {})).instance.exports;
+  core.jr_tune_reset();
+  for (const [name, value] of Object.entries(r.tunes)) core.jr_tune(TUNES.find((t) => t.name === name).id, value);
+  core.jr_start(r.seed, MISSIONS.find((m) => m.name === r.mission).id);
+  core.jr_replay_begin();
+  for (let i = 0; i < r.log.length; i += 4) core.jr_replay_push(r.log[i], r.log[i + 1], r.log[i + 2], r.log[i + 3]);
+  while (core.jr_ticks() < ticks) core.jr_update(1 / 60);
+  return core.jr_state_hash() >>> 0;
+}
 
 const PLAY_MS = 3000;
 const MISSION_MS = 2500;
@@ -74,6 +91,7 @@ try {
       return { missions: d.MISSIONS, acceptTime: d.TUNES.find((t) => t.name === 'accept_time'), S: d.STATE };
     });
     let played = 0;
+    let replayChecked = 'its replay link was not checked';
     for (const mission of missions) {
       // Leave the run in progress: pause it, unless it has already ended, then quit to the title.
       if (!(await page.locator('#over, #won, #levelup').locator('visible=true').count())) await page.keyboard.press('Escape');
@@ -106,8 +124,31 @@ try {
       if (await page.locator('#error').isVisible()) problems.push(`${mission.name}: the "Cannot start" screen appeared`);
       if (problems.length) break;
       played++;
+
+      // The first mission's replay link must play the same run: pause, note
+      // where the run is, and play the link back on the wasm in Node to the same step.
+      if (mission === missions[0] && !(await page.locator('#over, #won').locator('visible=true').count())) {
+        if (await page.locator('#levelup').isVisible()) {
+          await page.waitForTimeout(LOCK_MS);
+          await page.locator('#cards .card').first().click();
+        }
+        await page.keyboard.press('Escape');
+        await page.locator('#pause').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
+        const recorded = await page.evaluate(async () => ({
+          ticks: window.jadereaper.core.jr_ticks(),
+          hash: window.jadereaper.core.jr_state_hash() >>> 0,
+          link: await window.jadereaper.replayLink(),
+        }));
+        const replayed = await replayInNode(recorded.link, recorded.ticks);
+        if (replayed !== recorded.hash) {
+          problems.push(`the replay link plays another run: hash ${replayed} at step ${recorded.ticks}, the run had ${recorded.hash}`);
+        } else {
+          replayChecked = `its replay link played back to the same state at step ${recorded.ticks}`;
+        }
+        await page.keyboard.press('Escape');
+      }
     }
-    outcome = `WebGPU available; played ${PLAY_MS / 1000} s of a run, then ${played} of ${missions.length} missions for ${MISSION_MS / 1000} s each`;
+    outcome = `WebGPU available; played ${PLAY_MS / 1000} s of a run, then ${played} of ${missions.length} missions for ${MISSION_MS / 1000} s each; ${replayChecked}`;
   }
 } catch (err) {
   problems.push(`smoke test failed: ${err.message}`);

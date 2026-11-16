@@ -7,6 +7,7 @@ import { createUI } from './ui.js';
 import { loadSave, writeSave, recordRun, recordMission, clearRecords, tuneValue, setTune } from './save.js';
 import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, EVENT } from './data.js';
 import { pickLang, setLang, getLang, nextLang } from './i18n.js';
+import { packReplay, unpackReplay } from './replay.js';
 
 async function boot() {
   const canvas = document.getElementById('game');
@@ -22,6 +23,10 @@ async function boot() {
   let mission = MISSIONS[MISSION_IDS.endless];
   // True while the run has a tune that is not at its default. Such a run is not recorded.
   let testRun = false;
+  // The seed, mission name and tunes of the current run: with the core's log, its replay.
+  let run = null;
+  // True while a replay from a link plays.
+  let replaying = false;
   let settingsFrom = 'title';
 
   const ui = createUI({ onAction });
@@ -52,6 +57,10 @@ async function boot() {
 
   function toTitle() {
     core.jr_reset(seed());
+    replaying = false;
+    ui.replaying(false);
+    // A replay link only plays once; reloading the title should not play it again.
+    if (location.search.includes('replay=')) history.replaceState(null, '', location.pathname);
     mode = 'title';
     ui.showHud(false);
     ui.records(save);
@@ -87,15 +96,72 @@ async function boot() {
   function startRun() {
     core.jr_tune_reset();
     testRun = false;
+    const tunes = {};
     for (const tune of missionTunes()) {
       const value = tuneValue(save, tune);
       core.jr_tune(tune.id, value);
+      tunes[tune.name] = value;
       if (value !== tune.def) testRun = true;
     }
-    core.jr_start(seed(), mission.id);
+    const s = seed();
+    core.jr_start(s, mission.id);
+    run = { seed: s, mission: mission.name, tunes };
+    replaying = false;
+    ui.replaying(false);
     mode = 'playing';
     ui.showHud(true);
     ui.show(null);
+  }
+
+  /** Play the run a replay link holds. A link that cannot be read leaves the title as it is. */
+  async function startReplay(text) {
+    let r;
+    try {
+      r = await unpackReplay(text);
+    } catch (err) {
+      console.warn('This replay link cannot be read:', err);
+      return;
+    }
+    const found = MISSIONS.find((m) => m.name === r.mission);
+    if (!found) {
+      console.warn(`This replay is of a mission this build does not have: ${r.mission}`);
+      return;
+    }
+    mission = found;
+    core.jr_tune_reset();
+    for (const [name, value] of Object.entries(r.tunes)) {
+      const tune = TUNES.find((t) => t.name === name);
+      if (tune && Number.isFinite(value)) core.jr_tune(tune.id, value);
+    }
+    core.jr_start(r.seed, mission.id);
+    core.jr_replay_begin();
+    for (let i = 0; i < r.log.length; i += 4) core.jr_replay_push(r.log[i], r.log[i + 1], r.log[i + 2], r.log[i + 3]);
+    run = { seed: r.seed, mission: r.mission, tunes: r.tunes };
+    // A replay is never recorded in the save.
+    testRun = true;
+    replaying = true;
+    ui.replaying(true);
+    mode = 'playing';
+    ui.showHud(true);
+    ui.show(null);
+  }
+
+  /** A link that plays the current run back, or null before any run. */
+  async function replayLink() {
+    if (!run) return null;
+    const log = new Uint32Array(core.memory.buffer, core.jr_log_ptr(), core.jr_log_len() * 4).slice();
+    const text = await packReplay({ ...run, log });
+    return `${location.origin}${location.pathname}?replay=${text}`;
+  }
+
+  async function copyReplay() {
+    const link = await replayLink();
+    try {
+      await navigator.clipboard.writeText(link);
+      ui.replayCopied(true);
+    } catch {
+      ui.replayCopied(false);
+    }
   }
 
   function setPaused(paused) {
@@ -130,6 +196,7 @@ async function boot() {
         openSetup();
         break;
       case 'start': startRun(); break;
+      case 'copy-replay': copyReplay(); break;
       case 'resume': setPaused(false); break;
       case 'restart': startRun(); break;
       case 'quit': toTitle(); break;
@@ -202,7 +269,10 @@ async function boot() {
   document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
   ui.settings(save);
+  // Read the link before `toTitle`, which takes it out of the address bar.
+  const link = new URLSearchParams(location.search).get('replay');
   toTitle();
+  if (link) startReplay(link);
 
   let last = performance.now();
   let clock = 0;
@@ -293,7 +363,9 @@ async function boot() {
   requestAnimationFrame(frame);
 
   // Handy in the console: jadereaper.core, jadereaper.state().
-  window.jadereaper = { core, state: () => Array.from(readState()), get mode() { return mode; } };
+  window.jadereaper = {
+    core, state: () => Array.from(readState()), replayLink, get mode() { return mode; }, get replaying() { return replaying; },
+  };
 }
 
 boot();

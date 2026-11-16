@@ -71,6 +71,7 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 | `src/audio.js` | Synthesized sound effects (no audio files) |
 | `src/ui.js` | Screens, HUD, menu focus |
 | `src/save.js` | Records and settings in localStorage |
+| `src/replay.js` | Packs a run's replay into a link and back |
 | `src/data.js` | Re-exports the generated tables from `src/generated.js` |
 | `assets/parts.json` | Optional image overrides for parts |
 | `assets/fonts/` | Bundled UI fonts, cut down to the game's characters, with their licenses |
@@ -99,6 +100,10 @@ Each frame the host calls `jr_input`, then `jr_update(dt)`. The core turns that 
 - Events: 4 floats each (`type, x, y, value`), used for sound.
 
 When the core sets the "choosing" flag the host shows the offered cards and answers with `jr_choose(slot)`. A card is an upgrade id, or `number of upgrades + element id - 1` for an element card. After an element card the choice stays open and the "attach" state holds that element's id: the host then shows the held martial arts and answers with `jr_choose(art id)`, which puts the element on that art in place of the one it carried. A run starts with `jr_start(seed, mission)`; the core sets "won" when the mission's goal is met and "over" when the run is lost, and stops the run either way. A run is lost when the player dies; three missions can also be lost while the player lives (the pursuit target escapes, the escorted villager falls, the shrine falls), and each sets its own state flag so the game-over screen can say why.
+
+### Replays
+
+The core logs what the player does in a run (`core/src/replay.rs`): the movement input and the size of the visible area whenever they change, and every pick of a card, each with the step it happened at. The game-over and mission-complete screens have a "Copy replay link" button; the link holds the seed, the mission, the tunes and that log, packed by `src/replay.js`, and opening it plays the run back exactly, with a "Replay" tag on the HUD. A replay is never recorded in the save. `window.jadereaper.replayLink()` gives the link of the current run from the console. A link only plays the same run on the same build of the game: after the content or the core changes, an old link plays something else.
 
 ## Build the core
 

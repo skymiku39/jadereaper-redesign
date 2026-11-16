@@ -476,3 +476,7 @@ button.card { font-family: var(--hand); }
   .card.art-card .glyph { font-size: 32px; }
   .card.art-card .name { font-size: 17px; }
 }
+
+/* Marks the HUD while a replay from a link plays. */
+.replay-tag { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%) rotate(-1.5deg); color: var(--vermilion, #b8412b); font-size: 18px; }
+.replay-tag[hidden] { display: none; }

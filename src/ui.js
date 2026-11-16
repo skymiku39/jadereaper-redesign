@@ -360,6 +360,7 @@ export function createUI({ onAction }) {
     else rows.unshift([t('over.mission'), t(`mission.${mission.name}.name`), false]);
     statRows('stats', rows);
     $('recordStamp').hidden = !(beaten && (beaten.time || beaten.kills || beaten.level));
+    resetReplayButtons();
     show('over');
   }
 
@@ -372,6 +373,7 @@ export function createUI({ onAction }) {
       [t('over.level'), String(level), false],
       [t('won.wins'), String(missionRecord(save, mission.name).wins), false],
     ]);
+    resetReplayButtons();
     show('won');
   }
 
@@ -467,6 +469,27 @@ export function createUI({ onAction }) {
     setText($('langBtn'), t('settings.language', { name: t('lang.name') }));
   }
 
+  /** Mark the HUD while a replay plays. */
+  function replaying(on) {
+    $('replayTag').hidden = !on;
+  }
+
+  /** Say on the replay buttons whether the link was copied. */
+  function replayCopied(ok) {
+    for (const btn of document.querySelectorAll('button[data-action="copy-replay"]')) {
+      btn.dataset.i18n = ok ? 'replay.copied' : 'replay.failed';
+      setText(btn, t(btn.dataset.i18n));
+    }
+  }
+
+  /** Put the replay buttons back to their first text. */
+  function resetReplayButtons() {
+    for (const btn of document.querySelectorAll('button[data-action="copy-replay"]')) {
+      btn.dataset.i18n = 'replay.copy';
+      setText(btn, t('replay.copy'));
+    }
+  }
+
   function error(message) {
     $('errorText').textContent = message;
     show('error');
@@ -474,6 +497,7 @@ export function createUI({ onAction }) {
 
   return {
     show, navigate, confirm, hud, pointers, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
+    replaying, replayCopied,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };

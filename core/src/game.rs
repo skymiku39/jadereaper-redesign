@@ -153,6 +153,8 @@ pub struct Game {
     /// which martial art gets it; 0 when none does.
     pub attach: u8,
     pub pending: u32,
+    /// The log of what the player does, and a log being played back.
+    pub replay: replay::Replay,
     pub kills: u32,
     /// State of the retrieval mission; idle in other missions.
     pub retrieval: Retrieval,
@@ -295,6 +297,7 @@ impl Game {
             choices: [-1; 3],
             attach: 0,
             pending: 0,
+            replay: replay::Replay::default(),
             kills: 0,
             retrieval: Retrieval::default(),
             hold: Hold::new(),
@@ -409,6 +412,10 @@ impl Game {
     }
 
     pub fn set_view(&mut self, half_w: f32, half_h: f32) {
+        // While a replay plays, the visible area comes from its log.
+        if self.replay.playing {
+            return;
+        }
         self.view_w = half_w.max(100.0);
         self.view_h = half_h.max(100.0);
     }
@@ -439,6 +446,7 @@ impl Game {
     pub fn tick(&mut self) {
         self.ticks = self.ticks.wrapping_add(1);
         self.anim += TICK;
+        self.replay_before_step();
         if self.running && !self.choosing && !self.over && !self.won {
             if self.accept.active {
                 self.accept_step(TICK);
@@ -446,6 +454,7 @@ impl Game {
                 self.step(TICK);
             }
         }
+        self.replay_after_step();
         self.shake = (self.shake - TICK * 3.0).max(0.0);
     }
 
@@ -1124,6 +1133,7 @@ impl Game {
         if !self.choosing {
             return;
         }
+        self.replay_pick(i);
         if self.attach > 0 {
             if i >= N_ARTS || self.art_level(i) == 0 {
                 return;
@@ -1513,6 +1523,8 @@ pub mod mission_escort;
 mod mission_pursuit;
 #[path = "mission_vendetta.rs"]
 mod mission_vendetta;
+#[path = "replay.rs"]
+pub mod replay;
 
 #[cfg(test)]
 #[path = "game_tests.rs"]
