@@ -302,5 +302,7 @@ pub const S_COMMISSION_HELD: usize = 73;
 pub const S_COMMISSION_HP: usize = 74;
 pub const S_COMMISSION_MAX: usize = 75;
 pub const S_COMMISSION_DONE: usize = 76;
+pub const S_COMMISSION_KIND: usize = 77;
+pub const S_COMMISSION_BAND: usize = 78;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];

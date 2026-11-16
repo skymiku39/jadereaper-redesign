@@ -835,7 +835,7 @@ impl Game {
             // A marked enemy of the vendetta mission follows the mission, not the horde.
             let marked = self.vendetta.steer(e.id, e.x, e.y, px, py, speed);
             // An enemy sent after the village keeps going there, however far the player is.
-            let sieging = siege.target(e.id).is_some();
+            let sieging = siege.owns(e.id);
             if d > far && drive.is_none() && marked.is_none() && !sieging {
                 // Left far behind: bring it back to the spawn ring on the
                 // other side so the crowd keeps closing in.
@@ -1624,6 +1624,7 @@ impl Game {
         let (goal, progress) = (self.goal(), self.progress());
         let boss_wait = self.boss_wait();
         let guard_cap = self.guard_cap();
+        let band = self.commission_band_left();
         let p = &self.player;
         let s = &mut self.state;
         s[S_HP] = p.hp;
@@ -1670,6 +1671,8 @@ impl Game {
         s[S_COMMISSION_HP] = c.hp;
         s[S_COMMISSION_MAX] = c.max_hp();
         s[S_COMMISSION_DONE] = c.done as f32;
+        s[S_COMMISSION_KIND] = c.kind as f32;
+        s[S_COMMISSION_BAND] = band as f32;
         s[S_GUARD] = p.guard;
         s[S_GUARD_MAX] = guard_cap;
         s[S_REGROW] = p.regrow;

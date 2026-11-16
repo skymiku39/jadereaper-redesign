@@ -1433,3 +1433,12 @@ index = 75
 [[state]]
 name = "commission_done"
 index = 76
+
+# The commission's kind (1 saving a village, 2 a hunt), and how many of a hunt's band are left.
+[[state]]
+name = "commission_kind"
+index = 77
+
+[[state]]
+name = "commission_band"
+index = 78

@@ -192,13 +192,17 @@ export function createUI({ onAction }) {
     }
     // A commission in endless: what it asks, and how long is left.
     const offered = commission?.phase === 1;
-    const village = commission?.phase === 2;
+    const hunt = commission?.kind === 2;
+    const village = commission?.phase === 2 && !hunt;
+    const left = commission ? formatTime(Math.ceil(commission.left)) : '';
     if (offered) {
       label = commission.held > 0
         ? t('commission.accept', { n: Math.ceil(commission.need - commission.held) })
-        : t('commission.offer', { time: formatTime(Math.ceil(commission.left)) });
+        : t(hunt ? 'commission.offerHunt' : 'commission.offer', { time: left });
     } else if (village) {
-      label = t('commission.defend', { time: formatTime(Math.ceil(commission.left)) });
+      label = t('commission.defend', { time: left });
+    } else if (commission?.phase === 2) {
+      label = t('commission.hunt', { n: commission.band, time: left });
     }
     if (notice) label = t(notice);
     // Before the mission is accepted, the label says what to do: go to the circle, then stay in it.

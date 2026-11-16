@@ -241,6 +241,8 @@ export const STATE = {
   COMMISSION_HP: 74,
   COMMISSION_MAX: 75,
   COMMISSION_DONE: 76,
+  COMMISSION_KIND: 77,
+  COMMISSION_BAND: 78,
 };
 
 export const INK = [0.17, 0.15, 0.13];
