@@ -89,3 +89,35 @@ pub struct ReactionDef {
     pub count: usize,
     pub color: [f32; 3],
 }
+
+/// An enemy kind. Kind 0 fills whatever share of the horde the others leave.
+pub struct Kind {
+    pub hp: f32,
+    pub speed: f32,
+    /// Collision radius.
+    pub r: f32,
+    pub dmg: f32,
+    pub xp: f32,
+    pub part: f32,
+    pub color: [f32; 3],
+    pub hw: f32,
+    pub hh: f32,
+    /// Puppet pose changes per second.
+    pub rate: f32,
+    /// A corpse or a spirit: what an element with the bane effect hits hardest.
+    pub corpse: bool,
+    /// Hard to push, and it bursts into more pieces.
+    pub heavy: bool,
+    /// Drawn floating above the ground instead of standing on it.
+    pub hover: bool,
+    /// The horde sends it once the run is this many seconds old.
+    pub from: f32,
+    /// Its share of the horde's spawns.
+    pub share: f32,
+    /// Above 0, the share grows from nothing to `share` over this many seconds after `from`.
+    pub ramp: f32,
+    /// Above 0, one comes every this many seconds, announced, instead of with the horde.
+    pub every: f32,
+    /// The tune that holds its share instead of `share`; `N_TUNES` for none.
+    pub share_tune: usize,
+}

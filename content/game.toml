@@ -165,6 +165,91 @@ name = "mending"
 max = 5
 glyph = "癒"
 
+# --------------------------------------------------------------- enemies
+# Enemy kinds. Ids index a table, so they run 0, 1, 2... without gaps.
+# `radius` is what it collides with, `half_width` and `half_height` how large
+# its part is drawn, `pose_rate` how many times a second its puppet changes
+# pose, `xp` the worth of the gem it drops. Flags, each false when left out:
+# `corpse` (a corpse or a spirit, which the holy element hits hardest),
+# `heavy` (hard to push, bursts into more pieces), `hover` (drawn floating).
+#
+# How it joins the horde of the missions that have one:
+#   from    seconds into the run before the horde sends it
+#   share   its share of the horde's spawns from then on
+#   ramp    above 0, the share grows from nothing to `share` over this many
+#           seconds after `from`
+#   tune    the name of a tune that holds its share instead of `share`
+#   every   above 0, one comes every this many seconds with an announcement,
+#           and none with the horde
+# Enemy 0 takes none of these: it is whatever the others leave of the horde.
+# Missions that place their own enemies name the kinds in their own code.
+
+[[enemy]]
+id = 0
+name = "blot"
+part = "blot"
+color = [0.33, 0.31, 0.30]
+hp = 14
+speed = 62
+radius = 16
+damage = 5
+xp = 1
+half_width = 18
+half_height = 18
+pose_rate = 5
+
+[[enemy]]
+id = 1
+name = "wisp"
+part = "wisp"
+color = [0.36, 0.40, 0.56]
+hp = 7
+speed = 118
+radius = 12
+damage = 4
+xp = 1
+half_width = 22
+half_height = 13
+pose_rate = 9
+corpse = true
+hover = true
+from = 25
+share = 0.3
+
+[[enemy]]
+id = 2
+name = "brute"
+part = "brute"
+color = [0.58, 0.31, 0.24]
+hp = 70
+speed = 44
+radius = 26
+damage = 12
+xp = 5
+half_width = 30
+half_height = 30
+pose_rate = 3
+heavy = true
+from = 60
+share = 0.25
+ramp = 400
+
+[[enemy]]
+id = 3
+name = "elite"
+part = "brute"
+color = [0.74, 0.25, 0.18]
+hp = 600
+speed = 56
+radius = 44
+damage = 20
+xp = 40
+half_width = 52
+half_height = 52
+pose_rate = 2.5
+heavy = true
+every = 90
+
 # ------------------------------------------------------------------ arts
 # Martial arts (武學): how the player attacks. Each has one `behaviour`, which
 # is code in core/src/arts.rs, and the numbers below. A new art of an existing

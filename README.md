@@ -52,10 +52,10 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 
 | Path | What it is |
 | --- | --- |
-| `content/game.toml` | Part, upgrade, event and mission ids, upgrade max levels and glyphs, the martial arts, magic elements and reactions with all their numbers, mission goals, tunes (the numbers a mission's setup screen can change), state indices, ink colour |
+| `content/game.toml` | Part, upgrade, event and mission ids, upgrade max levels and glyphs, the enemies, the martial arts, magic elements and reactions with all their numbers, mission goals, tunes (the numbers a mission's setup screen can change), state indices, ink colour |
 | `core/` | Rust simulation. No dependencies, no bindgen. |
-| `core/src/defs.rs` | Instance format, enemy table, re-exports the generated ids and tables |
-| `core/src/schema.rs` | The shapes of the generated content tables (martial arts, elements, reactions) |
+| `core/src/defs.rs` | Instance format, the random generator, re-exports the generated ids and tables |
+| `core/src/schema.rs` | The shapes of the generated content tables (enemies, martial arts, elements, reactions) |
 | `core/src/generated.rs` | Generated from `content/game.toml` |
 | `core/src/game.rs` | State, simulation step, level-up cards, puppet posing, instance building |
 | `core/src/arts.rs` | Martial arts: one function per behaviour (`arc`, `projectile`, `orbit`, `nova`) |
@@ -142,7 +142,7 @@ The bots are crude: they show which of two numbers is larger, not how the game f
 
 Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (or just the generator, `cargo run --release --manifest-path tools/gen/Cargo.toml`) and commit the content file together with `core/src/generated.rs`, `src/generated.js` and `src/shader.wgsl`. A part named `player_body` becomes `P_PLAYER_BODY` in Rust, `PART_PLAYER_BODY` in the shader and `PART_IDS.player_body` in JavaScript.
 
-- New enemy: add a row to `KINDS` in `core/src/defs.rs` and a spawn rule in `Game::spawn`.
+- New enemy: add an `[[enemy]]` entry to `content/game.toml` (its numbers, part, colour and how it joins the horde; the comment above the entries says what each key means). No code changes, unless it needs a new part shape or a mission is to place it by name.
 - New mission: add a `[[mission]]` entry (next id, name, goal) to `content/game.toml`, its win rule in `Game::mission_won` and its progress in `Game::progress` in `core/src/game.rs`, and its text as `mission.<name>.name` and `.desc` in every language in `src/i18n.js` (a timed mission also has `.hud`, the label beside its countdown). The title screen builds its button from the generated list, and the button opens the mission's setup screen; how the HUD shows the goal is in `hud` in `src/ui.js`. A mission with its own state (things on the map, a target, waves) keeps its rules, numbers, drawing and tests in `core/src/mission_<name>.rs`, held as one field on `Game` and called from a few hooks in `game.rs`. Some of these files are declared in `core/src/lib.rs` and some from `game.rs` with `#[path]` (those reach private parts of `Game`); the two ways are not unified yet.
 - New tune (a number of a mission that the setup screen can change for a test run): add a `[[tune]]` entry (next id, name, mission or `"any"`, default, min, max, step) to `content/game.toml`, read it in the core as `self.tune[T_<NAME>]` instead of a constant, and add its label as `tune.<name>` in every language in `src/i18n.js`. A tune named `<mission>_goal` is that mission's goal. The setup screen builds its steppers from the generated list. A run with any tune off its default is a test run and is not recorded; the checks and the recorded runs only ever use the defaults.
 - New passive upgrade: add an `[[upgrade]]` entry (next id, name, max level, glyph) to `content/game.toml`, its effect where the stat is read in the core, and its card text as `upgrade.<id>.name` and `upgrade.<id>.desc` in every language in `src/i18n.js`.

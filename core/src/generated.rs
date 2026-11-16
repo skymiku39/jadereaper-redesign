@@ -39,6 +39,22 @@ pub const N_UPGRADES: usize = 10;
 pub const UPGRADE_NAMES: [&str; N_UPGRADES] = ["scythe", "talisman", "beads", "pulse", "vitality", "swift", "lure", "might", "haste", "mending"];
 pub const UPGRADE_MAX: [u8; N_UPGRADES] = [6, 6, 6, 6, 5, 5, 5, 5, 5, 5];
 
+// Enemy kinds. Kind 0 fills whatever share of the horde the others leave.
+pub const K_BLOT: u8 = 0;
+pub const K_WISP: u8 = 1;
+pub const K_BRUTE: u8 = 2;
+pub const K_ELITE: u8 = 3;
+pub const N_KINDS: usize = 4;
+#[rustfmt::skip]
+pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite"];
+#[rustfmt::skip]
+pub const KINDS: [Kind; N_KINDS] = [
+    Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES },
+    Kind { hp: 7.0, speed: 118.0, r: 12.0, dmg: 4.0, xp: 1.0, part: P_WISP, color: [0.36, 0.40, 0.56], hw: 22.0, hh: 13.0, rate: 9.0, corpse: true, heavy: false, hover: true, from: 25.0, share: 0.3, ramp: 0.0, every: 0.0, share_tune: N_TUNES },
+    Kind { hp: 70.0, speed: 44.0, r: 26.0, dmg: 12.0, xp: 5.0, part: P_BRUTE, color: [0.58, 0.31, 0.24], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 60.0, share: 0.25, ramp: 400.0, every: 0.0, share_tune: N_TUNES },
+    Kind { hp: 600.0, speed: 56.0, r: 44.0, dmg: 20.0, xp: 40.0, part: P_BRUTE, color: [0.74, 0.25, 0.18], hw: 52.0, hh: 52.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 90.0, share_tune: N_TUNES },
+];
+
 // Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.
 pub const A_SCYTHE: usize = 0;
 pub const A_TALISMAN: usize = 1;

@@ -116,6 +116,22 @@ fn overlapping_state_is_rejected() {
 }
 
 #[test]
+fn enemies_are_checked() {
+    let c = real();
+    assert!(!c.enemies.is_empty());
+    assert_error(
+        &errors_after("name = \"wisp\"\npart = \"wisp\"", "name = \"wisp\"\npart = \"ghost\""),
+        "which is not defined",
+    );
+    assert_error(&errors_after("id = 3\nname = \"elite\"", "id = 8\nname = \"elite\""), "enemy ids must run");
+    assert_error(&errors_after("corpse = true", "corpse = 1"), "true or false");
+    assert_error(&errors_after("pose_rate = 9\n", ""), "missing `pose_rate`");
+    // Enemy 0 is what the others leave of the horde, so it has no share of its own.
+    assert_error(&errors_after("pose_rate = 5\n", "pose_rate = 5\nshare = 0.5\n"), "takes no spawn keys");
+    assert_error(&errors_after("from = 25\n", "from = 25\ntune = \"wisps\"\n"), "which is not defined");
+}
+
+#[test]
 fn arts_are_checked() {
     let c = real();
     assert!(!c.arts.is_empty());

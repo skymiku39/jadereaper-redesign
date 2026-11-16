@@ -244,6 +244,30 @@ pub struct Tune {
     pub step: String,
 }
 
+/// The numbers of an enemy, in the order of `Enemy::numbers`.
+pub const ENEMY_KEYS: [&str; 8] = ["hp", "speed", "radius", "damage", "xp", "half_width", "half_height", "pose_rate"];
+
+/// The optional numbers of how an enemy joins the horde, in the order of `Enemy::spawn`. Each defaults to 0.
+pub const ENEMY_SPAWN_KEYS: [&str; 4] = ["from", "share", "ramp", "every"];
+
+/// An enemy kind: its numbers, how it is drawn and how it joins the horde.
+#[derive(Clone, Debug)]
+pub struct Enemy {
+    pub id: u32,
+    pub name: String,
+    pub part: String,
+    pub color: [String; 3],
+    /// One value per key of `ENEMY_KEYS`, as written.
+    pub numbers: Vec<String>,
+    pub corpse: bool,
+    pub heavy: bool,
+    pub hover: bool,
+    /// One value per key of `ENEMY_SPAWN_KEYS`, as written.
+    pub spawn: Vec<String>,
+    /// The tune that holds its share of the horde instead of `share`, if any.
+    pub share_tune: Option<String>,
+}
+
 /// What a martial art does. The core has one function per behaviour.
 pub const BEHAVIOURS: [&str; 4] = ["arc", "projectile", "orbit", "nova"];
 
@@ -332,6 +356,7 @@ pub struct Content {
     pub max_arts: u32,
     pub parts: Vec<Part>,
     pub upgrades: Vec<Upgrade>,
+    pub enemies: Vec<Enemy>,
     pub arts: Vec<Art>,
     pub elements: Vec<Element>,
     pub reactions: Vec<Reaction>,
@@ -444,6 +469,20 @@ impl<'a> Fields<'a> {
         }
     }
 
+    /// A true or false that may be left out, in which case it is false.
+    fn flag(&mut self, key: &'a str) -> Option<bool> {
+        match self.get(key) {
+            None => Some(false),
+            Some(e) => match e.value {
+                Value::Bool(b) => Some(b),
+                _ => {
+                    self.wrong(e, "true or false");
+                    None
+                }
+            },
+        }
+    }
+
     /// Three numbers from 0 to 1, as written.
     fn rgb(&mut self, key: &'a str) -> Option<[String; 3]> {
         let e = match self.get(key) {
@@ -537,7 +576,8 @@ impl<'a> Fields<'a> {
 }
 
 /// Table names the content file may use, also valid as a `len` reference.
-const TABLES: [&str; 9] = ["part", "upgrade", "art", "element", "reaction", "event", "mission", "tune", "state"];
+const TABLES: [&str; 10] =
+    ["part", "upgrade", "enemy", "art", "element", "reaction", "event", "mission", "tune", "state"];
 
 /// Parse and check the content file. Returns every problem found.
 pub fn load(src: &str) -> Result<Content, Vec<String>> {
@@ -561,6 +601,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     let mut arts: Vec<(Art, RawLevels, usize)> = Vec::new();
     let mut elements = Vec::new();
     let mut reactions = Vec::new();
+    let mut enemies = Vec::new();
     let mut events = Vec::new();
     let mut missions = Vec::new();
     let mut tunes = Vec::new();
@@ -588,6 +629,38 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         f.errs.push(format!("line {}: upgrade `glyph` must be one character", t.line));
                     }
                     upgrades.push((Upgrade { id, name, max, glyph }, t.line));
+                }
+            }
+            "enemy" => {
+                let (id, name, part, color) = (f.uint("id"), f.name(), f.string("part"), f.rgb("color"));
+                let numbers: Option<Vec<String>> = ENEMY_KEYS.iter().map(|key| f.number(key)).collect();
+                let (corpse, heavy, hover) = (f.flag("corpse"), f.flag("heavy"), f.flag("hover"));
+                let spawn: Option<Vec<String>> = ENEMY_SPAWN_KEYS.iter().map(|key| f.number_or_zero(key)).collect();
+                let share_tune = match f.get("tune") {
+                    None => Some(None),
+                    Some(e) => match &e.value {
+                        Value::Str(s) => Some(Some(s.clone())),
+                        _ => {
+                            f.wrong(e, "a string");
+                            None
+                        }
+                    },
+                };
+                if let (
+                    Some(id),
+                    Some(name),
+                    Some(part),
+                    Some(color),
+                    Some(numbers),
+                    Some(corpse),
+                    Some(heavy),
+                    Some(hover),
+                    Some(spawn),
+                    Some(share_tune),
+                ) = (id, name, part, color, numbers, corpse, heavy, hover, spawn, share_tune)
+                {
+                    let enemy = Enemy { id, name, part, color, numbers, corpse, heavy, hover, spawn, share_tune };
+                    enemies.push((enemy, t.line));
                 }
             }
             "art" => {
@@ -775,6 +848,37 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         }
     }
 
+    // Enemies: ids index a table, each draws a defined part, and a share kept in a tune names a defined tune.
+    unique(&mut errs, "enemy", enemies.iter().map(|(e, l)| (e.id, e.name.as_str(), *l)));
+    let mut enemy_ids: Vec<u32> = enemies.iter().map(|(e, _)| e.id).collect();
+    enemy_ids.sort_unstable();
+    enemy_ids.dedup();
+    if enemy_ids.iter().enumerate().any(|(i, id)| i as u32 != *id) {
+        errs.push(format!("enemy ids must run 0 to {} without gaps", enemies.len().saturating_sub(1)));
+    }
+    if enemies.is_empty() {
+        errs.push("at least one [[enemy]] is needed".to_string());
+    }
+    for (e, line) in &enemies {
+        if !parts.iter().any(|(p, _)| p.name == e.part) {
+            errs.push(format!("line {line}: enemy `{}` draws part `{}`, which is not defined", e.name, e.part));
+        }
+        if let Some(tune) = &e.share_tune {
+            if !tunes.iter().any(|(t, _)| &t.name == tune) {
+                errs.push(format!(
+                    "line {line}: enemy `{}` takes its share from tune `{tune}`, which is not defined",
+                    e.name
+                ));
+            }
+        }
+        if e.id == 0 && (e.spawn.iter().any(|v| v.parse::<f64>() != Ok(0.0)) || e.share_tune.is_some()) {
+            errs.push(format!(
+                "line {line}: enemy `{}` has id 0, so it fills whatever the others leave of the horde and takes no spawn keys",
+                e.name
+            ));
+        }
+    }
+
     // Martial arts: ids index a table, each levels with the upgrade of the same
     // name, and every per-level list has one value per level of that upgrade.
     unique(&mut errs, "art", arts.iter().map(|(a, _, l)| (a.id, a.name.as_str(), *l)));
@@ -875,6 +979,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     let count = |table: &str| match table {
         "part" => parts.len(),
         "upgrade" => upgrades.len(),
+        "enemy" => enemies.len(),
         "art" => arts.len(),
         "element" => elements.len(),
         "reaction" => reactions.len(),
@@ -933,6 +1038,8 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     missions.sort_by_key(|m| m.id);
     let mut tunes: Vec<Tune> = tunes.into_iter().map(|(t, _)| t).collect();
     tunes.sort_by_key(|t| t.id);
+    let mut enemies: Vec<Enemy> = enemies.into_iter().map(|(e, _)| e).collect();
+    enemies.sort_by_key(|e| e.id);
     let mut arts: Vec<Art> = arts.into_iter().map(|(a, _, _)| a).collect();
     arts.sort_by_key(|a| a.id);
     let mut elements: Vec<Element> = elements.into_iter().map(|(e, _)| e).collect();
@@ -945,6 +1052,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         max_arts: max_arts.unwrap(),
         parts,
         upgrades,
+        enemies,
         arts,
         elements,
         reactions,
@@ -1006,6 +1114,30 @@ pub fn render_rust(c: &Content) -> String {
     name_table(&mut o, "UPGRADE_NAMES", "N_UPGRADES", c.upgrades.iter().map(|u| u.name.as_str()));
     let maxes: Vec<String> = c.upgrades.iter().map(|u| u.max.to_string()).collect();
     writeln!(o, "pub const UPGRADE_MAX: [u8; N_UPGRADES] = [{}];", maxes.join(", ")).unwrap();
+
+    o.push_str("\n// Enemy kinds. Kind 0 fills whatever share of the horde the others leave.\n");
+    for e in &c.enemies {
+        writeln!(o, "pub const K_{}: u8 = {};", upper(&e.name), e.id).unwrap();
+    }
+    writeln!(o, "pub const N_KINDS: usize = {};", c.enemies.len()).unwrap();
+    name_table(&mut o, "KIND_NAMES", "N_KINDS", c.enemies.iter().map(|e| e.name.as_str()));
+    o.push_str("#[rustfmt::skip]\n");
+    o.push_str("pub const KINDS: [Kind; N_KINDS] = [\n");
+    for e in &c.enemies {
+        let n = |key: &str| float_lit(&e.numbers[ENEMY_KEYS.iter().position(|k| *k == key).unwrap()]);
+        let s = |key: &str| float_lit(&e.spawn[ENEMY_SPAWN_KEYS.iter().position(|k| *k == key).unwrap()]);
+        let color: Vec<String> = e.color.iter().map(|v| float_lit(v)).collect();
+        let tune = e.share_tune.as_ref().map_or("N_TUNES".to_string(), |t| format!("T_{}", upper(t)));
+        writeln!(
+            o,
+            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {} }},",
+            n("hp"), n("speed"), n("radius"), n("damage"), n("xp"), upper(&e.part), color.join(", "),
+            n("half_width"), n("half_height"), n("pose_rate"), e.corpse, e.heavy, e.hover,
+            s("from"), s("share"), s("ramp"), s("every"), tune
+        )
+        .unwrap();
+    }
+    o.push_str("];\n");
 
     o.push_str("\n// Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.\n");
     for a in &c.arts {

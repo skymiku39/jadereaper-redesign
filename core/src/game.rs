@@ -171,7 +171,8 @@ pub struct Game {
     /// State of the vendetta mission; empty in every other mission.
     pub vendetta: mission_vendetta::Vendetta,
     spawn_acc: f32,
-    next_elite: f32,
+    /// When the next enemy of each kind that comes alone is due.
+    next_lone: [f32; N_KINDS],
     next_id: u32,
     /// State of the pursuit mission; idle in every other mission.
     pursuit: mission_pursuit::Pursuit,
@@ -305,7 +306,7 @@ impl Game {
             arena: Arena::new(),
             vendetta: mission_vendetta::Vendetta::default(),
             spawn_acc: 0.0,
-            next_elite: 90.0,
+            next_lone: core::array::from_fn(|k| KINDS[k].every),
             next_id: 1,
             pursuit: mission_pursuit::Pursuit::default(),
             inst: Vec::with_capacity(MAX_INST),
@@ -635,7 +636,7 @@ impl Game {
         let e = &mut self.enemies[i];
         e.hp -= dmg;
         e.flash = 1.0;
-        let heavy = if e.kind >= K_BRUTE { 0.35 } else { 1.0 };
+        let heavy = if KINDS[e.kind as usize].heavy { 0.35 } else { 1.0 };
         e.kx += kx * heavy;
         e.ky += ky * heavy;
         let (x, y) = (e.x, e.y);
@@ -682,6 +683,24 @@ impl Game {
         });
     }
 
+    /// The share of the horde's spawns that are of kind `k`, `t` seconds into the run.
+    fn horde_share(&self, k: usize, t: f32) -> f32 {
+        let def = &KINDS[k];
+        if def.every > 0.0 {
+            0.0
+        } else if def.share_tune < N_TUNES {
+            self.tune[def.share_tune]
+        } else if t > def.from {
+            if def.ramp > 0.0 {
+                ((t - def.from) / def.ramp).min(def.share)
+            } else {
+                def.share
+            }
+        } else {
+            0.0
+        }
+    }
+
     fn spawn(&mut self, dt: f32) {
         if self.mission == M_ARENA {
             self.arena_step(dt);
@@ -693,21 +712,25 @@ impl Game {
         while self.spawn_acc >= 1.0 {
             self.spawn_acc -= 1.0;
             let roll = self.rng.f();
-            let brute = if t > 60.0 { ((t - 60.0) / 400.0).min(0.25) } else { 0.0 };
-            let wisp = if t > 25.0 { 0.3 } else { 0.0 };
-            let kind = if roll < brute {
-                K_BRUTE
-            } else if roll < brute + wisp {
-                K_WISP
-            } else {
-                K_BLOT
-            };
+            // Each kind takes its share of the rolls, the last kind first; kind 0 gets the rest.
+            let mut kind = 0;
+            let mut taken = 0.0;
+            for k in (1..N_KINDS).rev() {
+                taken += self.horde_share(k, t);
+                if roll < taken {
+                    kind = k as u8;
+                    break;
+                }
+            }
             self.spawn_enemy(kind);
         }
-        if t >= self.next_elite {
-            self.next_elite += 90.0;
-            self.spawn_enemy(K_ELITE);
-            self.event(EV_ELITE, self.player.x, self.player.y, 0.0);
+        // The kinds that come alone, on a clock.
+        for k in 0..N_KINDS {
+            if KINDS[k].every > 0.0 && t >= self.next_lone[k] {
+                self.next_lone[k] += KINDS[k].every;
+                self.spawn_enemy(k as u8);
+                self.event(EV_ELITE, self.player.x, self.player.y, 0.0);
+            }
         }
     }
 
@@ -939,7 +962,7 @@ impl Game {
             if heart {
                 self.drop_gem(e.x + 14.0, e.y, 0.0, true);
             }
-            let n = if e.kind >= K_BRUTE { 9 } else { 4 };
+            let n = if k.heavy { 9 } else { 4 };
             for _ in 0..n {
                 let a = self.rng.range(0.0, TAU);
                 let s = self.rng.range(20.0, 150.0);
@@ -1316,7 +1339,7 @@ impl Game {
         let c = [k.color[0], k.color[1], k.color[2], 1.0];
         let shadow = [INK[0], INK[1], INK[2], 0.2];
         self.put(e.x, e.y, k.r * 0.95, k.r * 0.36, 0.0, P_GROUND_SHADOW, 0.0, 0.0, shadow);
-        if e.kind == K_WISP {
+        if k.hover {
             // Wisps hover and flap by squeezing their width.
             let hw = if pose == 0 { k.hw } else { k.hw * 0.7 };
             let bob = fmath::sin(self.anim * 5.0 + e.seed * 20.0) * 3.0;
