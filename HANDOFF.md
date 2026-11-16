@@ -40,6 +40,10 @@ On 2026-11-17, before going to sleep, the user said to keep improving the projec
 20. `fix/review-findings` also holds: the determinism check's armed endless run now takes commissions (da11b67), and the host rounds stick and touch input to steps of 1/16 so replay links stay short (9e3ba6b).
 21. `feat/rumble-and-soft-music` (557b9e2): a gamepad rumbles when the player is hurt and lightly when a heavy enemy falls (off with "shake and hit-stop"); the music button cycles full, soft and off. The rumble was not tried: there is no gamepad in a headless browser.
 
+22. `feat/gem-curve` (fc64e47): a gem being pulled in is drawn bending to one side, the most halfway in; its place in the run is unchanged. Not looked at in motion, only checked by the tests and the recorded run.
+
+Also checked at the end of the night: the settings screen (10 buttons) and the longest setup screen (formation, 15 tunes) keep every control reachable at 1280x720 and 400x700, in both languages.
+
 The wasm core takes about 0.08 ms a frame (worst 0.28 ms) at 489 enemies with every art carrying an element, measured in Node; drawing, not simulating, is where the frame goes.
 
 What the tool says about the missions (16 runs per bot, picking martial arts first, up to 600 s, no accept phase, default tunes), for P-30: the seeking bot wins pursuit 1 time in 16 and vendetta 2 times, and no other mission; it dies in escape after 34 s on average and in hold after 108 s. The bot that only backs away wins survive 16 of 16 and never dies in endless, kills, formation, arena, retrieval, escort or escape within ten minutes, but wins none of them either. No bot wins kills, formation, arena, retrieval, escort, hold, escape or boss. These bots are crude, so this says more about what a mission does not reward than about how hard it is for a person.
