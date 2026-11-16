@@ -263,6 +263,17 @@ mod tests {
     }
 
     #[test]
+    fn the_armed_endless_check_takes_commissions() {
+        // The determinism check plays these runs (its ticks and seeds); they must
+        // reach the commissions for the check to cover them.
+        for seed in [1, 987654321] {
+            let game = game::scripted_game(seed, 60 * 150, M_ENDLESS, true);
+            let ended = game.commission.done + game.commission.failed;
+            assert!(ended > 0, "seed {seed}: no commission was taken and ended in the armed endless run");
+        }
+    }
+
+    #[test]
     fn every_mission_plays_the_same_run_twice() {
         for mission in 0..N_MISSIONS {
             for armed in [false, true] {

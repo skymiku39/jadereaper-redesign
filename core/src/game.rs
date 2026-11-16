@@ -231,6 +231,11 @@ pub fn scripted_run(seed: u32, ticks: u32) -> u32 {
 /// ones depends on the seed), so the elements and their reactions are played
 /// too. A run that is won stands still from then on.
 pub fn scripted_mission(seed: u32, ticks: u32, mission: usize, armed: bool) -> u32 {
+    scripted_game(seed, ticks, mission, armed).hash()
+}
+
+/// The game at the end of `scripted_mission`'s run, to look into.
+pub fn scripted_game(seed: u32, ticks: u32, mission: usize, armed: bool) -> Game {
     let mut game = Game::new(seed);
     game.start(mission);
     if armed {
@@ -242,6 +247,18 @@ pub fn scripted_mission(seed: u32, ticks: u32, mission: usize, armed: bool) -> u
     for t in 0..ticks {
         if t % 30 == 0 {
             game.input = (bot.range(-1.0, 1.0), bot.range(-1.0, 1.0));
+        }
+        // Armed in endless, the bot takes the commissions too, so the checks
+        // cover them: it walks to one on offer, stays by a village or a
+        // villager, and goes after a hunt's band.
+        if armed && game.commissions_on() && game.commission.phase != commission::WAITING {
+            let c = &game.commission;
+            let (tx, ty) = if c.phase == commission::DEFENDING && c.kind == commission::HUNT_BAND {
+                (c.gx, c.gy)
+            } else {
+                (c.x, c.y)
+            };
+            game.input = (tx - game.player.x, ty - game.player.y);
         }
         game.tick();
         if game.choosing {
@@ -257,7 +274,7 @@ pub fn scripted_mission(seed: u32, ticks: u32, mission: usize, armed: bool) -> u
             game.player.hp = game.player.max_hp;
         }
     }
-    game.hash()
+    game
 }
 
 fn xp_for(level: u32) -> f32 {
