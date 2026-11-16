@@ -4,7 +4,7 @@
 讀者：團隊成員，以及依此實作的 AI agent。實作計畫見 [ROADMAP.md](../ROADMAP.md)；本文件只記錄「要做成什麼」與原因。
 「Jade Reaper」是暫名。
 
-2026-11-16 起，本 repo（`skymiku39/jadereaper`）是 Miku 一個人的版本：先把 Miku 心中的設計與玩法做出來，之後才帶回團隊討論。因此文中「需帶回團隊確認」的項目不擋實作，以 Miku 的回答為準。
+2026-11-16 起，本專案是 Miku 一個人的版本（2026-11-17 起在 `skymiku39/jadereaper-redesign` 重新設計，原本的 `skymiku39/jadereaper` 保留為可玩版）：先把 Miku 心中的設計與玩法做出來，之後才帶回團隊討論。因此文中「需帶回團隊確認」的項目不擋實作，以 Miku 的回答為準。
 
 標記說明：
 

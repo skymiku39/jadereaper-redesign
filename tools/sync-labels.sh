@@ -31,4 +31,4 @@ export GITHUB_ACCESS_TOKEN
 exec npx --yes github-label-sync@3.0.0 \
   --labels "$root/.github/labels.yml" \
   ${args[@]+"${args[@]}"} \
-  skymiku39/jadereaper
+  skymiku39/jadereaper-redesign
