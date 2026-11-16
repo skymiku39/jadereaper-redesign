@@ -7,8 +7,8 @@ const MAX_INSTANCES = 4096;
 const WORLD_HEIGHT = 640; // world units across the shorter screen side
 const STOP_MOTION_FPS = 8;
 
-/** Load optional part images listed in assets/parts.json and pack them into one atlas canvas. */
-async function loadPartImages() {
+/** Load optional part images listed in assets/parts.json and pack them into one atlas canvas. Shared with renderer-gl.js. */
+export async function loadPartImages() {
   const rects = new Float32Array(32 * 4);
   let manifest = {};
   try {
@@ -203,5 +203,5 @@ export async function createRenderer(canvas) {
     quality = full ? 1 : 0;
   }
 
-  return { resize, draw, setQuality, device };
+  return { resize, draw, setQuality, device, kind: 'webgpu' };
 }

@@ -4,9 +4,11 @@
 //     npm run smoke
 //
 // With WebGPU, it starts a run and plays a few seconds of its accept phase,
-// then starts every mission in turn and plays a few seconds of each. This includes the CI
+// then starts every mission in turn and plays a few seconds of each, checks
+// a replay link, and plays a little with the WebGL2 renderer. This includes the CI
 // runner, which has no GPU but gets a software adapter from Chromium. Without
-// WebGPU, it checks that the "Cannot start" screen shows the WebGPU reason.
+// WebGPU the game draws with WebGL2 and only the first run is played; if that
+// fails too, it checks that the "Cannot start" screen shows the WebGPU reason.
 
 import { chromium } from 'playwright';
 import { readFile } from 'node:fs/promises';
@@ -148,7 +150,29 @@ try {
         await page.keyboard.press('Escape');
       }
     }
-    outcome = `WebGPU available; played ${PLAY_MS / 1000} s of a run, then ${played} of ${missions.length} missions for ${MISSION_MS / 1000} s each; ${replayChecked}`;
+    // The WebGL2 renderer, asked for by name, must draw a run too.
+    const gl = await browser.newPage();
+    gl.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(`(WebGL2) ${msg.text()}`);
+    });
+    gl.on('pageerror', (err) => problems.push(`page error (WebGL2): ${err.message}`));
+    await gl.goto(`${url}?renderer=webgl2`);
+    await gl.locator('#title:not([hidden]), #error:not([hidden])').first().waitFor({ timeout: TIMEOUT_MS });
+    let glOutcome = 'the WebGL2 renderer could not start';
+    if (await gl.locator('#title').isVisible()) {
+      const kind = await gl.evaluate(() => window.jadereaper.renderer);
+      if (kind !== 'webgl2') problems.push(`?renderer=webgl2 drew with ${kind}`);
+      await gl.waitForTimeout(LOCK_MS);
+      await gl.locator('#title [data-action="setup"]').first().click();
+      await gl.waitForTimeout(LOCK_MS);
+      await gl.locator('#setup [data-action="start"]').click();
+      await gl.locator('#hud').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
+      await gl.waitForTimeout(MISSION_MS);
+      glOutcome = `the WebGL2 renderer played ${MISSION_MS / 1000} s`;
+    } else {
+      problems.push(`the WebGL2 renderer showed "Cannot start": ${await gl.locator('#errorText').textContent()}`);
+    }
+    outcome = `WebGPU available; played ${PLAY_MS / 1000} s of a run, then ${played} of ${missions.length} missions for ${MISSION_MS / 1000} s each; ${replayChecked}; ${glOutcome}`;
   }
 } catch (err) {
   problems.push(`smoke test failed: ${err.message}`);

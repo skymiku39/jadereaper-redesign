@@ -4,7 +4,7 @@ A survivor game backbone that runs natively in the browser. The simulation is Ru
 
 ## Play it online
 
-https://skymiku39.github.io/jadereaper-redesign/ (needs a browser with WebGPU). Every push to `main` republishes it through the `Pages` workflow in `.github/workflows/pages.yml`, which checks the fonts and then deploys `index.html`, `style.css`, `src/`, `wasm/` and `assets/` as they are committed. This repository is the redesign; the version it was copied from, [skymiku39/jadereaper](https://github.com/skymiku39/jadereaper), stays playable as it was at https://skymiku39.github.io/jadereaper/.
+https://skymiku39.github.io/jadereaper-redesign/ (needs a browser with WebGPU, or WebGL2, which draws the same look). Every push to `main` republishes it through the `Pages` workflow in `.github/workflows/pages.yml`, which checks the fonts and then deploys `index.html`, `style.css`, `src/`, `wasm/` and `assets/` as they are committed. This repository is the redesign; the version it was copied from, [skymiku39/jadereaper](https://github.com/skymiku39/jadereaper), stays playable as it was at https://skymiku39.github.io/jadereaper/.
 
 ## Run it
 
@@ -66,6 +66,7 @@ The UI is HTML and CSS over the canvas: torn-edge paper sheets, tags and cards, 
 | `wasm/` | Built core |
 | `src/main.js` | Loads the core, frame loop, game modes |
 | `src/renderer.js` | WebGPU setup, part image atlas, drawing |
+| `src/renderer-gl.js` | The same with WebGL2 for browsers without WebGPU, with the shader ported to GLSL. `?renderer=webgl2` uses it anyway |
 | `src/shader.wgsl` | Paper shapes, cutout shading, paper background |
 | `src/input.js` | Keyboard and gamepad |
 | `src/audio.js` | Synthesized sound effects (no audio files) |
@@ -157,7 +158,7 @@ Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (
 - Changing a number of an art, an element or a reaction is an edit of the content file and `./build.sh`.
 - New text: add a key to every language in `src/i18n.js`, then use `t(key)` in code or a `data-i18n` attribute in `index.html`. Missing keys fall back to English.
 - New language: add its code to `LANGS` and a table to `STRINGS` in `src/i18n.js`, and to start new players in it, set `DEFAULT_LANG`.
-- New part shape: add a `[[part]]` entry to `content/game.toml`, then a `case PART_<NAME>` in `shape()` in `src/shader.wgsl` (and in `isFlat` if it is a flat mark).
+- New part shape: add a `[[part]]` entry to `content/game.toml`, then a `case PART_<NAME>` in `shape()` in `src/shader.wgsl` (and in `isFlat` if it is a flat mark), and the same shape in GLSL in `shape()` in `src/renderer-gl.js`.
 
 ## What is in the backbone
 
@@ -175,6 +176,6 @@ Ids live in one place, `content/game.toml`. After editing it, run `./build.sh` (
 - Saved best time, kills and level for endless, tries and wins per mission, sound and language settings
 - Traditional Chinese (the default) and English text, switchable in settings
 
-Not included yet: a test on a real phone, meta progression between runs, and a WebGL fallback for browsers without WebGPU.
+Not included yet: a test on a real phone, and meta progression between runs.
 
 The ranked plan for what comes next is in [ROADMAP.md](ROADMAP.md).

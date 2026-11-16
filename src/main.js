@@ -1,6 +1,7 @@
 // Host: loads the wasm core, runs the frame loop and ties input, sound,
 // saving and the UI together. The game rules live in core/ (Rust).
 import { createRenderer } from './renderer.js';
+import { createRendererGL } from './renderer-gl.js';
 import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
@@ -10,7 +11,7 @@ import { pickLang, setLang, getLang, nextLang } from './i18n.js';
 import { packReplay, unpackReplay } from './replay.js';
 
 async function boot() {
-  const canvas = document.getElementById('game');
+  let canvas = document.getElementById('game');
   const save = loadSave();
   setLang(pickLang(save.lang));
   const audio = createAudio();
@@ -35,17 +36,47 @@ async function boot() {
   let heartbeat = 0;
 
   const ui = createUI({ onAction });
-  const input = createInput({ onKey, surface: canvas });
 
   let renderer, core;
   try {
-    renderer = await createRenderer(canvas);
+    renderer = await pickRenderer();
     const bytes = await (await fetch('wasm/jadereaper_core.wasm', { cache: 'no-cache' })).arrayBuffer();
     core = (await WebAssembly.instantiate(bytes, {})).instance.exports;
   } catch (err) {
     console.error(err);
     ui.error(err.message || String(err));
     return;
+  }
+
+  // Made after the renderer, which may have swapped the canvas for a fresh one.
+  const input = createInput({ onKey, surface: canvas });
+
+  /**
+   * WebGPU when the browser has it, else WebGL2 with the same look. `?renderer=webgl2`
+   * asks for WebGL2 even where WebGPU works, to try it. When both fail, the
+   * WebGPU reason is the one shown.
+   */
+  async function pickRenderer() {
+    const forced = new URLSearchParams(location.search).get('renderer') === 'webgl2';
+    let gpuError = null;
+    if (!forced) {
+      try {
+        return await createRenderer(canvas);
+      } catch (err) {
+        gpuError = err;
+      }
+    }
+    // A canvas that has handed out a WebGPU context cannot give a WebGL2 one; start from a fresh one.
+    const fresh = canvas.cloneNode(false);
+    canvas.replaceWith(fresh);
+    canvas = fresh;
+    try {
+      const gl = await createRendererGL(canvas);
+      if (gpuError) console.info('WebGPU is not available here, so the game draws with WebGL2:', gpuError.message);
+      return gl;
+    } catch (err) {
+      throw gpuError || err;
+    }
   }
 
   const seed = () => (Math.random() * 0xffffffff) >>> 0;
@@ -407,7 +438,8 @@ async function boot() {
 
   // Handy in the console: jadereaper.core, jadereaper.state().
   window.jadereaper = {
-    core, state: () => Array.from(readState()), replayLink, get mode() { return mode; }, get replaying() { return replaying; },
+    core, state: () => Array.from(readState()), replayLink, renderer: renderer.kind,
+    get mode() { return mode; }, get replaying() { return replaying; },
   };
 }
 
