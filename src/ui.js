@@ -368,7 +368,7 @@ export function createUI({ onAction }) {
    * `reason` is the text key of the title when the run ended without the player dying
    * (the pursuit target got away, the villager or the shrine fell); null for death.
    */
-  function gameOver(mission, { time, kills, level }, save, beaten, reason = null) {
+  function gameOver(mission, { time, kills, level, commissions = 0 }, save, beaten, reason = null) {
     const title = $('overTitle');
     title.dataset.i18n = reason || 'over.title';
     setText(title, t(title.dataset.i18n));
@@ -377,6 +377,8 @@ export function createUI({ onAction }) {
       [t('over.kills'), String(kills), beaten?.kills],
       [t('over.level'), String(level), beaten?.level],
     ];
+    // Endless has commissions; the run's count of done ones.
+    if (mission.id === MISSION_IDS.endless) rows.push([t('over.commissions'), String(commissions), false]);
     if (beaten) rows.push([t('over.bestTime'), formatTime(save.bestTime), false]);
     else rows.unshift([t('over.mission'), t(`mission.${mission.name}.name`), false]);
     statRows('stats', rows);

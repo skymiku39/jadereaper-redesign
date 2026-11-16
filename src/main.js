@@ -413,7 +413,7 @@ async function boot() {
         tags.push({ dx: marks[i] - s[STATE.CAM_X], dy: marks[i + 1] - s[STATE.CAM_Y], dist: marks[i + 2] });
       }
       ui.pointers(tags, view);
-      const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL] };
+      const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL], commissions: s[STATE.COMMISSION_DONE] };
       if (s[STATE.WON]) {
         mode = 'won';
         if (!testRun) recordMission(save, mission.name, true);
