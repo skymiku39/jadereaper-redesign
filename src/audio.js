@@ -14,7 +14,8 @@ export function createAudio() {
   let pickupStep = 0;
   // Music: its own gain under the master volume, on unless switched off.
   let musicGain = null;
-  let musicOn = true;
+  // The music's level: 1 full, 0.5 soft, 0 off. Older saves hold true or false.
+  let musicLevel = 1;
   let ducked = false;
   let nextNote = 0;
   let phrase = 0;
@@ -46,7 +47,7 @@ export function createAudio() {
 
   function applyMusic() {
     if (!musicGain) return;
-    const level = musicOn ? (ducked ? 0.08 : 0.22) : 0;
+    const level = musicLevel * (ducked ? 0.08 : 0.22);
     musicGain.gain.setTargetAtTime(level, ctx.currentTime, 0.25);
   }
 
@@ -89,7 +90,7 @@ export function createAudio() {
    * Nothing plays while the music is off or the sound is muted.
    */
   function scheduleMusic() {
-    if (!ctx || ctx.state !== 'running' || !musicOn || muted) {
+    if (!ctx || ctx.state !== 'running' || !musicLevel || muted) {
       nextNote = 0;
       return;
     }
@@ -224,8 +225,11 @@ export function createAudio() {
     play,
     setVolume(v) { volume = Math.min(1, Math.max(0, v)); applyVolume(); },
     setMuted(m) { muted = !!m; applyVolume(); },
-    /** Switch the music on or off. */
-    setMusic(on) { musicOn = !!on; if (ctx) applyMusic(); },
+    /** Set the music's level: 1 full, 0.5 soft, 0 off (true and false also work). */
+    setMusic(level) {
+      musicLevel = level === true ? 1 : level === false ? 0 : Math.min(1, Math.max(0, Number(level) || 0));
+      if (ctx) applyMusic();
+    },
     /** Turn the music down while a menu is open. */
     duck(on) { if (ducked !== !!on) { ducked = !!on; if (ctx) applyMusic(); } },
     get muted() { return muted; },

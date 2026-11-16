@@ -18,7 +18,8 @@ const DEFAULTS = {
   // Damage numbers, and camera shake with hit-stop.
   numbers: true,
   motion: true,
-  music: true,
+  // Music level: 1 full, 0.5 soft, 0 off.
+  music: 1,
   // Full drawing quality; off for slow devices.
   quality: true,
   lang: null, // null: use DEFAULT_LANG from i18n.js

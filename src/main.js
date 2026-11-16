@@ -221,6 +221,12 @@ async function boot() {
     applyFeel();
   }
 
+  /** The music level after `level`: full, soft, off, and round again. Older saves hold true or false. */
+  function nextMusic(level) {
+    const now = level === true ? 1 : level === false ? 0 : Number(level) || 0;
+    return now >= 1 ? 0.5 : now > 0 ? 0 : 1;
+  }
+
   /** Hand the look settings to the core and the renderer: damage numbers, camera shake, quality. */
   function applyFeel() {
     core.jr_feel(save.numbers ? 1 : 0, save.motion ? 1 : 0);
@@ -258,7 +264,7 @@ async function boot() {
       case 'mute': audio.setMuted(!audio.muted); saveSettings(); break;
       case 'numbers': save.numbers = !save.numbers; saveSettings(); break;
       case 'motion': save.motion = !save.motion; saveSettings(); break;
-      case 'music': save.music = !save.music; audio.setMusic(save.music); saveSettings(); break;
+      case 'music': save.music = nextMusic(save.music); audio.setMusic(save.music); saveSettings(); break;
       case 'quality': save.quality = !save.quality; saveSettings(); break;
       case 'vol-up': audio.setVolume(audio.volume + 0.1); saveSettings(); audio.play('confirm'); break;
       case 'vol-down': audio.setVolume(audio.volume - 0.1); saveSettings(); audio.play('confirm'); break;
@@ -367,6 +373,9 @@ async function boot() {
           // A heavy enemy falling, or two elements reacting, stops the game for a beat.
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) hitstop = Math.max(hitstop, 0.07);
           if (save.motion && type === EVENT.REACT) hitstop = Math.max(hitstop, 0.04);
+          // The gamepad shakes with the blows the player takes and the heavy ones he lands.
+          if (save.motion && type === EVENT.HURT) input.rumble(140, 0.7);
+          if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) input.rumble(80, 0.35);
           if (type === EVENT.LEVELUP) ui.flashLevel();
           if (type === EVENT.COMMISSION_DONE) notice = { key: 'commission.done', until: clock + 4 };
           if (type === EVENT.COMMISSION_FAILED) notice = { key: 'commission.failed', until: clock + 4 };

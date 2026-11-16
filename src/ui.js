@@ -491,7 +491,8 @@ export function createUI({ onAction }) {
     }
     $('numbersBtn').textContent = t(numbers ? 'settings.numbersOn' : 'settings.numbersOff');
     $('motionBtn').textContent = t(motion ? 'settings.motionOn' : 'settings.motionOff');
-    $('musicBtn').textContent = t(music ? 'settings.musicOn' : 'settings.musicOff');
+    const level = music === true ? 1 : music === false ? 0 : Number(music) || 0;
+    $('musicBtn').textContent = t(level >= 1 ? 'settings.musicOn' : level > 0 ? 'settings.musicSoft' : 'settings.musicOff');
     $('qualityBtn').textContent = t(quality ? 'settings.qualityHigh' : 'settings.qualityLow');
     setText($('langBtn'), t('settings.language', { name: t('lang.name') }));
   }

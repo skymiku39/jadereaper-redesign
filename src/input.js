@@ -175,11 +175,20 @@ export function createInput({ onKey, surface }) {
     return out;
   }
 
+  /** Shake the gamepad, if it can: `strength` 0..1 for `ms` milliseconds. */
+  function rumble(ms, strength) {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const pad = Array.from(pads).find((p) => p && p.connected);
+    const motor = pad?.vibrationActuator;
+    if (!motor?.playEffect) return;
+    motor.playEffect('dual-rumble', { duration: ms, strongMagnitude: strength, weakMagnitude: strength * 0.6 }).catch(() => {});
+  }
+
   /** Let go of the stick, as when a menu opens over the game. */
   function release() {
     touch = null;
     placeStick();
   }
 
-  return { poll, release };
+  return { poll, release, rumble };
 }
