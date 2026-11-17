@@ -352,6 +352,8 @@ pub struct Route {
     pub start: bool,
     /// The weapon kinds it suits (人器合一), by name.
     pub suits: Vec<String>,
+    /// The inner art (a passive upgrade, by name) its ultimate needs to reach its height (極致).
+    pub zenith: Option<String>,
 }
 
 /// How a move hits. The core has one piece of code per shape.
@@ -873,10 +875,16 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                     f.used.push("suits");
                     Some(Vec::new())
                 };
+                let zenith = if t.entries.iter().any(|e| e.key == "zenith") {
+                    f.string("zenith")
+                } else {
+                    f.used.push("zenith");
+                    None
+                };
                 if let (Some(id), Some(name), Some(art), Some(school), Some(beat), Some(start), Some(suits)) =
                     (id, name, art, school, beat, start, suits)
                 {
-                    routes.push((Route { id, name, art, school, beat, start, suits }, t.line));
+                    routes.push((Route { id, name, art, school, beat, start, suits, zenith }, t.line));
                 }
             }
             "move" => {
@@ -1218,6 +1226,14 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         }
     }
     for (r, line) in &routes {
+        if let Some(z) = &r.zenith {
+            if !passives.iter().any(|(p, _)| &p.name == z) {
+                errs.push(format!(
+                    "line {line}: route `{}` reaches its height with `{z}`, which is not an inner art",
+                    r.name
+                ));
+            }
+        }
         for s in &r.suits {
             match weapons.iter().find(|(w, _)| &w.name == s) {
                 None => errs.push(format!("line {line}: route `{}` suits weapon `{s}`, which is not defined", r.name)),
@@ -1577,9 +1593,10 @@ pub fn render_rust(c: &Content) -> String {
             .iter()
             .filter_map(|s| c.weapons.iter().find(|w| &w.name == s))
             .fold(0, |bits, w| bits | (1 << w.id));
+        let zenith = r.zenith.as_ref().map_or("N_UPGRADES".to_string(), |z| format!("U_{}", upper(z)));
         writeln!(
             o,
-            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {}, suits: {suits:#x} }},",
+            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {}, suits: {suits:#x}, zenith: {zenith} }},",
             upper(&r.art),
             upper(&r.school),
             float_lit(&r.beat),
@@ -1823,13 +1840,14 @@ pub fn render_js(c: &Content) -> String {
             r.suits.iter().filter_map(|s| c.weapons.iter().find(|w| &w.name == s)).map(|w| w.id.to_string()).collect();
         writeln!(
             o,
-            "  {{ id: {}, name: {}, art: {art}, school: {school}, beat: {}, start: {}, moves: [{}], ultimate: {ultimate}, suits: [{}] }},",
+            "  {{ id: {}, name: {}, art: {art}, school: {school}, beat: {}, start: {}, moves: [{}], ultimate: {ultimate}, suits: [{}], zenith: {} }},",
             r.id,
             js_str(&r.name),
             r.beat,
             r.start,
             ids.join(", "),
-            suits.join(", ")
+            suits.join(", "),
+            r.zenith.as_ref().and_then(|z| c.upgrades.iter().find(|u| &u.name == z)).map_or(-1, |u| u.id as i64)
         )
         .unwrap();
     }

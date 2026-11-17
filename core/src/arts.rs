@@ -227,6 +227,7 @@ impl Game {
                 split: 0,
                 grow: 0.0,
                 size: 1.0,
+                zen: 0,
             });
             fired = true;
         }

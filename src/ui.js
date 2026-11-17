@@ -408,7 +408,11 @@ export function createUI({ onAction }) {
     if (!move) return null;
     const regular = route.moves.length - (route.ultimate ? 1 : 0);
     const learn = t(move.ultimate ? 'levelup.ultimate' : 'levelup.learn', { name: t(`move.${move.name}.name`) });
-    const formed = !move.ultimate && lvl - 2 === regular - 1 ? `\n${t('levelup.formed')}` : '';
+    let formed = !move.ultimate && lvl - 2 === regular - 1 ? `\n${t('levelup.formed')}` : '';
+    // The ultimate's card says what it needs to reach its height (極致).
+    if (move.ultimate && route.zenith >= 0) {
+      formed += `\n${t('levelup.zenith', { inner: t(`inner.${UPGRADES[route.zenith].name}.name`) })}`;
+    }
     return [
       t(`route.${route.name}.name`),
       t('levelup.rank', { from: lvl, to: lvl + 1 }),
@@ -486,7 +490,7 @@ export function createUI({ onAction }) {
     el.style.top = `${ROWS[row]}%`;
     el.textContent = text;
     $('hud').append(el);
-    setTimeout(() => el.remove(), kind === 'big' ? 1400 : 1000);
+    setTimeout(() => el.remove(), kind === 'zenith' ? 1600 : kind === 'big' ? 1400 : 1000);
   }
 
   /** One card per offered upgrade or element. A card's value is its slot. */

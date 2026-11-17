@@ -125,6 +125,10 @@ impl Game {
         if el.tags {
             self.react(i, element, dmg);
         }
+        // A hit of an ultimate at its height does what its element does at its height (`zenith.rs`).
+        if self.zenith > 0 {
+            self.height_hit(i, dmg);
+        }
     }
 
     /// Fire the first reaction between the tag just left on enemy `i` and a
@@ -183,7 +187,7 @@ impl Game {
 
     /// The living enemies nearest to enemy `i` within `reach`, nearest first,
     /// `count` at most. Returns their indices and how many there are.
-    fn nearest(&self, i: usize, reach: f32, count: usize) -> ([usize; MOST_JUMPS], usize) {
+    pub(crate) fn nearest(&self, i: usize, reach: f32, count: usize) -> ([usize; MOST_JUMPS], usize) {
         let count = count.min(MOST_JUMPS);
         let (x, y) = (self.enemies[i].x, self.enemies[i].y);
         let mut best = [(f32::MAX, 0usize); MOST_JUMPS];

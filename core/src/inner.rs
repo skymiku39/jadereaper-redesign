@@ -79,6 +79,7 @@ impl Game {
         }
         let moving = self.player.moving;
         let gathering = self.layer(U_LURE) >= 3;
+        self.bulwark = (self.bulwark - dt).max(0.0);
         let n = &mut self.inner;
         n.since_hurt += dt;
         n.moving_for = if moving { n.moving_for + dt } else { 0.0 };
@@ -136,6 +137,10 @@ impl Game {
             dmg = (dmg - 3.0).max(0.0);
         }
         if skin >= 3 && self.player.hp > self.player.max_hp * 0.8 {
+            dmg *= 0.5;
+        }
+        // Just after a metal ultimate at its height, blows are halved (`zenith.rs`).
+        if self.bulwark > 0.0 {
             dmg *= 0.5;
         }
         dmg
@@ -215,6 +220,7 @@ impl Game {
             split: 0,
             grow: 0.0,
             size: 1.0,
+            zen: 0,
         });
     }
 

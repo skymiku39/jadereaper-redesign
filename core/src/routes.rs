@@ -39,6 +39,10 @@ pub struct Delayed {
     /// The aim when the move began.
     pub ax: f32,
     pub ay: f32,
+    /// The damage factor of the move when it began (inner arts, the weapon, its height).
+    pub might: f32,
+    /// The element of the ultimate at its height it belongs to; 0 for none (`zenith.rs`).
+    pub zen: u8,
 }
 
 impl Game {
@@ -193,7 +197,14 @@ impl Game {
         match order[step] {
             BASIC => self.basic_move(a, might),
             m => {
-                self.use_move(a, m as usize, might);
+                // An ultimate at its height (極致) lands harder, with its element's height.
+                let zen = if MOVES[m as usize].ultimate { self.zenith_of(a) } else { None };
+                if let Some(element) = zen {
+                    self.zenith = element;
+                    self.reach_height(m as usize, element);
+                }
+                self.use_move(a, m as usize, might * self.height_power());
+                self.zenith = 0;
                 if MOVES[m as usize].ultimate {
                     self.note_ultimate();
                 }
@@ -239,6 +250,8 @@ impl Game {
 
     /// Use move `m` of art `a`.
     fn use_move(&mut self, a: usize, m: usize, might: f32) {
+        // Its later hits land with the damage factor it began with.
+        self.cast_might = might;
         let def = &MOVES[m];
         let (px, py) = (self.player.x, self.player.y);
         let (ax, ay) = self.player.aim;
@@ -398,6 +411,7 @@ impl Game {
             split: def.split.min(8) as u8,
             grow: def.grow,
             size: def.power.sqrt().clamp(0.7, 2.5),
+            zen: self.zenith,
         });
     }
 
@@ -405,7 +419,8 @@ impl Game {
     /// fanned around the way it flew, each doing half its damage.
     pub(crate) fn burst_shot(&mut self, s: usize) {
         let sh = &self.shots[s];
-        let (x, y, vx, vy, n, dmg, art) = (sh.x, sh.y, sh.vx, sh.vy, sh.split as usize, sh.dmg * 0.5, sh.art);
+        let (x, y, vx, vy, n, dmg, art, zen) =
+            (sh.x, sh.y, sh.vx, sh.vy, sh.split as usize, sh.dmg * 0.5, sh.art, sh.zen);
         let speed = (vx * vx + vy * vy).sqrt() * 0.8;
         let base = fmath::atan2(vy, vx);
         for k in 0..n {
@@ -428,6 +443,7 @@ impl Game {
                 split: 0,
                 grow: 0.0,
                 size: 0.6,
+                zen,
             });
         }
     }
@@ -448,7 +464,8 @@ impl Game {
     #[allow(clippy::too_many_arguments)]
     fn delay_hit(&mut self, a: usize, m: usize, k: usize, left: f32, x: f32, y: f32, ax: f32, ay: f32) {
         if self.delayed.len() < MAX_DELAYED {
-            self.delayed.push(Delayed { left, art: a as u8, mv: m as u16, k: k as u8, x, y, ax, ay });
+            let (might, zen) = (self.cast_might, self.zenith);
+            self.delayed.push(Delayed { left, art: a as u8, mv: m as u16, k: k as u8, x, y, ax, ay, might, zen });
         }
     }
 
@@ -457,7 +474,6 @@ impl Game {
         if self.delayed.is_empty() {
             return;
         }
-        let might = self.stat(ST_DAMAGE);
         let mut i = 0;
         while i < self.delayed.len() {
             self.delayed[i].left -= dt;
@@ -466,13 +482,16 @@ impl Game {
                 continue;
             }
             let d = self.delayed.remove(i);
-            let (a, m, k) = (d.art as usize, d.mv as usize, d.k as usize);
+            let (a, m, k, might) = (d.art as usize, d.mv as usize, d.k as usize, d.might);
+            // A hit of an ultimate at its height lands at its height too.
+            self.zenith = d.zen;
             match MOVES[m].shape {
                 MS_ARC => self.arc_sweep(a, m, k, d.ax, d.ay, might),
                 MS_WAVE => self.wave(a, m, k, d.ax, d.ay, might),
                 MS_RING => self.ring_of(a, m, k, d.ax, d.ay, might),
                 _ => self.mark_strike(a, m, d.x, d.y, might),
             }
+            self.zenith = 0;
         }
     }
 

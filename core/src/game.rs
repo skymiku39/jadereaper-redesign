@@ -62,6 +62,8 @@ pub struct Shot {
     grow: f32,
     /// How big it is drawn, 1 for an art's own shot.
     size: f32,
+    /// The element of the ultimate at its height it came from; 0 for none (`zenith.rs`).
+    zen: u8,
 }
 
 pub struct Gem {
@@ -205,6 +207,13 @@ pub struct Game {
     /// The manuals (秘笈) gained, two bits per route id (`routes.rs`): from
     /// earlier runs (the `manuals` tune) and this one.
     pub manuals: u32,
+    /// The element of the ultimate at its height (極致) whose hits are landing
+    /// right now; 0 the rest of the time (`zenith.rs`).
+    pub zenith: u8,
+    /// Seconds left of blows halved after a metal height.
+    pub bulwark: f32,
+    /// The damage factor of the route move being used, for its later hits.
+    pub cast_might: f32,
     pub pending: u32,
     /// The log of what the player does, and a log being played back.
     pub replay: replay::Replay,
@@ -381,6 +390,9 @@ impl Game {
             stolen: 0,
             foes: Vec::with_capacity(16),
             manuals: 0,
+            zenith: 0,
+            bulwark: 0.0,
+            cast_might: 1.0,
             pending: 0,
             replay: replay::Replay::default(),
             kills: 0,
@@ -618,6 +630,7 @@ impl Game {
             self.inner.mix(&mut mix);
             mix(self.stolen);
             mix(self.manuals);
+            mix(self.bulwark.to_bits());
         }
         if self.decks_on() {
             mix(self.deck_pick as u32);
@@ -1133,7 +1146,10 @@ impl Game {
                 self.shots[s].last = self.enemies[i].id;
                 self.shots[s].pierce -= 1;
                 self.shots[s].dmg *= 1.0 + self.shots[s].grow;
+                // A wave of an ultimate at its height lands at its height (`zenith.rs`).
+                self.zenith = self.shots[s].zen;
                 self.strike(i, dmg, vx * push, vy * push, element);
+                self.zenith = 0;
             } else if self.formation_hit_shot(x, y, dmg) {
                 self.shots[s].pierce = 0;
             }
@@ -1921,6 +1937,8 @@ mod mission_vendetta;
 pub mod replay;
 #[path = "routes.rs"]
 pub mod routes;
+#[path = "zenith.rs"]
+pub mod zenith;
 
 #[cfg(test)]
 #[path = "game_tests.rs"]
@@ -1945,3 +1963,7 @@ mod deck_tests;
 #[cfg(test)]
 #[path = "foe_tests.rs"]
 mod foe_tests;
+
+#[cfg(test)]
+#[path = "zenith_tests.rs"]
+mod zenith_tests;

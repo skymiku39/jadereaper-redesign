@@ -793,7 +793,9 @@ name = "jiuyou"
 # passive), instead of its own numbers. Levels 1 and 2 stay the art's basic
 # move. Its top level becomes 2 + the route's moves, the last of which may be
 # the ultimate (絕招). `start` marks a route known from the start; the others
-# are stolen (偷師) and are not offered yet. At most three routes per art.
+# are stolen (偷師) and are not offered yet. `zenith` names the inner art its
+# ultimate needs, with the route whole and an element on the art, to reach its
+# height (極致, core/src/zenith.rs). At most three routes per art.
 # Text is `route.<name>.name` and `.desc` in src/i18n.js.
 
 [[route]]
@@ -804,6 +806,7 @@ school = "duanyue"
 beat = 1.0
 start = true
 suits = "dadao"
+zenith = "might"
 
 [[route]]
 id = 1
@@ -813,6 +816,7 @@ school = "changfeng"
 beat = 0.5
 start = true
 suits = "dandao shuangdao"
+zenith = "haste"
 
 # The beads stand in for a staff (棍): it keeps circling, and the moves come on top.
 [[route]]
@@ -823,6 +827,7 @@ school = "changfeng"
 beat = 1.0
 start = true
 suits = "changgun"
+zenith = "jieli"
 
 [[route]]
 id = 3
@@ -832,6 +837,7 @@ school = "caobang"
 beat = 1.1
 start = true
 suits = "changgun"
+zenith = "qiguan"
 
 # The talisman stands in for hidden weapons (暗器).
 [[route]]
@@ -842,6 +848,7 @@ school = "tangmen"
 beat = 0.95
 start = true
 suits = "biao feidao"
+zenith = "swift"
 
 [[route]]
 id = 5
@@ -851,6 +858,7 @@ school = "changfeng"
 beat = 1.3
 start = true
 suits = "feidao biao"
+zenith = "mending"
 
 # The pulse stands in for the fist and palm (拳掌).
 [[route]]
@@ -861,6 +869,7 @@ school = "xuanzhong"
 beat = 2.2
 start = true
 suits = "tushou hushou"
+zenith = "might"
 
 [[route]]
 id = 7
@@ -870,6 +879,7 @@ school = "qiushui"
 beat = 0.5
 start = true
 suits = "tushou"
+zenith = "haste"
 
 # Stolen routes (偷師): offered only once a disciple of their school has
 # fallen to the player, in this run or an earlier one (the `stolen` tune).
@@ -881,6 +891,7 @@ art = "scythe"
 school = "heifeng"
 beat = 0.9
 suits = "dadao dandao"
+zenith = "vitality"
 
 [[route]]
 id = 9
@@ -889,6 +900,7 @@ art = "beads"
 school = "liushanmen"
 beat = 1.2
 suits = "qimeigun"
+zenith = "lure"
 
 [[route]]
 id = 10
@@ -897,6 +909,7 @@ art = "talisman"
 school = "jiuyou"
 beat = 0.6
 suits = "zhen"
+zenith = "wanfa"
 
 [[route]]
 id = 11
@@ -905,6 +918,7 @@ art = "pulse"
 school = "jiuyou"
 beat = 1.6
 suits = "zhaotao"
+zenith = "lure"
 
 # ---------------------------------------------------------------- moves
 # Moves (式) of the routes above. A route's moves have ids that follow each
@@ -1824,6 +1838,11 @@ name = "foe"
 [[event]]
 id = 21
 name = "manual"
+
+# An ultimate reached its height (極致). The value is move + 256 × element.
+[[event]]
+id = 22
+name = "zenith"
 
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...

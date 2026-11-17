@@ -29,6 +29,8 @@ const DEFAULTS = {
   manuals: 0,
   // The ids of the route moves ever used: what the martial record (武學錄) shows.
   learned: [],
+  // The heights (極致) ever reached, as "route:element".
+  zeniths: [],
 };
 
 export function loadSave() {
@@ -41,9 +43,10 @@ export function loadSave() {
     save.missions = plain(save.missions);
     save.tuning = plain(save.tuning);
     save.learned = Array.isArray(save.learned) ? save.learned.filter((id) => Number.isInteger(id)) : [];
+    save.zeniths = Array.isArray(save.zeniths) ? save.zeniths.filter((k) => typeof k === 'string') : [];
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {}, tuning: {}, learned: [] };
+    return { ...DEFAULTS, missions: {}, tuning: {}, learned: [], zeniths: [] };
   }
 }
 

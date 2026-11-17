@@ -72,6 +72,9 @@ pub struct RouteDef {
     pub n: usize,
     /// The weapon kinds it suits (人器合一), as bits by weapon id.
     pub suits: u32,
+    /// The inner art (an upgrade id) its ultimate needs to reach its height
+    /// (極致, `zenith.rs`); `N_UPGRADES` for none.
+    pub zenith: usize,
 }
 
 /// One move (式) of a route. Lengths are shares of the art's basic numbers at

@@ -206,18 +206,18 @@ pub const N_ROUTES: usize = 12;
 pub const ROUTE_NAMES: [&str; N_ROUTES] = ["bengyue", "jinghong", "poyu", "fanjiang", "ershiba", "chuanyang", "muguchenzhong", "zhuoyu", "lulin", "shuihuo", "yinhun", "shesou"];
 #[rustfmt::skip]
 pub const ROUTES: [RouteDef; N_ROUTES] = [
-    RouteDef { art: A_SCYTHE, school: SC_DUANYUE, beat: 1.0, start: true, first: 0, n: 4, suits: 0x4 },
-    RouteDef { art: A_SCYTHE, school: SC_CHANGFENG, beat: 0.5, start: true, first: 4, n: 6, suits: 0x3 },
-    RouteDef { art: A_BEADS, school: SC_CHANGFENG, beat: 1.0, start: true, first: 10, n: 4, suits: 0x20 },
-    RouteDef { art: A_BEADS, school: SC_CAOBANG, beat: 1.1, start: true, first: 14, n: 5, suits: 0x20 },
-    RouteDef { art: A_TALISMAN, school: SC_TANGMEN, beat: 0.95, start: true, first: 19, n: 5, suits: 0xc0 },
-    RouteDef { art: A_TALISMAN, school: SC_CHANGFENG, beat: 1.3, start: true, first: 24, n: 4, suits: 0xc0 },
-    RouteDef { art: A_PULSE, school: SC_XUANZHONG, beat: 2.2, start: true, first: 28, n: 4, suits: 0x600 },
-    RouteDef { art: A_PULSE, school: SC_QIUSHUI, beat: 0.5, start: true, first: 32, n: 5, suits: 0x200 },
-    RouteDef { art: A_SCYTHE, school: SC_HEIFENG, beat: 0.9, start: false, first: 37, n: 3, suits: 0x5 },
-    RouteDef { art: A_BEADS, school: SC_LIUSHANMEN, beat: 1.2, start: false, first: 40, n: 5, suits: 0x10 },
-    RouteDef { art: A_TALISMAN, school: SC_JIUYOU, beat: 0.6, start: false, first: 45, n: 4, suits: 0x100 },
-    RouteDef { art: A_PULSE, school: SC_JIUYOU, beat: 1.6, start: false, first: 49, n: 3, suits: 0x800 },
+    RouteDef { art: A_SCYTHE, school: SC_DUANYUE, beat: 1.0, start: true, first: 0, n: 4, suits: 0x4, zenith: U_MIGHT },
+    RouteDef { art: A_SCYTHE, school: SC_CHANGFENG, beat: 0.5, start: true, first: 4, n: 6, suits: 0x3, zenith: U_HASTE },
+    RouteDef { art: A_BEADS, school: SC_CHANGFENG, beat: 1.0, start: true, first: 10, n: 4, suits: 0x20, zenith: U_JIELI },
+    RouteDef { art: A_BEADS, school: SC_CAOBANG, beat: 1.1, start: true, first: 14, n: 5, suits: 0x20, zenith: U_QIGUAN },
+    RouteDef { art: A_TALISMAN, school: SC_TANGMEN, beat: 0.95, start: true, first: 19, n: 5, suits: 0xc0, zenith: U_SWIFT },
+    RouteDef { art: A_TALISMAN, school: SC_CHANGFENG, beat: 1.3, start: true, first: 24, n: 4, suits: 0xc0, zenith: U_MENDING },
+    RouteDef { art: A_PULSE, school: SC_XUANZHONG, beat: 2.2, start: true, first: 28, n: 4, suits: 0x600, zenith: U_MIGHT },
+    RouteDef { art: A_PULSE, school: SC_QIUSHUI, beat: 0.5, start: true, first: 32, n: 5, suits: 0x200, zenith: U_HASTE },
+    RouteDef { art: A_SCYTHE, school: SC_HEIFENG, beat: 0.9, start: false, first: 37, n: 3, suits: 0x5, zenith: U_VITALITY },
+    RouteDef { art: A_BEADS, school: SC_LIUSHANMEN, beat: 1.2, start: false, first: 40, n: 5, suits: 0x10, zenith: U_LURE },
+    RouteDef { art: A_TALISMAN, school: SC_JIUYOU, beat: 0.6, start: false, first: 45, n: 4, suits: 0x100, zenith: U_WANFA },
+    RouteDef { art: A_PULSE, school: SC_JIUYOU, beat: 1.6, start: false, first: 49, n: 3, suits: 0x800, zenith: U_LURE },
 ];
 pub const MV_HENGYUN: usize = 0;
 pub const MV_HUISHOU: usize = 1;
@@ -387,6 +387,7 @@ pub const EV_MOVE: f32 = 18.0;
 pub const EV_STEAL: f32 = 19.0;
 pub const EV_FOE: f32 = 20.0;
 pub const EV_MANUAL: f32 = 21.0;
+pub const EV_ZENITH: f32 = 22.0;
 
 // Mission ids, and what each one asks for (seconds for `survive`, enemies for `kills`).
 pub const M_ENDLESS: usize = 0;

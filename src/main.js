@@ -7,7 +7,7 @@ import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
 import { loadSave, writeSave, recordRun, recordMission, clearRecords, tuneValue, setTune } from './save.js';
 import {
-  MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, MOVES, ROUTES, SCHOOLS, EVENT, KINDS,
+  MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, MOVES, ROUTES, SCHOOLS, ELEMENTS, EVENT, KINDS,
 } from './data.js';
 import { pickLang, setLang, getLang, nextLang, t } from './i18n.js';
 import { packReplay, unpackReplay } from './replay.js';
@@ -40,6 +40,8 @@ async function boot() {
   let notice = null;
   // The route moves already called out this run: a move's name is written the first time it is used.
   let calledOut = new Set();
+  // The ultimate just called out at its height, so its plain call-out is not written over it.
+  let zenithMove = -1;
 
   const ui = createUI({ onAction });
 
@@ -128,6 +130,28 @@ async function boot() {
     }
   }
 
+  /**
+   * An ultimate reached its height (極致): its name with the element's mark in gold, and the first
+   * time ever for that route and element, a line of the hero remembering the world of magic.
+   * `value` is move + 256 × element.
+   */
+  function onZenith(value) {
+    const move = MOVES[value % 256];
+    const element = ELEMENTS[Math.floor(value / 256) - 1];
+    if (!move || !element) return;
+    zenithMove = move.id;
+    ui.callout(`${element.glyph}・${t(`move.${move.name}.name`)}`, 'zenith');
+    const key = `${move.route}:${element.id}`;
+    const seen = Array.isArray(save.zeniths) ? save.zeniths : [];
+    if (!seen.includes(key)) {
+      notice = { key: `memory.${element.name}`, vars: {}, until: clock + 6 };
+      if (!replaying) {
+        save.zeniths = [...seen, key];
+        writeSave(save);
+      }
+    }
+  }
+
   /** A master dropped a manual (秘笈): say which route opened a move, and keep all of them for later runs. */
   function onManual(id, manuals) {
     const route = ROUTES[id];
@@ -154,6 +178,12 @@ async function boot() {
         save.learned = [...learned, id];
         writeSave(save);
       }
+    }
+    // An ultimate at its height was already called out in gold.
+    if (zenithMove === id) {
+      zenithMove = -1;
+      calledOut.add(id);
+      return;
     }
     if (move.ultimate || first) {
       calledOut.add(id);
@@ -461,6 +491,7 @@ async function boot() {
           if (type === EVENT.MOVE) onMove(ev[i * 4 + 3]);
           if (type === EVENT.STEAL) onSteal(ev[i * 4 + 3]);
           if (type === EVENT.MANUAL) onManual(ev[i * 4 + 3], s[STATE.MANUALS]);
+          if (type === EVENT.ZENITH) onZenith(ev[i * 4 + 3]);
           // A school elite winds up a move: its name in red, so the player knows what is coming.
           if (type === EVENT.FOE && MOVES[ev[i * 4 + 3]]) {
             ui.callout(t(`move.${MOVES[ev[i * 4 + 3]].name}.name`), 'foe');

@@ -8,7 +8,16 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/martial-record` (cut from `feat/masters-manuals`, uncommitted)
+### `feat/zenith` (cut from `feat/martial-record`, uncommitted)
+
+After "提交後繼續", `feat/martial-record` was committed as 94d0a10 (not pushed) and this branch cut.
+
+- **Built:** the height of a route (極致, design 4.8.5) in `core/src/zenith.rs`: `zenith = "<inner art>"` on every `[[route]]` (the pairs of `docs/martial-arts.md`); with the route whole, an element on the art and that inner art held, the ultimate lands 1.5 times as hard and each of its hits (sweeps, delayed hits and waves alike, through a `zen` mark on delayed hits and shots) does its element's height: metal fills the guard and halves blows for 2 s, wood heals 1 a hit, water makes the surges go together after 0.5 s, fire passes its burn to the nearest enemy, earth holds for 2 s however recently held, lightning jumps to two more, holy fells a corpse or spirit that does not come alone. `EV_ZENITH` (move + 256 × element) calls out "火・五嶽同崩" in big gold; the first time for a route and element the hero remembers the world of magic in a line (one per element), kept in the save (`zeniths`). The ultimate's card says which inner art it needs. Also fixed: a delayed hit used only the inner-art damage factor, not the weapon's and the finisher's; it now keeps the move's factor (`cast_might`).
+- **Decided here, not by the user:** every number; one memory line per element rather than per route; the record does not show heights yet.
+- **Checked:** fmt, clippy, `cargo test --release` (268, six height tests), `./build.sh`, fonts, determinism, smoke.
+- **Not checked:** nobody has played it, and no browser run reached a height (the host cannot hand out inner arts; only the core tests reach it).
+
+### `feat/martial-record` (cut from `feat/masters-manuals`, committed 94d0a10)
 
 After "提交後繼續", `feat/masters-manuals` was committed as 6dcecec (not pushed) and this branch cut.
 
