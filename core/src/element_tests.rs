@@ -506,6 +506,8 @@ fn an_element_card_is_offered_as_the_last_card_at_its_chance() {
 fn an_element_card_takes_the_first_empty_slot_when_upgrades_run_short() {
     let mut g = Game::new(3);
     g.tune[T_ELEMENT_CARDS] = 1.0;
+    // With routes off every upgrade's top is its own.
+    g.tune[T_ROUTES] = 0.0;
     g.up = UPGRADE_MAX;
     g.up[U_HASTE] -= 1;
     g.pending = 1;

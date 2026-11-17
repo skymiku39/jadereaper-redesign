@@ -112,7 +112,50 @@ fn undefined_reference_is_rejected() {
 #[test]
 fn overlapping_state_is_rejected() {
     assert_error(&errors_after("name = \"over\"\nindex = 11", "name = \"over\"\nindex = 10"), "overlaps `choice`");
-    assert_error(&errors_after("state_floats = 80", "state_floats = 20"), "ends past state_floats");
+    assert_error(&errors_after("state_floats = 112", "state_floats = 20"), "ends past state_floats");
+}
+
+#[test]
+fn routes_and_moves_are_checked() {
+    let c = real();
+    assert!(!c.routes.is_empty() && !c.moves.is_empty() && !c.schools.is_empty());
+    assert_error(&errors_after("art = \"scythe\"\nschool", "art = \"axe\"\nschool"), "art `axe`, which is not defined");
+    assert_error(
+        &errors_after("school = \"duanyue\"\nbeat", "school = \"nowhere\"\nbeat"),
+        "school `nowhere`, which is not defined",
+    );
+    assert_error(
+        &errors_after("route = \"bengyue\"\nshape = \"arc\"", "route = \"lost\"\nshape = \"arc\""),
+        "route `lost`",
+    );
+    assert_error(&errors_after("shape = \"wave\"", "shape = \"spin\""), "`shape` is \"spin\"");
+    assert_error(
+        &errors_after(
+            "name = \"hengyun\"\nroute = \"bengyue\"\nshape = \"arc\"\n",
+            "name = \"hengyun\"\nroute = \"bengyue\"\nshape = \"arc\"\nultimate = true\n",
+        ),
+        "only have its last move as its ultimate",
+    );
+}
+
+#[test]
+fn every_route_move_and_school_has_text() {
+    let c = real();
+    let i18n = read("src/i18n.js");
+    for r in &c.routes {
+        for key in [format!("'route.{}.name'", r.name), format!("'route.{}.desc'", r.name)] {
+            assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
+        }
+    }
+    for m in &c.moves {
+        for key in [format!("'move.{}.name'", m.name), format!("'move.{}.desc'", m.name)] {
+            assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
+        }
+    }
+    for s in &c.schools {
+        let key = format!("'school.{}'", s.name);
+        assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
+    }
 }
 
 #[test]

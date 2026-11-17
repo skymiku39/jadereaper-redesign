@@ -46,13 +46,16 @@ impl Game {
     /// Land a hit of a martial art on enemy `i`, with the effect of the
     /// element the art carries (an `E_*` id; 0 for none).
     pub(crate) fn strike(&mut self, i: usize, dmg: f32, kx: f32, ky: f32, element: u8) {
+        self.inner.since_strike = 0.0;
         if element == 0 || element as usize > N_ELEMENTS {
+            self.borrow_force(i, dmg, kx, ky);
             self.hurt_enemy(i, dmg, kx, ky);
             return;
         }
         let k = element as usize;
         let el = &ELEMENTS[k];
-        let (mut dmg, mut kx, mut ky) = (dmg, kx, ky);
+        let (mut dmg, mut kx, mut ky) = (dmg * self.element_boost(), kx, ky);
+        self.borrow_force(i, dmg, kx, ky);
         let mut rooting = false;
         match el.effect {
             EF_BANE => {
@@ -144,7 +147,7 @@ impl Game {
                 RK_RELAY => {
                     // The surge that was waiting goes off now, here and on the enemies nearby.
                     let surge = if ELEMENTS[a].effect == EF_SURGE { a } else { b };
-                    let amount = self.enemies[i].tags.amount[surge] * r.power;
+                    let amount = self.enemies[i].tags.amount[surge] * r.power * self.reaction_boost();
                     self.enemies[i].tags.end(a);
                     self.enemies[i].tags.end(b);
                     let (targets, n) = self.nearest(i, r.reach, r.count);
@@ -159,7 +162,7 @@ impl Game {
                 _ => {
                     self.enemies[i].tags.end(a);
                     self.enemies[i].tags.end(b);
-                    let amount = dmg * r.power;
+                    let amount = dmg * r.power * self.reaction_boost();
                     for j in 0..self.enemies.len() {
                         let e = &self.enemies[j];
                         let (dx, dy) = (e.x - x, e.y - y);

@@ -16,6 +16,7 @@ use arts::ArtState;
 use core::f32::consts::TAU;
 use elements::Tags;
 use mission_escort::Escort;
+use routes::Delayed;
 
 const MAX_ENEMIES: usize = 500;
 const MAX_GEMS: usize = 700;
@@ -55,6 +56,12 @@ pub struct Shot {
     art: u8,
     /// The share of its speed a hit pushes the enemy at.
     push: f32,
+    /// Small shots it bursts into where its flight ends (a route move); 0 for none.
+    split: u8,
+    /// How much more damage it does with each enemy it passes through (a route move).
+    grow: f32,
+    /// How big it is drawn, 1 for an art's own shot.
+    size: f32,
 }
 
 pub struct Gem {
@@ -174,6 +181,13 @@ pub struct Game {
     /// The element whose card was picked and now waits for the player to say
     /// which martial art gets it; 0 when none does.
     pub attach: u8,
+    /// The art whose route is being chosen, plus 1; 0 when none is. While it
+    /// is set, `choices` holds route ids.
+    pub route_pick: u8,
+    /// Hits of route moves that land a moment after the move.
+    pub delayed: Vec<Delayed>,
+    /// The clocks of the inner arts (心法).
+    pub inner: inner::Inner,
     pub pending: u32,
     /// The log of what the player does, and a log being played back.
     pub replay: replay::Replay,
@@ -340,6 +354,9 @@ impl Game {
             arts: ArtState::fresh(),
             choices: [-1; 3],
             attach: 0,
+            route_pick: 0,
+            delayed: Vec::with_capacity(64),
+            inner: inner::Inner::default(),
             pending: 0,
             replay: replay::Replay::default(),
             kills: 0,
@@ -562,6 +579,10 @@ impl Game {
             mix(art.element as u32);
         }
         mix(self.attach as u32);
+        self.routes_hash(&mut mix);
+        if self.inner_on() {
+            self.inner.mix(&mut mix);
+        }
         mix(p.guard.to_bits());
         mix(p.regrow.to_bits());
         mix(self.enemies.len() as u32);
@@ -601,12 +622,26 @@ impl Game {
     /// What the passive upgrades make of a stat (an `ST_*` id), from their levels:
     /// a factor for speed, range, damage and cooldown, health per second for regen.
     /// The most health is raised when the upgrade is picked, not here.
+    /// As inner arts (with routes on) a passive has three layers, which count
+    /// here as levels 2, 4 and 5 of the passive, so its third layer adds what
+    /// its top level always did; the second and third also change rules (`inner.rs`).
     pub(crate) fn stat(&self, stat: u8) -> f32 {
         let held = PASSIVES.iter().filter(|p| p.stat == stat);
         match stat {
-            ST_COOLDOWN => held.fold(1.0, |f, p| f * fmath::powu(p.amount, self.up[p.upgrade] as u32)),
-            ST_REGEN => held.fold(0.0, |sum, p| sum + p.amount * self.up[p.upgrade] as f32),
-            _ => 1.0 + held.fold(0.0, |sum, p| sum + p.amount * self.up[p.upgrade] as f32),
+            ST_COOLDOWN => held.fold(1.0, |f, p| f * fmath::powu(p.amount, self.passive_level(p.upgrade))),
+            ST_REGEN => held.fold(0.0, |sum, p| sum + p.amount * self.passive_level(p.upgrade) as f32),
+            _ => 1.0 + held.fold(0.0, |sum, p| sum + p.amount * self.passive_level(p.upgrade) as f32),
+        }
+    }
+
+    /// The level a passive counts as: its own, or as an inner art, the level its layer stands for.
+    pub(crate) fn passive_level(&self, id: usize) -> u32 {
+        const LAYER_LEVEL: [u32; 4] = [0, 2, 4, 5];
+        let level = self.up[id] as usize;
+        if self.inner_on() && !Self::inner_only(id) {
+            LAYER_LEVEL[level.min(3)]
+        } else {
+            level as u32
         }
     }
 
@@ -625,8 +660,8 @@ impl Game {
             my /= len;
             len = 1.0;
         }
-        let speed = 190.0 * self.stat(ST_MOVE_SPEED) * self.retrieval.speed_factor();
-        let regen = self.stat(ST_REGEN);
+        let speed = 190.0 * self.stat(ST_MOVE_SPEED) * self.retrieval.speed_factor() * self.stride();
+        let regen = self.stat(ST_REGEN) * self.mending();
         let p = &mut self.player;
         p.moving = len > 0.15;
         if p.moving {
@@ -646,6 +681,7 @@ impl Game {
     fn step(&mut self, dt: f32) {
         self.time += dt;
         self.walk(dt);
+        self.inner_tick(dt);
         // A walled field: the player cannot leave the circle around where the mission began.
         let wall = self.tune[T_ARENA_RADIUS];
         if wall > 0.0 {
@@ -686,6 +722,8 @@ impl Game {
         }
         self.separate();
         self.move_shots(dt);
+        self.tick_delayed(dt);
+        self.land_splash();
         self.tick_tags(dt);
         self.reap();
         self.move_gems(dt);
@@ -912,6 +950,7 @@ impl Game {
         }
         if let Some(dmg) = hit {
             if self.player.iframe <= 0.0 {
+                let dmg = self.soften(dmg);
                 self.player.hp -= self.guard_against(dmg);
                 self.player.iframe = 0.8;
                 self.shake = 1.0;
@@ -938,7 +977,7 @@ impl Game {
                         top: true,
                     });
                 }
-                if self.player.hp <= 0.0 {
+                if self.player.hp <= 0.0 && !self.last_stand() {
                     self.player.hp = 0.0;
                     self.over = true;
                     self.event(EV_DEATH, px, py, 0.0);
@@ -1039,11 +1078,16 @@ impl Game {
                 let element = self.arts[self.shots[s].art as usize].element;
                 self.shots[s].last = self.enemies[i].id;
                 self.shots[s].pierce -= 1;
+                self.shots[s].dmg *= 1.0 + self.shots[s].grow;
                 self.strike(i, dmg, vx * push, vy * push, element);
             } else if self.formation_hit_shot(x, y, dmg) {
                 self.shots[s].pierce = 0;
             }
             if self.shots[s].life <= 0.0 || self.shots[s].pierce <= 0 {
+                // A shot that flew its whole way bursts into smaller ones, if it is made to.
+                if self.shots[s].life <= 0.0 && self.shots[s].split > 0 {
+                    self.burst_shot(s);
+                }
                 self.shots.swap_remove(s);
             } else {
                 s += 1;
@@ -1067,6 +1111,10 @@ impl Game {
             self.drop_gem(e.x, e.y, k.xp, false);
             if heart {
                 self.drop_gem(e.x + 14.0, e.y, 0.0, true);
+            }
+            // The second layer of the sleeve: an elite falling brings every jade in.
+            if e.kind == K_ELITE && self.layer(U_LURE) >= 2 {
+                self.gather_jade();
             }
             let n = if k.heavy { 9 } else { 4 };
             for _ in 0..n {
@@ -1269,7 +1317,9 @@ impl Game {
         let full = self.arts_held() >= MAX_ARTS;
         for id in 0..N_UPGRADES {
             let new_art = self.up[id] == 0 && ARTS.iter().any(|a| a.upgrade == id);
-            if self.up[id] < UPGRADE_MAX[id] && !(full && new_art) {
+            // The newest inner arts are only offered while inner arts are on.
+            let hidden = !self.inner_on() && Self::inner_only(id);
+            if self.up[id] < self.upgrade_top(id) && !(full && new_art) && !hidden {
                 pool[n] = id;
                 n += 1;
             }
@@ -1308,7 +1358,15 @@ impl Game {
             return;
         }
         self.replay_pick(i);
-        if self.attach > 0 {
+        if self.route_pick > 0 {
+            if i >= 3 || self.choices[i] < 0 {
+                return;
+            }
+            let a = self.route_pick as usize - 1;
+            self.take_route(a, self.choices[i] as usize);
+            self.up[ARTS[a].upgrade] = 3;
+            self.route_pick = 0;
+        } else if self.attach > 0 {
             if i >= N_ARTS || self.art_level(i) == 0 {
                 return;
             }
@@ -1325,12 +1383,23 @@ impl Game {
                 self.choices = [-1; 3];
                 return;
             }
-            if self.up[id] < UPGRADE_MAX[id] {
+            // An art at level 2 first takes a route: the choice stays open and
+            // the cards become the routes it can take.
+            if let Some(a) = self.route_needed(id) {
+                self.route_pick = a as u8 + 1;
+                let mut routes = Self::routes_of(a);
+                self.choices = core::array::from_fn(|_| routes.next().map_or(-1, |r| r as i32));
+                return;
+            }
+            if self.up[id] < self.upgrade_top(id) {
+                let before = self.passive_level(id);
                 self.up[id] += 1;
-                // A passive that raises the most health does it once, when picked.
+                // A passive that raises the most health does it once, when picked,
+                // by as many levels as the pick counts for.
+                let gained = self.passive_level(id).saturating_sub(before) as f32;
                 for p in PASSIVES.iter().filter(|p| p.upgrade == id && p.stat == ST_MAX_HP) {
-                    self.player.max_hp += p.amount;
-                    self.player.hp += p.amount;
+                    self.player.max_hp += p.amount * gained;
+                    self.player.hp += p.amount * gained;
                 }
             }
         }
@@ -1708,6 +1777,15 @@ impl Game {
         s[S_REGROW] = p.regrow;
         for (a, art) in self.arts.iter().enumerate() {
             s[S_ART_ELEMENT0 + a] = art.element as f32;
+            s[S_ART_ROUTE0 + a] = art.route as f32;
+        }
+        s[S_ROUTE_PICK] = self.route_pick as f32;
+        s[S_ROUTES_ON] = (self.tune[T_ROUTES] > 0.5) as u8 as f32;
+        for a in 0..N_ARTS {
+            let (_, len) = self.move_order(a);
+            let step = if len > 0 { self.arts[a].step as usize % len } else { 0 };
+            self.state[S_ART_STEP0 + a] = step as f32;
+            self.state[S_ART_ORDER0 + a] = len as f32;
         }
         self.pursuit_write_state();
         self.escort_state();
@@ -1720,6 +1798,8 @@ pub mod arts;
 pub mod commission;
 #[path = "elements.rs"]
 pub mod elements;
+#[path = "inner.rs"]
+pub mod inner;
 #[path = "mission_boss.rs"]
 mod mission_boss;
 #[path = "mission_escort.rs"]
@@ -1730,6 +1810,8 @@ mod mission_pursuit;
 mod mission_vendetta;
 #[path = "replay.rs"]
 pub mod replay;
+#[path = "routes.rs"]
+pub mod routes;
 
 #[cfg(test)]
 #[path = "game_tests.rs"]
@@ -1738,3 +1820,11 @@ mod game_tests;
 #[cfg(test)]
 #[path = "element_tests.rs"]
 mod element_tests;
+
+#[cfg(test)]
+#[path = "route_tests.rs"]
+mod route_tests;
+
+#[cfg(test)]
+#[path = "inner_tests.rs"]
+mod inner_tests;

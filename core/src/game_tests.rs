@@ -11,8 +11,11 @@ fn near(a: f32, b: f32) -> bool {
 
 /// A running game at time 0 with every weapon timer parked far away, so a test
 /// only sees the weapon it arms. Scythe is at level 1 (as in a real run).
+/// Routes and inner arts are off: these tests pin down the arts and passives
+/// as they grow on their own (`route_tests.rs` and `inner_tests.rs` cover the rest).
 fn base() -> Game {
     let mut g = Game::new(1);
+    g.tune[T_ROUTES] = 0.0;
     g.running = true;
     g.arts[A_SCYTHE].timer = 100.0;
     g.arts[A_TALISMAN].timer = 100.0;
@@ -488,11 +491,14 @@ fn vitality_raises_max_and_current_health_on_choose() {
 
 #[test]
 fn passive_and_weapon_ids_and_caps() {
-    assert_eq!(N_UPGRADES, 10);
-    assert_eq!(UPGRADE_MAX, [6, 6, 6, 6, 5, 5, 5, 5, 5, 5]);
+    assert_eq!(N_UPGRADES, 13);
+    assert_eq!(UPGRADE_MAX, [6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 3, 3, 3]);
     assert_eq!(
-        [U_SCYTHE, U_TALISMAN, U_BEADS, U_PULSE, U_VITALITY, U_SWIFT, U_LURE, U_MIGHT, U_HASTE, U_MENDING],
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        [
+            U_SCYTHE, U_TALISMAN, U_BEADS, U_PULSE, U_VITALITY, U_SWIFT, U_LURE, U_MIGHT, U_HASTE, U_MENDING, U_JIELI,
+            U_QIGUAN, U_WANFA
+        ],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     );
     let g = Game::new(1);
     let mut expect = [0u8; N_UPGRADES];
@@ -525,6 +531,7 @@ fn offer_never_includes_maxed_upgrades() {
     for seed in 1..100u32 {
         let mut g = Game::new(seed);
         g.tune[T_ELEMENT_CARDS] = 0.0;
+        g.tune[T_ROUTES] = 0.0;
         g.up = UPGRADE_MAX;
         // Leave three upgrades one level short.
         for id in [U_PULSE, U_SWIFT, U_MENDING] {
@@ -541,6 +548,7 @@ fn offer_never_includes_maxed_upgrades() {
 #[test]
 fn offer_pads_with_empty_slots_when_few_remain() {
     let mut g = Game::new(5);
+    g.tune[T_ROUTES] = 0.0;
     g.up = UPGRADE_MAX;
     g.up[U_HASTE] -= 1;
     g.up[U_LURE] -= 1;
@@ -614,6 +622,7 @@ fn choose_on_a_maxed_upgrade_changes_nothing_but_still_consumes_the_pick() {
 fn vitality_at_full_health_overheals_current_health() {
     // Oddity: hp is raised by 20 without clamping, so it stays equal to max.
     let mut g = Game::new(9);
+    g.tune[T_ROUTES] = 0.0;
     g.choosing = true;
     g.pending = 1;
     g.choices = [U_VITALITY as i32, -1, -1];
@@ -782,9 +791,10 @@ fn fold(g: &Game) -> u64 {
 
 fn whole_run() -> (u32, u32, f32, usize, u64) {
     let mut g = Game::new(42);
-    // No element cards and no commissions: this run pins down the game as it was.
+    // No element cards, no commissions and no routes: this run pins down the game as it was.
     g.tune[T_ELEMENT_CARDS] = 0.0;
     g.tune[T_COMMISSIONS] = 0.0;
+    g.tune[T_ROUTES] = 0.0;
     g.set_view(640.0, 360.0);
     g.running = true;
     g.input = (1.0, 0.5);

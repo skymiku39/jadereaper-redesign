@@ -32,6 +32,62 @@ pub struct ArtDef {
     pub levels: &'static [ArtLevel],
 }
 
+/// How a move hits. One piece of code in `routes.rs` per shape.
+/// A sweep around the player, like the basic arc.
+pub const MS_ARC: u8 = 0;
+/// Blade waves that fly out along the aim, like shots.
+pub const MS_WAVE: u8 = 1;
+/// A line of marks ahead that each strike a moment later.
+pub const MS_MARKS: u8 = 2;
+/// Rings of force, like the basic nova, around the player or ahead of him.
+pub const MS_RING: u8 = 3;
+
+/// A route (套路): what a martial art turns into from level 3. Its moves are
+/// `MOVES[first..first + n]` in order, the last one its ultimate when it is marked so.
+pub struct RouteDef {
+    pub art: usize,
+    pub school: usize,
+    /// Seconds between two moves, before the haste passive.
+    pub beat: f32,
+    /// Known from the start; false for a route that is stolen (偷師).
+    pub start: bool,
+    pub first: usize,
+    pub n: usize,
+}
+
+/// One move (式) of a route. Lengths are shares of the art's basic numbers at
+/// level 2 (`reach` 1 is the basic reach), `power` a share of its damage.
+pub struct MoveDef {
+    pub route: usize,
+    pub shape: u8,
+    pub power: f32,
+    pub reach: f32,
+    /// arc: the cosine bound like an art's `width`; -2 hits all round.
+    pub width: f32,
+    /// arc: sweeps; wave: waves; marks: marks; ring: rings.
+    pub count: usize,
+    /// arc: turns between sweeps; wave: the whole fan in turns; marks: the gap between marks, as a share of reach.
+    pub spread: f32,
+    /// arc, ring and wave: seconds between sweeps, rings or waves (0 for all at once); marks: seconds before a mark strikes.
+    pub delay: f32,
+    /// A share of the basic knockback.
+    pub knockback: f32,
+    pub pierce: i32,
+    pub speed: f32,
+    pub life: f32,
+    /// arc and ring: how much each later sweep or ring reaches further, as a share of the first;
+    /// wave: how much more damage a wave does with each enemy it passes through.
+    pub grow: f32,
+    /// ring: how far ahead along the aim the rings are centred, as a share of the basic reach.
+    pub offset: f32,
+    /// wave: 1 to aim at the nearest enemy instead of along the aim.
+    pub seek: u32,
+    /// wave: small waves a wave bursts into where its flight ends.
+    pub split: u32,
+    pub ultimate: bool,
+    pub stop: bool,
+}
+
 /// What an element does on a hit. One piece of code in `elements.rs` per effect.
 pub const EF_NONE: u8 = 0;
 pub const EF_GUARD: u8 = 1;
@@ -129,6 +185,12 @@ pub const ST_PICKUP_RANGE: u8 = 2;
 pub const ST_DAMAGE: u8 = 3;
 pub const ST_COOLDOWN: u8 = 4;
 pub const ST_REGEN: u8 = 5;
+/// The inner arts that only exist while inner arts are on (`inner.rs`): a share
+/// of a blow passed to the enemies a struck one is thrown into, melee reach,
+/// and element damage. They are read there, not through `Game::stat`.
+pub const ST_SPLASH: u8 = 6;
+pub const ST_REACH: u8 = 7;
+pub const ST_ELEMENT: u8 = 8;
 
 /// A passive upgrade: `stat` changes by `amount` per level of `upgrade`.
 pub struct PassiveDef {

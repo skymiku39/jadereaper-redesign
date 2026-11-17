@@ -202,6 +202,16 @@ export function createAudio() {
     [EVENT.ATTACH]: () => {
       [1, 3, 5].forEach((n, i) => tone({ dur: 0.16, type: 'triangle', f0: PENTATONIC[n], gain: 0.2, delay: i * 0.05 }));
     },
+    // Played by the host when a route's ultimate is used: a temple drum under a low gong.
+    ultimate: () => {
+      tone({ dur: 0.22, f0: 110, f1: 55, gain: 0.55 });
+      noise({ dur: 0.18, type: 'lowpass', f0: 420, f1: 160, gain: 0.35 });
+      tone({ dur: 0.9, type: 'triangle', f0: PENTATONIC[0] / 2, gain: 0.12, delay: 0.05 });
+    },
+    // Played by the host when a route move is learned.
+    learn: () => {
+      [0, 2, 4].forEach((n, i) => tone({ dur: 0.22, type: 'triangle', f0: PENTATONIC[n], gain: 0.2, delay: i * 0.07 }));
+    },
     ui: () => noise({ dur: 0.035, f0: 2600, q: 4, gain: 0.2 }),
     confirm: () => {
       noise({ dur: 0.05, f0: 1800, q: 2, gain: 0.25 });

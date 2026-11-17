@@ -402,11 +402,12 @@ impl Game {
 
     fn boss_hurt_player(&mut self, dmg: f32) {
         let (px, py) = (self.player.x, self.player.y);
+        let dmg = self.soften(dmg);
         self.player.hp -= self.guard_against(dmg);
         self.player.iframe = 0.8;
         self.shake = 1.0;
         self.event(EV_HURT, px, py, dmg);
-        if self.player.hp <= 0.0 {
+        if self.player.hp <= 0.0 && !self.last_stand() {
             self.player.hp = 0.0;
             self.over = true;
             self.event(EV_DEATH, px, py, 0.0);
@@ -736,6 +737,8 @@ mod tests {
     fn the_boss_keeps_closing_in() {
         let mut game = fight(8);
         game.time = WARMUP;
+        // The top speed of the passive on its own; the inner art's stride is not part of this.
+        game.tune[T_ROUTES] = 0.0;
         game.up[U_SWIFT] = 5;
         game.input = (1.0, 0.0);
         // Running flat out in a straight line at the top speed level: the boss

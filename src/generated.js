@@ -37,6 +37,9 @@ export const UPGRADES = [
   { name: 'might', glyph: '力', max: 5 },
   { name: 'haste', glyph: '速', max: 5 },
   { name: 'mending', glyph: '癒', max: 5 },
+  { name: 'jieli', glyph: '借', max: 3 },
+  { name: 'qiguan', glyph: '貫', max: 3 },
+  { name: 'wanfa', glyph: '歸', max: 3 },
 ];
 
 /** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall. */
@@ -59,6 +62,70 @@ export const ARTS = [
 
 /** How many martial arts the player can hold at once. */
 export const MAX_ARTS = 6;
+
+/** Schools (門派), indexed by id. Names are in src/i18n.js as school.<name>. */
+export const SCHOOLS = [
+  { id: 0, name: 'duanyue' },
+  { id: 1, name: 'changfeng' },
+  { id: 2, name: 'caobang' },
+  { id: 3, name: 'tangmen' },
+  { id: 4, name: 'xuanzhong' },
+  { id: 5, name: 'qiushui' },
+];
+
+/** Routes (套路), indexed by id. `art` is the art id that learns it; `moves` its move ids in
+ * order, the last one the ultimate when `ultimate` is set. Text is route.<name>.name and .desc. */
+export const ROUTES = [
+  { id: 0, name: 'bengyue', art: 0, school: 0, beat: 1.0, start: true, moves: [0, 1, 2, 3], ultimate: true },
+  { id: 1, name: 'jinghong', art: 0, school: 1, beat: 0.5, start: true, moves: [4, 5, 6, 7, 8, 9], ultimate: true },
+  { id: 2, name: 'poyu', art: 2, school: 1, beat: 1.0, start: true, moves: [10, 11, 12, 13], ultimate: true },
+  { id: 3, name: 'fanjiang', art: 2, school: 2, beat: 1.1, start: true, moves: [14, 15, 16, 17, 18], ultimate: true },
+  { id: 4, name: 'ershiba', art: 1, school: 3, beat: 0.95, start: true, moves: [19, 20, 21, 22, 23], ultimate: true },
+  { id: 5, name: 'chuanyang', art: 1, school: 1, beat: 1.3, start: true, moves: [24, 25, 26, 27], ultimate: true },
+  { id: 6, name: 'muguchenzhong', art: 3, school: 4, beat: 2.2, start: true, moves: [28, 29, 30, 31], ultimate: true },
+  { id: 7, name: 'zhuoyu', art: 3, school: 5, beat: 0.5, start: true, moves: [32, 33, 34, 35, 36], ultimate: true },
+];
+
+/** Moves (式), indexed by id. Text is move.<name>.name and .desc. */
+export const MOVES = [
+  { id: 0, name: 'hengyun', route: 0, ultimate: false, stop: false },
+  { id: 1, name: 'huishou', route: 0, ultimate: false, stop: false },
+  { id: 2, name: 'wanren', route: 0, ultimate: false, stop: true },
+  { id: 3, name: 'wuyue', route: 0, ultimate: true, stop: true },
+  { id: 4, name: 'yipie', route: 1, ultimate: false, stop: false },
+  { id: 5, name: 'pianruo', route: 1, ultimate: false, stop: false },
+  { id: 6, name: 'shuangyan', route: 1, ultimate: false, stop: false },
+  { id: 7, name: 'hongfei', route: 1, ultimate: false, stop: false },
+  { id: 8, name: 'xueni', route: 1, ultimate: false, stop: false },
+  { id: 9, name: 'zhaoying', route: 1, ultimate: true, stop: true },
+  { id: 10, name: 'shouwei', route: 2, ultimate: false, stop: false },
+  { id: 11, name: 'fengjuan', route: 2, ultimate: false, stop: false },
+  { id: 12, name: 'luoye', route: 2, ultimate: false, stop: false },
+  { id: 13, name: 'bafang', route: 2, ultimate: true, stop: true },
+  { id: 14, name: 'chaosheng', route: 3, ultimate: false, stop: false },
+  { id: 15, name: 'jingtao', route: 3, ultimate: false, stop: false },
+  { id: 16, name: 'nishui', route: 3, ultimate: false, stop: false },
+  { id: 17, name: 'dajiang', route: 3, ultimate: false, stop: false },
+  { id: 18, name: 'changhe', route: 3, ultimate: true, stop: true },
+  { id: 19, name: 'sanxing', route: 4, ultimate: false, stop: false },
+  { id: 20, name: 'wuxing', route: 4, ultimate: false, stop: false },
+  { id: 21, name: 'qixing', route: 4, ultimate: false, stop: false },
+  { id: 22, name: 'xingluo', route: 4, ultimate: false, stop: false },
+  { id: 23, name: 'zhoutian', route: 4, ultimate: true, stop: true },
+  { id: 24, name: 'moshi', route: 5, ultimate: false, stop: false },
+  { id: 25, name: 'sanjian', route: 5, ultimate: false, stop: false },
+  { id: 26, name: 'shuangdiao', route: 5, ultimate: false, stop: false },
+  { id: 27, name: 'houyi', route: 5, ultimate: true, stop: true },
+  { id: 28, name: 'chenzhong', route: 6, ultimate: false, stop: false },
+  { id: 29, name: 'yuyin', route: 6, ultimate: false, stop: false },
+  { id: 30, name: 'geshan', route: 6, ultimate: false, stop: false },
+  { id: 31, name: 'hongzhong', route: 6, ultimate: true, stop: true },
+  { id: 32, name: 'qiecuo', route: 7, ultimate: false, stop: false },
+  { id: 33, name: 'zhuomo', route: 7, ultimate: false, stop: false },
+  { id: 34, name: 'tashan', route: 7, ultimate: false, stop: false },
+  { id: 35, name: 'yushi', route: 7, ultimate: false, stop: false },
+  { id: 36, name: 'ningwei', route: 7, ultimate: true, stop: true },
+];
 
 /** Magic elements. Ids start at 1 (0 means no element), so element `id` is ELEMENTS[id - 1].
  * `color` is linear-ish RGB, 0..1. `tags` says whether a hit leaves the element's tag on the enemy.
@@ -99,6 +166,7 @@ export const EVENT = {
   COMMISSION: 15,
   COMMISSION_DONE: 16,
   COMMISSION_FAILED: 17,
+  MOVE: 18,
 };
 
 /** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).
@@ -187,10 +255,11 @@ export const TUNES = [
   { id: 47, name: 'ambush', mission: 'any', def: 0.0, min: 0.0, max: 1.0, step: 0.1 },
   { id: 48, name: 'arena_radius', mission: 'any', def: 0, min: 0, max: 3000, step: 100 },
   { id: 49, name: 'commissions', mission: 'endless', def: 1, min: 0, max: 1, step: 1 },
+  { id: 50, name: 'routes', mission: 'any', def: 1, min: 0, max: 1, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */
-export const STATE_FLOATS = 80;
+export const STATE_FLOATS = 112;
 
 /** Indices into the state array. A run of floats has a 0 suffix (CHOICE0). */
 export const STATE = {
@@ -208,7 +277,6 @@ export const STATE = {
   CAM_Y: 13,
   ENEMIES: 14,
   RUNNING: 15,
-  UPGRADE0: 16,
   MISSION: 26,
   GOAL: 27,
   PROGRESS: 28,
@@ -244,6 +312,12 @@ export const STATE = {
   COMMISSION_KIND: 77,
   COMMISSION_BAND: 78,
   COMMISSION_WALKED: 79,
+  ROUTE_PICK: 80,
+  ART_ROUTE0: 81,
+  ART_STEP0: 87,
+  ART_ORDER0: 91,
+  ROUTES_ON: 95,
+  UPGRADE0: 96,
 };
 
 export const INK = [0.17, 0.15, 0.13];

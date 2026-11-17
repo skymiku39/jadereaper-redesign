@@ -1,5 +1,5 @@
 // Paper UI: screens, HUD and menu focus. All DOM work lives here.
-import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, ELEMENTS } from './data.js';
+import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, ELEMENTS, SCHOOLS, ROUTES, MOVES } from './data.js';
 import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
 
@@ -142,7 +142,8 @@ export function createUI({ onAction }) {
   function hud({
     hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
     carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait, accept,
-    artElements = [], guard = 0, guardMax = 0, regrow = 0, commission = null, notice = null,
+    artElements = [], artRoutes = [], artSteps = [], artOrders = [], routesOn = false,
+    guard = 0, guardMax = 0, regrow = 0, commission = null, notice = null,
   }) {
     set('hpFill', 'width', `${Math.max(0, Math.min(100, (hp / maxHp) * 100)).toFixed(1)}%`);
     set('hpText', 'text', String(Math.ceil(hp)));
@@ -240,19 +241,19 @@ export function createUI({ onAction }) {
     const marked = mission.id === MISSION_IDS.vendetta;
     const killsText = counted ? `${Math.min(kills, goal)} / ${goal}` : String(kills);
     set('killsText', 'text', marked ? `${progress} / ${goal}` : killsText);
-    const sig = `${getLang()}${upgrades.join(',')}|${artElements.join(',')}`;
+    const sig = `${getLang()}${routesOn}${upgrades.join(',')}|${artElements.join(',')}|${artRoutes.join(',')}|${artSteps.join(',')}|${artOrders.join(',')}`;
     if (cache.chips !== sig) {
       cache.chips = sig;
       $('chips').replaceChildren(...upgrades.flatMap((lvl, id) => {
         if (!lvl) return [];
         const chip = document.createElement('div');
         chip.className = 'chip';
-        chip.title = t(`upgrade.${id}.name`);
+        const art = artOfUpgrade(id);
+        chip.title = !art && routesOn ? t(`inner.${UPGRADES[id].name}.name`) : t(`upgrade.${id}.name`);
         const glyph = document.createElement('b');
         glyph.textContent = UPGRADES[id].glyph;
         chip.append(glyph, String(lvl));
         // An art that carries an element wears its colour and a small mark of it.
-        const art = artOfUpgrade(id);
         const element = art ? elementById(artElements[art.id] || 0) : null;
         if (element) {
           chip.classList.add('chip-element');
@@ -261,6 +262,23 @@ export function createUI({ onAction }) {
           const mark = document.createElement('i');
           mark.textContent = element.glyph;
           chip.append(mark);
+        }
+        // An art on a route names it, and shows its move order as dots, the move just used lit.
+        const route = art ? ROUTES[(artRoutes[art.id] || 0) - 1] : null;
+        if (route) {
+          chip.title = `${t(`route.${route.name}.name`)} · ${chip.title}`;
+          const order = artOrders[art.id] || 0;
+          if (order > 0) {
+            const dots = document.createElement('span');
+            dots.className = 'beats';
+            const lit = ((artSteps[art.id] || 0) + order - 1) % order;
+            for (let k = 0; k < order; k++) {
+              const dot = document.createElement('em');
+              if (k === lit) dot.className = 'on';
+              dots.append(dot);
+            }
+            chip.append(dots);
+          }
         }
         return [chip];
       }));
@@ -277,10 +295,17 @@ export function createUI({ onAction }) {
    * While `attach` is an element id, the screen instead asks which held art gets that element;
    * `artElements` holds, per art id, the element the art carries now (0 for none).
    */
-  function levelUp(choices, upgrades, { attach = 0, artElements = [] } = {}) {
+  function levelUp(choices, upgrades, {
+    attach = 0, artElements = [], routePick = 0, artRoutes = [], routesOn = false,
+  } = {}) {
     const banner = $('levelBanner');
     const attaching = elementById(attach);
-    if (attaching) {
+    const picking = ARTS[routePick - 1];
+    if (picking) {
+      delete banner.dataset.i18n;
+      setText(banner, t('levelup.route', { name: t(`upgrade.${picking.upgrade}.name`) }));
+      $('cards').replaceChildren(...routeCards(choices, picking));
+    } else if (attaching) {
       // The banner names the element, so it is not static text for applyStatic to reset.
       delete banner.dataset.i18n;
       setText(banner, t('levelup.attach', {
@@ -290,13 +315,78 @@ export function createUI({ onAction }) {
     } else {
       banner.dataset.i18n = 'levelup.banner';
       setText(banner, t('levelup.banner'));
-      $('cards').replaceChildren(...offerCards(choices, upgrades));
+      $('cards').replaceChildren(...offerCards(choices, upgrades, artRoutes, routesOn));
     }
     show('levelup');
   }
 
+  /** One card per route the art can take. A card's value is its slot. */
+  function routeCards(choices, art) {
+    return choices.flatMap((id, slot) => {
+      const route = ROUTES[id];
+      if (id < 0 || !route) return [];
+      const card = document.createElement('button');
+      card.className = 'card route-card';
+      card.dataset.action = 'choose';
+      card.dataset.value = String(slot);
+      const school = SCHOOLS[route.school];
+      const n = route.moves.length - (route.ultimate ? 1 : 0);
+      const moves = t(route.ultimate ? 'levelup.movesUltimate' : 'levelup.moves', { n });
+      cardParts(card, [
+        ['key', String(slot + 1)],
+        ['glyph', UPGRADES[art.upgrade].glyph],
+        ['name', t(`route.${route.name}.name`)],
+        ['rank', `${school ? t(`school.${school.name}`) : ''} · ${moves}`],
+        ['desc', t(`route.${route.name}.desc`)],
+      ]);
+      return [card];
+    });
+  }
+
+  /**
+   * What an art's next level brings, when it is on a route or about to choose one:
+   * [name, rank, desc] for its card, or null to show the plain upgrade card.
+   */
+  function routeCardText(art, lvl, artRoutes, routesOn) {
+    const route = ROUTES[(artRoutes[art.id] || 0) - 1];
+    if (!route) {
+      const waiting = routesOn && lvl === 2 && ROUTES.some((r) => r.art === art.id && r.start);
+      return waiting ? [t(`upgrade.${art.upgrade}.name`), t('levelup.chooseRoute'), t(`upgrade.${art.upgrade}.desc`)] : null;
+    }
+    const move = MOVES[route.moves[lvl - 2]];
+    if (!move) return null;
+    const regular = route.moves.length - (route.ultimate ? 1 : 0);
+    const learn = t(move.ultimate ? 'levelup.ultimate' : 'levelup.learn', { name: t(`move.${move.name}.name`) });
+    const formed = !move.ultimate && lvl - 2 === regular - 1 ? `\n${t('levelup.formed')}` : '';
+    return [
+      t(`route.${route.name}.name`),
+      t('levelup.rank', { from: lvl, to: lvl + 1 }),
+      `${learn}${formed}\n${t(`move.${move.name}.desc`)}`,
+    ];
+  }
+
+  /**
+   * Write a move's name in brush strokes over the game for a moment. `kind` is 'big' for an
+   * ultimate the first time, 'ultimate' for one used again, or '' for a move. Names shown at
+   * once take the free rows over the player instead of covering each other.
+   */
+  function callout(text, kind = '') {
+    // Rows above and below the player, nearest first, clear of the top HUD.
+    const ROWS = [33, 67, 25, 75];
+    const taken = new Set(Array.from(document.querySelectorAll('#hud .callout'), (el) => Number(el.dataset.row)));
+    let row = 0;
+    while (taken.has(row) && row < ROWS.length - 1) row++;
+    const el = document.createElement('div');
+    el.className = `callout ${kind}`.trim();
+    el.dataset.row = String(row);
+    el.style.top = `${ROWS[row]}%`;
+    el.textContent = text;
+    $('hud').append(el);
+    setTimeout(() => el.remove(), kind === 'big' ? 1400 : 1000);
+  }
+
   /** One card per offered upgrade or element. A card's value is its slot. */
-  function offerCards(choices, upgrades) {
+  function offerCards(choices, upgrades, artRoutes = [], routesOn = false) {
     return choices.flatMap((id, slot) => {
       if (id < 0) return [];
       const card = document.createElement('button');
@@ -318,6 +408,32 @@ export function createUI({ onAction }) {
         return [card];
       }
       const lvl = upgrades[id];
+      const art = artOfUpgrade(id);
+      // With routes on, a passive is an inner art (心法): its card names the layer it brings.
+      if (!art && routesOn) {
+        const name = UPGRADES[id].name;
+        card.classList.add('route-card');
+        cardParts(card, [
+          ['key', String(slot + 1)],
+          ['glyph', UPGRADES[id].glyph],
+          ['name', t(`inner.${name}.name`)],
+          ['rank', lvl === 0 ? t('levelup.new') : t('levelup.layer', { n: lvl + 1 })],
+          ['desc', t(`inner.${name}.${lvl + 1}`)],
+        ]);
+        return [card];
+      }
+      const routed = art ? routeCardText(art, lvl, artRoutes, routesOn) : null;
+      if (routed) {
+        card.classList.add('route-card');
+        cardParts(card, [
+          ['key', String(slot + 1)],
+          ['glyph', UPGRADES[id].glyph],
+          ['name', routed[0]],
+          ['rank', routed[1]],
+          ['desc', routed[2]],
+        ]);
+        return [card];
+      }
       cardParts(card, [
         ['key', String(slot + 1)],
         ['glyph', UPGRADES[id].glyph],
@@ -541,7 +657,7 @@ export function createUI({ onAction }) {
 
   return {
     show, navigate, confirm, hud, pointers, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
-    replaying, replayCopied, lowHealth, flashLevel,
+    replaying, replayCopied, lowHealth, flashLevel, callout,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };

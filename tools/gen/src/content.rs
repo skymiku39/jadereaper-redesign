@@ -269,7 +269,8 @@ pub struct Enemy {
 }
 
 /// The stats a passive upgrade can raise. The core reads each where it is used.
-pub const STATS: [&str; 6] = ["max_hp", "move_speed", "pickup_range", "damage", "cooldown", "regen"];
+pub const STATS: [&str; 9] =
+    ["max_hp", "move_speed", "pickup_range", "damage", "cooldown", "regen", "splash", "reach", "element"];
 
 /// A passive upgrade: one stat, changed by `amount` per level of the upgrade of the same name.
 #[derive(Clone, Debug)]
@@ -304,6 +305,67 @@ pub struct Art {
     pub range: String,
     /// One list per key of `ART_LEVEL_KEYS`, each with one value per level, as written.
     pub levels: Vec<Vec<String>>,
+}
+
+/// A school (門派): where a route comes from. Its name is `school.<name>` in src/i18n.js.
+#[derive(Clone, Debug)]
+pub struct School {
+    pub id: u32,
+    pub name: String,
+}
+
+/// A route (套路): what a martial art turns into from level 3. Its moves are
+/// the `[[move]]` entries that name it, in id order; the last may be its ultimate.
+#[derive(Clone, Debug)]
+pub struct Route {
+    pub id: u32,
+    pub name: String,
+    /// The art that learns it.
+    pub art: String,
+    pub school: String,
+    /// Seconds between two moves, before the haste passive.
+    pub beat: String,
+    /// Known from the start; false for a route that is stolen (偷師).
+    pub start: bool,
+}
+
+/// How a move hits. The core has one piece of code per shape.
+pub const MOVE_SHAPES: [&str; 4] = ["arc", "wave", "marks", "ring"];
+
+/// The optional numbers of a move, in the order of `Move::numbers`. Each defaults to 0.
+pub const MOVE_KEYS: [&str; 14] = [
+    "power",
+    "reach",
+    "width",
+    "count",
+    "spread",
+    "delay",
+    "knockback",
+    "pierce",
+    "speed",
+    "life",
+    "grow",
+    "offset",
+    "seek",
+    "split",
+];
+
+/// The move keys that are whole numbers.
+const MOVE_WHOLE_KEYS: [&str; 4] = ["count", "pierce", "seek", "split"];
+
+/// One move (式) of a route.
+#[derive(Clone, Debug)]
+pub struct Move {
+    pub id: u32,
+    pub name: String,
+    pub route: String,
+    pub shape: String,
+    /// One value per key of `MOVE_KEYS`, as written.
+    pub numbers: Vec<String>,
+    /// The route's ultimate (絕招): the last move, learned at the top level.
+    pub ultimate: bool,
+    /// Holds the game still for a moment when it lands (hit-stop, done by the host).
+    pub stop: bool,
 }
 
 /// What an element does on a hit. The core has one piece of code per effect.
@@ -370,6 +432,9 @@ pub struct Content {
     pub enemies: Vec<Enemy>,
     pub passives: Vec<Passive>,
     pub arts: Vec<Art>,
+    pub schools: Vec<School>,
+    pub routes: Vec<Route>,
+    pub moves: Vec<Move>,
     pub elements: Vec<Element>,
     pub reactions: Vec<Reaction>,
     pub events: Vec<Event>,
@@ -588,8 +653,10 @@ impl<'a> Fields<'a> {
 }
 
 /// Table names the content file may use, also valid as a `len` reference.
-const TABLES: [&str; 11] =
-    ["part", "upgrade", "passive", "enemy", "art", "element", "reaction", "event", "mission", "tune", "state"];
+const TABLES: [&str; 14] = [
+    "part", "upgrade", "passive", "enemy", "art", "school", "route", "move", "element", "reaction", "event", "mission",
+    "tune", "state",
+];
 
 /// Parse and check the content file. Returns every problem found.
 pub fn load(src: &str) -> Result<Content, Vec<String>> {
@@ -611,6 +678,9 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     // An art with its per-level lists as written: (art, [(values, line) per level key], line).
     type RawLevels = Vec<(Vec<String>, usize)>;
     let mut arts: Vec<(Art, RawLevels, usize)> = Vec::new();
+    let mut schools = Vec::new();
+    let mut routes = Vec::new();
+    let mut moves = Vec::new();
     let mut elements = Vec::new();
     let mut reactions = Vec::new();
     let mut enemies = Vec::new();
@@ -716,6 +786,36 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         levels: Vec::new(),
                     };
                     arts.push((art, raw, t.line));
+                }
+            }
+            "school" => {
+                if let (Some(id), Some(name)) = (f.uint("id"), f.name()) {
+                    schools.push((School { id, name }, t.line));
+                }
+            }
+            "route" => {
+                let (id, name, art, school) = (f.uint("id"), f.name(), f.string("art"), f.string("school"));
+                let (beat, start) = (f.number("beat"), f.flag("start"));
+                if let (Some(id), Some(name), Some(art), Some(school), Some(beat), Some(start)) =
+                    (id, name, art, school, beat, start)
+                {
+                    routes.push((Route { id, name, art, school, beat, start }, t.line));
+                }
+            }
+            "move" => {
+                let (id, name, route) = (f.uint("id"), f.name(), f.string("route"));
+                let shape = f.word("shape", &MOVE_SHAPES);
+                let numbers: Option<Vec<String>> = MOVE_KEYS.iter().map(|key| f.number_or_zero(key)).collect();
+                let (ultimate, stop) = (f.flag("ultimate"), f.flag("stop"));
+                if let (Some(id), Some(name), Some(route), Some(shape), Some(numbers), Some(ultimate), Some(stop)) =
+                    (id, name, route, shape, numbers, ultimate, stop)
+                {
+                    for (key, v) in MOVE_KEYS.iter().zip(&numbers) {
+                        if MOVE_WHOLE_KEYS.contains(key) && v.parse::<u32>().is_err() {
+                            f.errs.push(format!("line {}: move `{name}` `{key}` must be a whole number", t.line));
+                        }
+                    }
+                    moves.push((Move { id, name, route, shape, numbers, ultimate, stop }, t.line));
                 }
             }
             "element" => {
@@ -970,6 +1070,57 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         }
     }
 
+    // Schools, routes and their moves. A route belongs to an art and a school;
+    // its moves are a run of ids in order, at most one of them its ultimate,
+    // which must come last. An art offers at most three routes on one card row.
+    let ids_run = |errs: &mut Vec<String>, what: &str, mut ids: Vec<u32>| {
+        ids.sort_unstable();
+        ids.dedup();
+        if ids.iter().enumerate().any(|(i, id)| i as u32 != *id) {
+            errs.push(format!("{what} ids must run 0 to {} without gaps", ids.len().saturating_sub(1)));
+        }
+    };
+    unique(&mut errs, "school", schools.iter().map(|(s, l): &(School, usize)| (s.id, s.name.as_str(), *l)));
+    ids_run(&mut errs, "school", schools.iter().map(|(s, _)| s.id).collect());
+    unique(&mut errs, "route", routes.iter().map(|(r, l): &(Route, usize)| (r.id, r.name.as_str(), *l)));
+    ids_run(&mut errs, "route", routes.iter().map(|(r, _)| r.id).collect());
+    unique(&mut errs, "move", moves.iter().map(|(m, l): &(Move, usize)| (m.id, m.name.as_str(), *l)));
+    ids_run(&mut errs, "move", moves.iter().map(|(m, _)| m.id).collect());
+    for (r, line) in &routes {
+        if !arts.iter().any(|(a, _, _)| a.name == r.art) {
+            errs.push(format!("line {line}: route `{}` belongs to art `{}`, which is not defined", r.name, r.art));
+        }
+        if !schools.iter().any(|(s, _)| s.name == r.school) {
+            errs.push(format!("line {line}: route `{}` names school `{}`, which is not defined", r.name, r.school));
+        }
+        let mut own: Vec<&Move> = moves.iter().map(|(m, _)| m).filter(|m| m.route == r.name).collect();
+        own.sort_by_key(|m| m.id);
+        if own.is_empty() {
+            errs.push(format!("line {line}: route `{}` has no [[move]]", r.name));
+            continue;
+        }
+        if own.windows(2).any(|w| w[1].id != w[0].id + 1) {
+            errs.push(format!("line {line}: the moves of route `{}` must have ids that follow each other", r.name));
+        }
+        if own.iter().rev().skip(1).any(|m| m.ultimate) {
+            errs.push(format!("line {line}: route `{}` may only have its last move as its ultimate", r.name));
+        }
+        if own.len() > 8 {
+            errs.push(format!("line {line}: route `{}` has {} moves, at most 8", r.name, own.len()));
+        }
+    }
+    for (m, line) in &moves {
+        if !routes.iter().any(|(r, _)| r.name == m.route) {
+            errs.push(format!("line {line}: move `{}` names route `{}`, which is not defined", m.name, m.route));
+        }
+    }
+    for (a, _, line) in &arts {
+        let n = routes.iter().filter(|(r, _)| r.art == a.name).count();
+        if n > 3 {
+            errs.push(format!("line {line}: art `{}` has {n} routes, at most 3", a.name));
+        }
+    }
+
     // Elements: ids run from 1 (0 means no element).
     unique(&mut errs, "element", elements.iter().map(|(e, l)| (e.id, e.name.as_str(), *l)));
     let mut element_ids: Vec<u32> = elements.iter().map(|(e, _)| e.id).collect();
@@ -1024,6 +1175,9 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         "enemy" => enemies.len(),
         "passive" => passives.len(),
         "art" => arts.len(),
+        "school" => schools.len(),
+        "route" => routes.len(),
+        "move" => moves.len(),
         "element" => elements.len(),
         "reaction" => reactions.len(),
         "event" => events.len(),
@@ -1089,6 +1243,12 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     enemies.sort_by_key(|e| e.id);
     let mut arts: Vec<Art> = arts.into_iter().map(|(a, _, _)| a).collect();
     arts.sort_by_key(|a| a.id);
+    let mut schools: Vec<School> = schools.into_iter().map(|(s, _)| s).collect();
+    schools.sort_by_key(|s| s.id);
+    let mut routes: Vec<Route> = routes.into_iter().map(|(r, _)| r).collect();
+    routes.sort_by_key(|r| r.id);
+    let mut moves: Vec<Move> = moves.into_iter().map(|(m, _)| m).collect();
+    moves.sort_by_key(|m| m.id);
     let mut elements: Vec<Element> = elements.into_iter().map(|(e, _)| e).collect();
     elements.sort_by_key(|e| e.id);
     let mut reactions: Vec<Reaction> = reactions.into_iter().map(|(r, _)| r).collect();
@@ -1102,6 +1262,9 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         enemies,
         passives,
         arts,
+        schools,
+        routes,
+        moves,
         elements,
         reactions,
         events,
@@ -1244,6 +1407,70 @@ pub fn render_rust(c: &Content) -> String {
             writeln!(o, "        ArtLevel {{ {} }},", fields.join(", ")).unwrap();
         }
         o.push_str("    ] },\n");
+    }
+    o.push_str("];\n");
+
+    o.push_str("\n// Schools (門派).\n");
+    for s in &c.schools {
+        writeln!(o, "pub const SC_{}: usize = {};", upper(&s.name), s.id).unwrap();
+    }
+    writeln!(o, "pub const N_SCHOOLS: usize = {};", c.schools.len()).unwrap();
+    name_table(&mut o, "SCHOOL_NAMES", "N_SCHOOLS", c.schools.iter().map(|s| s.name.as_str()));
+
+    o.push_str("\n// Routes (套路): what an art turns into from level 3, and their moves in order.\n");
+    for r in &c.routes {
+        writeln!(o, "pub const RT_{}: usize = {};", upper(&r.name), r.id).unwrap();
+    }
+    writeln!(o, "pub const N_ROUTES: usize = {};", c.routes.len()).unwrap();
+    name_table(&mut o, "ROUTE_NAMES", "N_ROUTES", c.routes.iter().map(|r| r.name.as_str()));
+    o.push_str("#[rustfmt::skip]\n");
+    writeln!(o, "pub const ROUTES: [RouteDef; N_ROUTES] = [").unwrap();
+    for r in &c.routes {
+        let own: Vec<&Move> = c.moves.iter().filter(|m| m.route == r.name).collect();
+        let first = own.first().map_or(0, |m| m.id);
+        writeln!(
+            o,
+            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {} }},",
+            upper(&r.art),
+            upper(&r.school),
+            float_lit(&r.beat),
+            r.start,
+            first,
+            own.len()
+        )
+        .unwrap();
+    }
+    o.push_str("];\n");
+    for m in &c.moves {
+        writeln!(o, "pub const MV_{}: usize = {};", upper(&m.name), m.id).unwrap();
+    }
+    writeln!(o, "pub const N_MOVES: usize = {};", c.moves.len()).unwrap();
+    name_table(&mut o, "MOVE_NAMES", "N_MOVES", c.moves.iter().map(|m| m.name.as_str()));
+    o.push_str("#[rustfmt::skip]\n");
+    writeln!(o, "pub const MOVES: [MoveDef; N_MOVES] = [").unwrap();
+    for m in &c.moves {
+        let route = c.routes.iter().find(|r| r.name == m.route).map_or(0, |r| r.id);
+        let numbers: Vec<String> =
+            MOVE_KEYS
+                .iter()
+                .zip(&m.numbers)
+                .map(|(key, v)| {
+                    if MOVE_WHOLE_KEYS.contains(key) {
+                        format!("{key}: {v}")
+                    } else {
+                        format!("{key}: {}", float_lit(v))
+                    }
+                })
+                .collect();
+        writeln!(
+            o,
+            "    MoveDef {{ route: {route}, shape: MS_{}, {}, ultimate: {}, stop: {} }},",
+            upper(&m.shape),
+            numbers.join(", "),
+            m.ultimate,
+            m.stop
+        )
+        .unwrap();
     }
     o.push_str("];\n");
 
@@ -1407,6 +1634,51 @@ pub fn render_js(c: &Content) -> String {
     o.push_str("];\n\n");
     o.push_str("/** How many martial arts the player can hold at once. */\n");
     writeln!(o, "export const MAX_ARTS = {};\n", c.max_arts).unwrap();
+
+    o.push_str("/** Schools (門派), indexed by id. Names are in src/i18n.js as school.<name>. */\n");
+    o.push_str("export const SCHOOLS = [\n");
+    for s in &c.schools {
+        writeln!(o, "  {{ id: {}, name: {} }},", s.id, js_str(&s.name)).unwrap();
+    }
+    o.push_str("];\n\n");
+
+    o.push_str("/** Routes (套路), indexed by id. `art` is the art id that learns it; `moves` its move ids in\n");
+    o.push_str(" * order, the last one the ultimate when `ultimate` is set. Text is route.<name>.name and .desc. */\n");
+    o.push_str("export const ROUTES = [\n");
+    for r in &c.routes {
+        let art = c.arts.iter().find(|a| a.name == r.art).map_or(0, |a| a.id);
+        let school = c.schools.iter().find(|s| s.name == r.school).map_or(0, |s| s.id);
+        let own: Vec<&Move> = c.moves.iter().filter(|m| m.route == r.name).collect();
+        let ids: Vec<String> = own.iter().map(|m| m.id.to_string()).collect();
+        let ultimate = own.last().is_some_and(|m| m.ultimate);
+        writeln!(
+            o,
+            "  {{ id: {}, name: {}, art: {art}, school: {school}, beat: {}, start: {}, moves: [{}], ultimate: {ultimate} }},",
+            r.id,
+            js_str(&r.name),
+            r.beat,
+            r.start,
+            ids.join(", ")
+        )
+        .unwrap();
+    }
+    o.push_str("];\n\n");
+
+    o.push_str("/** Moves (式), indexed by id. Text is move.<name>.name and .desc. */\n");
+    o.push_str("export const MOVES = [\n");
+    for m in &c.moves {
+        let route = c.routes.iter().find(|r| r.name == m.route).map_or(0, |r| r.id);
+        writeln!(
+            o,
+            "  {{ id: {}, name: {}, route: {route}, ultimate: {}, stop: {} }},",
+            m.id,
+            js_str(&m.name),
+            m.ultimate,
+            m.stop
+        )
+        .unwrap();
+    }
+    o.push_str("];\n\n");
 
     o.push_str("/** Magic elements. Ids start at 1 (0 means no element), so element `id` is ELEMENTS[id - 1].\n");
     o.push_str(

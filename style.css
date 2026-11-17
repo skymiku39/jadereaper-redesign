@@ -501,8 +501,37 @@ body.low-health::after { opacity: 1; animation: low-pulse 0.9s ease-in-out infin
 #hud .xp.flash .xp-fill { animation: xp-flash 0.6s ease-out; }
 @keyframes xp-flash { 0% { filter: brightness(2.2) saturate(0.6); } 100% { filter: none; } }
 
+/* An art on a route: its move order as dots, the move just used lit. */
+.chip .beats { display: inline-flex; gap: 2px; margin-left: 2px; align-self: center; }
+.chip .beats em { width: 5px; height: 5px; border-radius: 50%; background: rgba(43, 38, 34, 0.25); }
+.chip .beats em.on { background: var(--vermilion); }
+/* A route card: the next move's line keeps its own line. */
+.route-card .desc { white-space: pre-line; }
+/* A route move's name, brushed over the player for a moment the first time it is used. */
+.callout {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%) rotate(-3deg);
+  font-family: var(--brush);
+  font-size: 34px;
+  color: var(--ink);
+  text-shadow: 0 0 6px rgba(244, 236, 220, 0.9), 2px 2px 0 rgba(244, 236, 220, 0.7);
+  white-space: nowrap;
+  animation: callout 1s ease-out forwards;
+}
+.callout.big { font-size: 56px; color: var(--vermilion); animation-duration: 1.4s; }
+.callout.ultimate { color: var(--vermilion); }
+@keyframes callout {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-3deg) scale(1.8); }
+  15% { opacity: 1; transform: translate(-50%, -50%) rotate(-3deg) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -60%) rotate(-3deg) scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.low-health::after { animation: none; }
+  .callout, .callout.big, .callout.ultimate { animation: fade 1s ease-out reverse forwards; }
   #hud .xp.flash .xp-fill { animation: none; }
 }
 

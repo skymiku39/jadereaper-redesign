@@ -6,8 +6,8 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
 import { loadSave, writeSave, recordRun, recordMission, clearRecords, tuneValue, setTune } from './save.js';
-import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, EVENT, KINDS } from './data.js';
-import { pickLang, setLang, getLang, nextLang } from './i18n.js';
+import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, MOVES, EVENT, KINDS } from './data.js';
+import { pickLang, setLang, getLang, nextLang, t } from './i18n.js';
 import { packReplay, unpackReplay } from './replay.js';
 
 async function boot() {
@@ -36,6 +36,8 @@ async function boot() {
   let heartbeat = 0;
   // A line the HUD shows for a few seconds, such as a commission's outcome: { key, until }.
   let notice = null;
+  // The route moves already called out this run: a move's name is written the first time it is used.
+  let calledOut = new Set();
 
   const ui = createUI({ onAction });
 
@@ -87,11 +89,30 @@ async function boot() {
   const upgradeLevels = (s) => Array.from(s.subarray(STATE.UPGRADE0, STATE.UPGRADE0 + UPGRADES.length));
   // Per art id, the id of the element the art carries (0 for none).
   const artElements = (s) => Array.from(s.subarray(STATE.ART_ELEMENT0, STATE.ART_ELEMENT0 + ARTS.length));
-  /** Show the level-up screen: the offered cards, or the held arts while an element waits for one. */
+  // Per art id: the route it follows (route id + 1, 0 for none), where it is in its move order, and how long that is.
+  const artRoutes = (s) => Array.from(s.subarray(STATE.ART_ROUTE0, STATE.ART_ROUTE0 + ARTS.length));
+  const artSteps = (s) => Array.from(s.subarray(STATE.ART_STEP0, STATE.ART_STEP0 + ARTS.length));
+  const artOrders = (s) => Array.from(s.subarray(STATE.ART_ORDER0, STATE.ART_ORDER0 + ARTS.length));
+  /** Show the level-up screen: the offered cards, the routes of an art, or the held arts while an element waits for one. */
   const showLevelUp = (s) => ui.levelUp(
     Array.from(s.subarray(STATE.CHOICE0, STATE.CHOICE0 + 3)), upgradeLevels(s),
-    { attach: s[STATE.ATTACH], artElements: artElements(s) },
+    {
+      attach: s[STATE.ATTACH], artElements: artElements(s),
+      routePick: s[STATE.ROUTE_PICK], artRoutes: artRoutes(s), routesOn: s[STATE.ROUTES_ON] === 1,
+    },
   );
+  /** A route move was used: hit-stop for a heavy one, and its name the first time (an ultimate's every time). */
+  function onMove(id) {
+    const move = MOVES[id];
+    if (!move) return;
+    if (save.motion && move.stop) hitstop = Math.max(hitstop, move.ultimate ? 0.09 : 0.05);
+    if (move.ultimate) audio.play('ultimate');
+    const first = !calledOut.has(id);
+    if (move.ultimate || first) {
+      calledOut.add(id);
+      ui.callout(t(`move.${move.name}.name`), move.ultimate ? (first ? 'big' : 'ultimate') : '');
+    }
+  }
 
   function toTitle() {
     core.jr_reset(seed());
@@ -143,6 +164,7 @@ async function boot() {
     }
     const s = seed();
     core.jr_start(s, mission.id);
+    calledOut = new Set();
     run = { seed: s, mission: mission.name, tunes };
     replaying = false;
     ui.replaying(false);
@@ -172,6 +194,7 @@ async function boot() {
       if (tune && Number.isFinite(value)) core.jr_tune(tune.id, value);
     }
     core.jr_start(r.seed, mission.id);
+    calledOut = new Set();
     core.jr_replay_begin();
     for (let i = 0; i < r.log.length; i += 4) core.jr_replay_push(r.log[i], r.log[i + 1], r.log[i + 2], r.log[i + 3]);
     run = { seed: r.seed, mission: r.mission, tunes: r.tunes };
@@ -377,6 +400,7 @@ async function boot() {
           if (save.motion && type === EVENT.HURT) input.rumble(140, 0.7);
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) input.rumble(80, 0.35);
           if (type === EVENT.LEVELUP) ui.flashLevel();
+          if (type === EVENT.MOVE) onMove(ev[i * 4 + 3]);
           if (type === EVENT.COMMISSION_DONE) notice = { key: 'commission.done', until: clock + 4 };
           if (type === EVENT.COMMISSION_FAILED) notice = { key: 'commission.failed', until: clock + 4 };
         }
@@ -396,7 +420,9 @@ async function boot() {
         // Until the mission is accepted the core plays no mission, so the HUD shows none either.
         upgrades: upgradeLevels(s), mission: accepting ? MISSIONS[MISSION_IDS.endless] : mission,
         // What the elements on the arts are doing: the metal guard and wood's slow healing.
-        artElements: artElements(s), guard: s[STATE.GUARD], guardMax: s[STATE.GUARD_MAX], regrow: s[STATE.REGROW],
+        artElements: artElements(s), artRoutes: artRoutes(s), artSteps: artSteps(s), artOrders: artOrders(s),
+        routesOn: s[STATE.ROUTES_ON] === 1,
+        guard: s[STATE.GUARD], guardMax: s[STATE.GUARD_MAX], regrow: s[STATE.REGROW],
         accept: accepting ? { held: s[STATE.ACCEPT_HELD], need: s[STATE.ACCEPT_NEED] } : null,
         commission: {
           phase: s[STATE.COMMISSION], left: s[STATE.COMMISSION_LEFT], need: s[STATE.COMMISSION_NEED],
