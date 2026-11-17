@@ -25,6 +25,8 @@ const DEFAULTS = {
   lang: null, // null: use DEFAULT_LANG from i18n.js
   // The stolen routes learned (偷師), as bits by route id; kept from run to run.
   stolen: 0,
+  // The manuals (秘笈) gained, two bits per route id; kept from run to run.
+  manuals: 0,
 };
 
 export function loadSave() {

@@ -491,6 +491,71 @@ tune = "school_share"
 school = "jiuyou"
 strike = "gouhun"
 
+# School masters (高手): rare and tough, they use their school's ultimate, and
+# drop a manual (秘笈) of the school when they fall. A stolen route without
+# manuals can be learned to its second move; each manual opens one more
+# (core/src/routes.rs).
+[[enemy]]
+id = 12
+name = "bandit_master"
+part = "brute"
+color = [0.42, 0.16, 0.08]
+hp = 1100
+speed = 52
+radius = 40
+damage = 14
+xp = 40
+half_width = 48
+half_height = 48
+pose_rate = 2.5
+heavy = true
+every = 240
+tune = "school_share"
+school = "heifeng"
+strike = "shede"
+manual = true
+
+[[enemy]]
+id = 13
+name = "constable_master"
+part = "brute"
+color = [0.10, 0.14, 0.32]
+hp = 1200
+speed = 50
+radius = 40
+damage = 12
+xp = 40
+half_width = 48
+half_height = 48
+pose_rate = 2.5
+heavy = true
+every = 300
+tune = "school_share"
+school = "liushanmen"
+strike = "guanmen"
+manual = true
+
+[[enemy]]
+id = 14
+name = "sect_master"
+part = "wisp"
+color = [0.22, 0.30, 0.20]
+hp = 1000
+speed = 64
+radius = 30
+damage = 12
+xp = 40
+half_width = 44
+half_height = 26
+pose_rate = 5
+hover = true
+corpse = true
+every = 360
+tune = "school_share"
+school = "jiuyou"
+strike = "wangui"
+manual = true
+
 # ------------------------------------------------------------------ arts
 # Martial arts (武學): how the player attacks. Each has one `behaviour`, which
 # is code in core/src/arts.rs, and the numbers below. A new art of an existing
@@ -1755,6 +1820,11 @@ name = "steal"
 id = 20
 name = "foe"
 
+# A manual (秘笈) opened one more move of a stolen route. The value is the route's id.
+[[event]]
+id = 21
+name = "manual"
+
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...
 # without gaps. `goal` is what the mission asks for, in its own unit; 0 means
@@ -2388,6 +2458,17 @@ min = 0
 max = 16777215
 step = 1
 
+# The manuals (秘笈) gained in earlier runs: two bits per route id, the number
+# of moves each opens beyond the second on a stolen route. Set by the host.
+[[tune]]
+id = 54
+name = "manuals"
+mission = "host"
+default = 0
+min = 0
+max = 16777215
+step = 1
+
 # Routes (套路, the [[route]] entries above): 1 on, 0 off. Off, every art
 # grows by its own numbers up to its top level as before routes existed.
 [[tune]]
@@ -2496,6 +2577,11 @@ len = "art"
 [[state]]
 name = "stolen"
 index = 120
+
+# The manuals gained so far, two bits per route id (the host saves them).
+[[state]]
+name = "manuals"
+index = 121
 
 # The quality of each martial art's weapon: 0 plain iron, 1 fine steel, 2 a famous blade.
 [[state]]

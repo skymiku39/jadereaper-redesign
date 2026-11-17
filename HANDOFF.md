@@ -8,7 +8,16 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/school-elites` (cut from `feat/weapon-quality`, uncommitted)
+### `feat/masters-manuals` (cut from `feat/school-elites`, uncommitted)
+
+After "提交後繼續", `feat/school-elites` was committed as 4b12df4 (not pushed) and this branch cut.
+
+- **Built:** three school masters (`bandit_master` every 240 s with 捨得一身剮, `constable_master` 300 s with 關門捉賊, `sect_master` 360 s with 萬鬼朝宗), tough and using their school's ultimate through `foes.rs`; `manual = true` on an `[[enemy]]` drops a manual (秘笈) of its school when it falls (`EV_MANUAL`, a notice). A stolen route can now be learned to its second move, one more per manual (two bits per route in `Game.manuals`); the host keeps them in the save and passes them to later runs and replays through the `manuals` tune (mission "host"). Route cards of a stolen route say how far it can be learned.
+- **Decided here, not by the user:** a manual goes straight to the routes of the master's school instead of being given out by the player between runs as design 4.5 says; the masters' clocks and numbers; a master uses one move, the ultimate, not its whole route.
+- **Checked:** fmt, clippy, `cargo test --release` (262, with a test that kills masters until a stolen route is whole), `./build.sh`, fonts, determinism, smoke.
+- **Not checked:** nobody has played it; no browser run reached a master (the first comes at four minutes).
+
+### `feat/school-elites` (cut from `feat/weapon-quality`, committed 4b12df4)
 
 After "提交後繼續", `feat/weapon-quality` was committed as 4a6c28b (not pushed) and this branch cut.
 

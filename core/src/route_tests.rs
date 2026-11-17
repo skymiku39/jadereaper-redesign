@@ -209,6 +209,36 @@ fn a_stolen_route_is_offered_once_a_disciple_of_its_school_falls() {
 }
 
 #[test]
+fn a_stolen_route_opens_one_more_move_per_manual() {
+    let r = (0..N_ROUTES).filter(|&r| !ROUTES[r].start).max_by_key(|&r| ROUTES[r].n).unwrap();
+    let (a, s, n) = (ROUTES[r].art, ROUTES[r].school, ROUTES[r].n);
+    let mut g = base();
+    g.stolen |= 1 << r;
+    g.take_route(a, r);
+    assert_eq!(g.upgrade_top(ARTS[a].upgrade) as usize, 2 + 2.min(n), "two moves without manuals");
+    let master = (0..N_KINDS).find(|&k| KINDS[k].school == s && KINDS[k].manual).expect("a master");
+    for m in 1..=n.saturating_sub(2) {
+        let i = put(&mut g, 60.0, 0.0);
+        g.enemies[i].kind = master as u8;
+        g.enemies[i].hp = 0.0;
+        g.events.clear();
+        g.reap();
+        assert!(g.events.iter().any(|e| e[0] == EV_MANUAL && e[3] == r as f32));
+        assert_eq!(g.upgrade_top(ARTS[a].upgrade) as usize, 2 + (2 + m).min(n));
+    }
+    // Every move open: another manual adds nothing.
+    g.events.clear();
+    g.gain_manual(s);
+    assert!(!g.events.iter().any(|e| e[0] == EV_MANUAL && e[3] == r as f32));
+    assert_eq!(g.upgrade_top(ARTS[a].upgrade) as usize, 2 + n);
+    // A later run keeps them through the `manuals` tune.
+    let mut later = Game::new(2);
+    later.tune[T_MANUALS] = g.manuals as f32;
+    later.start(M_ENDLESS);
+    assert_eq!(later.moves_open(r), n);
+}
+
+#[test]
 fn giving_a_high_level_takes_the_first_route() {
     let (a, routes) = art_with_routes();
     let mut g = base();

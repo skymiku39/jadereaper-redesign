@@ -105,7 +105,7 @@ async function boot() {
       routePick: s[STATE.ROUTE_PICK], artRoutes: artRoutes(s), routesOn: s[STATE.ROUTES_ON] === 1,
       deckPick: s[STATE.DECK_PICK] === 1, deckOpen: Array.from(s.subarray(STATE.DECK_OPEN0, STATE.DECK_OPEN0 + 5)),
       lastDeck: s[STATE.LAST_DECK], ranks: Array.from(s.subarray(STATE.CHOICE_RANK0, STATE.CHOICE_RANK0 + 3)),
-      artKinds: artKinds(s),
+      artKinds: artKinds(s), manuals: s[STATE.MANUALS],
     },
   );
   /**
@@ -124,6 +124,18 @@ async function boot() {
     audio.play('learn');
     if (!replaying) {
       save.stolen = (Number(save.stolen) || 0) | (1 << id);
+      writeSave(save);
+    }
+  }
+
+  /** A master dropped a manual (秘笈): say which route opened a move, and keep all of them for later runs. */
+  function onManual(id, manuals) {
+    const route = ROUTES[id];
+    if (!route) return;
+    notice = { key: 'manual.notice', vars: { name: t(`route.${route.name}.name`) }, until: clock + 4 };
+    audio.play('learn');
+    if (!replaying) {
+      save.manuals = manuals;
       writeSave(save);
     }
   }
@@ -189,12 +201,13 @@ async function boot() {
       tunes[tune.name] = value;
       if (value !== tune.def) testRun = true;
     }
-    // Tunes the host sets itself: the stolen routes learned in earlier runs.
-    const stolen = TUNES.find((tune) => tune.name === 'stolen');
-    if (stolen) {
-      const value = Number(save.stolen) || 0;
-      core.jr_tune(stolen.id, value);
-      tunes.stolen = value;
+    // Tunes the host sets itself: the stolen routes and the manuals gained in earlier runs.
+    for (const name of ['stolen', 'manuals']) {
+      const tune = TUNES.find((x) => x.name === name);
+      if (!tune) continue;
+      const value = Number(save[name]) || 0;
+      core.jr_tune(tune.id, value);
+      tunes[name] = value;
     }
     const s = seed();
     core.jr_start(s, mission.id);
@@ -436,6 +449,7 @@ async function boot() {
           if (type === EVENT.LEVELUP) ui.flashLevel();
           if (type === EVENT.MOVE) onMove(ev[i * 4 + 3]);
           if (type === EVENT.STEAL) onSteal(ev[i * 4 + 3]);
+          if (type === EVENT.MANUAL) onManual(ev[i * 4 + 3], s[STATE.MANUALS]);
           // A school elite winds up a move: its name in red, so the player knows what is coming.
           if (type === EVENT.FOE && MOVES[ev[i * 4 + 3]]) {
             ui.callout(t(`move.${MOVES[ev[i * 4 + 3]].name}.name`), 'foe');

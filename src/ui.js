@@ -304,7 +304,7 @@ export function createUI({ onAction }) {
    */
   function levelUp(choices, upgrades, {
     attach = 0, artElements = [], routePick = 0, artRoutes = [], routesOn = false,
-    deckPick = false, deckOpen = [], lastDeck = 0, ranks = [], artKinds = [],
+    deckPick = false, deckOpen = [], lastDeck = 0, ranks = [], artKinds = [], manuals = 0,
   } = {}) {
     const banner = $('levelBanner');
     const attaching = elementById(attach);
@@ -322,7 +322,7 @@ export function createUI({ onAction }) {
     if (picking) {
       delete banner.dataset.i18n;
       setText(banner, t('levelup.route', { name: t(`upgrade.${picking.upgrade}.name`) }));
-      $('cards').replaceChildren(...routeCards(choices, picking, artKinds[picking.id] || 0));
+      $('cards').replaceChildren(...routeCards(choices, picking, artKinds[picking.id] || 0, manuals));
     } else if (attaching) {
       // The banner names the element, so it is not static text for applyStatic to reset.
       delete banner.dataset.i18n;
@@ -366,7 +366,7 @@ export function createUI({ onAction }) {
   }
 
   /** One card per route the art can take; one that suits the art's weapon kind says so. A card's value is its slot. */
-  function routeCards(choices, art, kind = 0) {
+  function routeCards(choices, art, kind = 0, manuals = 0) {
     return choices.flatMap((id, slot) => {
       const route = ROUTES[id];
       if (id < 0 || !route) return [];
@@ -380,12 +380,15 @@ export function createUI({ onAction }) {
       const suits = route.suits.map((w) => t(`weapon.${WEAPONS[w].name}`)).join('、');
       const oneness = kind > 0 && route.suits.includes(kind - 1);
       if (oneness) card.classList.add('fine-card');
+      // A stolen route opens two moves, and one more per manual (秘笈).
+      const open = route.start ? route.moves.length : Math.min(route.moves.length, 2 + ((manuals >>> (2 * route.id)) & 3));
+      const shut = open < route.moves.length ? `\n${t('levelup.shut', { n: open })}` : '';
       cardParts(card, [
         ['key', String(slot + 1)],
         ['glyph', UPGRADES[art.upgrade].glyph],
         ['name', t(`route.${route.name}.name`)],
         ['rank', `${school ? t(`school.${school.name}`) : ''} · ${moves}${oneness ? ` · ${t('levelup.oneness')}` : ''}`],
-        ['desc', `${t(`route.${route.name}.desc`)}${suits ? `\n${t('levelup.suits', { routes: suits })}` : ''}`],
+        ['desc', `${t(`route.${route.name}.desc`)}${suits ? `\n${t('levelup.suits', { routes: suits })}` : ''}${shut}`],
       ]);
       return [card];
     });

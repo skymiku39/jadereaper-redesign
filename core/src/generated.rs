@@ -71,23 +71,29 @@ pub const K_PUPPET: u8 = 8;
 pub const K_BANDIT_CHIEF: u8 = 9;
 pub const K_CONSTABLE_CHIEF: u8 = 10;
 pub const K_CLAW_CRONE: u8 = 11;
-pub const N_KINDS: usize = 12;
+pub const K_BANDIT_MASTER: u8 = 12;
+pub const K_CONSTABLE_MASTER: u8 = 13;
+pub const K_SECT_MASTER: u8 = 14;
+pub const N_KINDS: usize = 15;
 #[rustfmt::skip]
-pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet", "bandit_chief", "constable_chief", "claw_crone"];
+pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet", "bandit_chief", "constable_chief", "claw_crone", "bandit_master", "constable_master", "sect_master"];
 #[rustfmt::skip]
 pub const KINDS: [Kind; N_KINDS] = [
-    Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES },
-    Kind { hp: 7.0, speed: 118.0, r: 12.0, dmg: 4.0, xp: 1.0, part: P_WISP, color: [0.36, 0.40, 0.56], hw: 22.0, hh: 13.0, rate: 9.0, corpse: true, heavy: false, hover: true, from: 25.0, share: 0.3, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES },
-    Kind { hp: 70.0, speed: 44.0, r: 26.0, dmg: 12.0, xp: 5.0, part: P_BRUTE, color: [0.58, 0.31, 0.24], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 60.0, share: 0.25, ramp: 400.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES },
-    Kind { hp: 600.0, speed: 56.0, r: 44.0, dmg: 20.0, xp: 40.0, part: P_BRUTE, color: [0.74, 0.25, 0.18], hw: 52.0, hh: 52.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 90.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES },
-    Kind { hp: 10.0, speed: 215.0, r: 11.0, dmg: 6.0, xp: 1.0, part: P_WISP, color: [0.52, 0.20, 0.16], hw: 17.0, hh: 10.0, rate: 12.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_CHASERS, school: N_SCHOOLS, strike: N_MOVES },
-    Kind { hp: 22.0, speed: 70.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.50, 0.30, 0.20], hw: 19.0, hh: 19.0, rate: 6.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG, strike: N_MOVES },
-    Kind { hp: 26.0, speed: 66.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.22, 0.28, 0.42], hw: 19.0, hh: 19.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: N_MOVES },
-    Kind { hp: 12.0, speed: 104.0, r: 12.0, dmg: 5.0, xp: 2.0, part: P_WISP, color: [0.42, 0.24, 0.46], hw: 22.0, hh: 13.0, rate: 9.0, corpse: false, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: N_MOVES },
-    Kind { hp: 34.0, speed: 48.0, r: 18.0, dmg: 7.0, xp: 2.0, part: P_BLOT, color: [0.38, 0.44, 0.36], hw: 20.0, hh: 20.0, rate: 3.0, corpse: true, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: N_MOVES },
-    Kind { hp: 240.0, speed: 58.0, r: 26.0, dmg: 9.0, xp: 12.0, part: P_BRUTE, color: [0.55, 0.24, 0.14], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 75.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG, strike: MV_KAITANG },
-    Kind { hp: 280.0, speed: 54.0, r: 26.0, dmg: 8.0, xp: 12.0, part: P_BRUTE, color: [0.16, 0.22, 0.40], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 105.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: MV_QIANYANG },
-    Kind { hp: 200.0, speed: 72.0, r: 20.0, dmg: 8.0, xp: 12.0, part: P_WISP, color: [0.30, 0.40, 0.30], hw: 30.0, hh: 18.0, rate: 6.0, corpse: true, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 135.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: MV_GOUHUN },
+    Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES, manual: false },
+    Kind { hp: 7.0, speed: 118.0, r: 12.0, dmg: 4.0, xp: 1.0, part: P_WISP, color: [0.36, 0.40, 0.56], hw: 22.0, hh: 13.0, rate: 9.0, corpse: true, heavy: false, hover: true, from: 25.0, share: 0.3, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES, manual: false },
+    Kind { hp: 70.0, speed: 44.0, r: 26.0, dmg: 12.0, xp: 5.0, part: P_BRUTE, color: [0.58, 0.31, 0.24], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 60.0, share: 0.25, ramp: 400.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES, manual: false },
+    Kind { hp: 600.0, speed: 56.0, r: 44.0, dmg: 20.0, xp: 40.0, part: P_BRUTE, color: [0.74, 0.25, 0.18], hw: 52.0, hh: 52.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 90.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES, manual: false },
+    Kind { hp: 10.0, speed: 215.0, r: 11.0, dmg: 6.0, xp: 1.0, part: P_WISP, color: [0.52, 0.20, 0.16], hw: 17.0, hh: 10.0, rate: 12.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_CHASERS, school: N_SCHOOLS, strike: N_MOVES, manual: false },
+    Kind { hp: 22.0, speed: 70.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.50, 0.30, 0.20], hw: 19.0, hh: 19.0, rate: 6.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG, strike: N_MOVES, manual: false },
+    Kind { hp: 26.0, speed: 66.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.22, 0.28, 0.42], hw: 19.0, hh: 19.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: N_MOVES, manual: false },
+    Kind { hp: 12.0, speed: 104.0, r: 12.0, dmg: 5.0, xp: 2.0, part: P_WISP, color: [0.42, 0.24, 0.46], hw: 22.0, hh: 13.0, rate: 9.0, corpse: false, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: N_MOVES, manual: false },
+    Kind { hp: 34.0, speed: 48.0, r: 18.0, dmg: 7.0, xp: 2.0, part: P_BLOT, color: [0.38, 0.44, 0.36], hw: 20.0, hh: 20.0, rate: 3.0, corpse: true, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: N_MOVES, manual: false },
+    Kind { hp: 240.0, speed: 58.0, r: 26.0, dmg: 9.0, xp: 12.0, part: P_BRUTE, color: [0.55, 0.24, 0.14], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 75.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG, strike: MV_KAITANG, manual: false },
+    Kind { hp: 280.0, speed: 54.0, r: 26.0, dmg: 8.0, xp: 12.0, part: P_BRUTE, color: [0.16, 0.22, 0.40], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 105.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: MV_QIANYANG, manual: false },
+    Kind { hp: 200.0, speed: 72.0, r: 20.0, dmg: 8.0, xp: 12.0, part: P_WISP, color: [0.30, 0.40, 0.30], hw: 30.0, hh: 18.0, rate: 6.0, corpse: true, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 135.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: MV_GOUHUN, manual: false },
+    Kind { hp: 1100.0, speed: 52.0, r: 40.0, dmg: 14.0, xp: 40.0, part: P_BRUTE, color: [0.42, 0.16, 0.08], hw: 48.0, hh: 48.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 240.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG, strike: MV_SHEDE, manual: true },
+    Kind { hp: 1200.0, speed: 50.0, r: 40.0, dmg: 12.0, xp: 40.0, part: P_BRUTE, color: [0.10, 0.14, 0.32], hw: 48.0, hh: 48.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 300.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: MV_GUANMEN, manual: true },
+    Kind { hp: 1000.0, speed: 64.0, r: 30.0, dmg: 12.0, xp: 40.0, part: P_WISP, color: [0.22, 0.30, 0.20], hw: 44.0, hh: 26.0, rate: 5.0, corpse: true, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 360.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: MV_WANGUI, manual: true },
 ];
 
 // Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.
@@ -380,6 +386,7 @@ pub const EV_COMMISSION_FAILED: f32 = 17.0;
 pub const EV_MOVE: f32 = 18.0;
 pub const EV_STEAL: f32 = 19.0;
 pub const EV_FOE: f32 = 20.0;
+pub const EV_MANUAL: f32 = 21.0;
 
 // Mission ids, and what each one asks for (seconds for `survive`, enemies for `kills`).
 pub const M_ENDLESS: usize = 0;
@@ -455,15 +462,16 @@ pub const T_ROUTES: usize = 50;
 pub const T_DECKS: usize = 51;
 pub const T_SCHOOL_SHARE: usize = 52;
 pub const T_STOLEN: usize = 53;
-pub const N_TUNES: usize = 54;
+pub const T_MANUALS: usize = 54;
+pub const N_TUNES: usize = 55;
 #[rustfmt::skip]
-pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius", "commissions", "routes", "decks", "school_share", "stolen"];
+pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius", "commissions", "routes", "decks", "school_share", "stolen", "manuals"];
 #[rustfmt::skip]
-pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.04, 0.0];
+pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.04, 0.0, 0.0];
 #[rustfmt::skip]
-pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 #[rustfmt::skip]
-pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0, 1.0, 1.0, 1.0, 0.25, 16777215.0];
+pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0, 1.0, 1.0, 1.0, 0.25, 16777215.0, 16777215.0];
 // The tune that holds each mission's goal; N_TUNES where the goal cannot be changed.
 #[rustfmt::skip]
 pub const MISSION_GOAL_TUNE: [usize; N_MISSIONS] = [N_TUNES, T_SURVIVE_GOAL, T_KILLS_GOAL, T_FORMATION_GOAL, T_ARENA_GOAL, T_RETRIEVAL_GOAL, T_PURSUIT_GOAL, N_TUNES, T_HOLD_GOAL, T_ESCAPE_GOAL, T_BOSS_GOAL, T_VENDETTA_GOAL];
@@ -532,5 +540,6 @@ pub const S_UPGRADE0: usize = 96;
 pub const S_ART_KIND0: usize = 112;
 pub const S_ART_QUALITY0: usize = 116;
 pub const S_STOLEN: usize = 120;
+pub const S_MANUALS: usize = 121;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];

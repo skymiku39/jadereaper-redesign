@@ -200,6 +200,8 @@ pub struct Kind {
     pub school: usize,
     /// The move it uses with a warning first (`foes.rs`); `N_MOVES` for none.
     pub strike: usize,
+    /// Drops a manual (秘笈) of its school when it falls (`routes.rs`).
+    pub manual: bool,
 }
 
 /// The stats a passive upgrade can raise. `Game::stat` says how each one adds up.

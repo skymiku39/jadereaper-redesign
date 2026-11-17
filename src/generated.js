@@ -56,6 +56,9 @@ export const KINDS = [
   { id: 9, name: 'bandit_chief', heavy: true },
   { id: 10, name: 'constable_chief', heavy: true },
   { id: 11, name: 'claw_crone', heavy: false },
+  { id: 12, name: 'bandit_master', heavy: true },
+  { id: 13, name: 'constable_master', heavy: true },
+  { id: 14, name: 'sect_master', heavy: false },
 ];
 
 /** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and
@@ -215,6 +218,7 @@ export const EVENT = {
   MOVE: 18,
   STEAL: 19,
   FOE: 20,
+  MANUAL: 21,
 };
 
 /** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).
@@ -307,6 +311,7 @@ export const TUNES = [
   { id: 51, name: 'decks', mission: 'any', def: 1, min: 0, max: 1, step: 1 },
   { id: 52, name: 'school_share', mission: 'any', def: 0.04, min: 0.0, max: 0.25, step: 0.01 },
   { id: 53, name: 'stolen', mission: 'host', def: 0, min: 0, max: 16777215, step: 1 },
+  { id: 54, name: 'manuals', mission: 'host', def: 0, min: 0, max: 16777215, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */
@@ -376,6 +381,7 @@ export const STATE = {
   ART_KIND0: 112,
   ART_QUALITY0: 116,
   STOLEN: 120,
+  MANUALS: 121,
 };
 
 export const INK = [0.17, 0.15, 0.13];

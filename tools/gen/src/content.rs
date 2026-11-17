@@ -270,6 +270,8 @@ pub struct Enemy {
     pub school: Option<String>,
     /// The `[[move]]` it uses with a warning first, if any.
     pub strike: Option<String>,
+    /// Drops a manual (秘笈) of its school when it falls.
+    pub manual: bool,
 }
 
 /// The stats a passive upgrade can raise. The core reads each where it is used.
@@ -787,6 +789,8 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         f.used.push("strike");
                         None
                     };
+                    // Whether it drops a manual (秘笈) of its school when it falls.
+                    let manual = f.flag("manual").unwrap_or(false);
                     let enemy = Enemy {
                         id,
                         name,
@@ -800,6 +804,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         share_tune,
                         school,
                         strike,
+                        manual,
                     };
                     enemies.push((enemy, t.line));
                 }
@@ -1478,10 +1483,10 @@ pub fn render_rust(c: &Content) -> String {
         let strike = e.strike.as_ref().map_or("N_MOVES".to_string(), |m| format!("MV_{}", upper(m)));
         writeln!(
             o,
-            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {}, strike: {} }},",
+            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {}, strike: {}, manual: {} }},",
             n("hp"), n("speed"), n("radius"), n("damage"), n("xp"), upper(&e.part), color.join(", "),
             n("half_width"), n("half_height"), n("pose_rate"), e.corpse, e.heavy, e.hover,
-            s("from"), s("share"), s("ramp"), s("every"), tune, school, strike
+            s("from"), s("share"), s("ramp"), s("every"), tune, school, strike, e.manual
         )
         .unwrap();
     }

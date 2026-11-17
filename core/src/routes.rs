@@ -54,6 +54,39 @@ impl Game {
         (0..N_ROUTES).filter(move |&r| ROUTES[r].art == a && (ROUTES[r].start || stolen & (1 << r) != 0)).take(3)
     }
 
+    /// How many manuals (秘笈) route `r` has: moves opened beyond the second, 0 to 3.
+    pub(crate) fn manuals_of(&self, r: usize) -> usize {
+        if r >= 12 {
+            return 0;
+        }
+        ((self.manuals >> (2 * r)) & 3) as usize
+    }
+
+    /// How many of route `r`'s moves can be learned: all of a route known from
+    /// the start; of a stolen one, two and one more per manual.
+    pub(crate) fn moves_open(&self, r: usize) -> usize {
+        let def = &ROUTES[r];
+        if def.start {
+            def.n
+        } else {
+            def.n.min(2 + self.manuals_of(r))
+        }
+    }
+
+    /// A master of school `s` fell and dropped a manual: each stolen route of
+    /// the school that still has a move shut opens one more.
+    pub(crate) fn gain_manual(&mut self, s: usize) {
+        if !self.routes_on() {
+            return;
+        }
+        for (r, def) in ROUTES.iter().enumerate().take(12) {
+            if def.school == s && !def.start && self.moves_open(r) < def.n {
+                self.manuals += 1 << (2 * r);
+                self.event(EV_MANUAL, self.player.x, self.player.y, r as f32);
+            }
+        }
+    }
+
     /// A disciple of school `s` fell to the player: every stolen route of that
     /// school not yet learned is learned now (偷師), and offered from now on.
     pub(crate) fn steal(&mut self, s: usize) {
@@ -85,7 +118,7 @@ impl Game {
     /// reaches 2 + the route's moves; anything else its own top.
     pub(crate) fn upgrade_top(&self, id: usize) -> u8 {
         if let Some(r) = Self::art_of_upgrade(id).and_then(|a| self.route_of(a)) {
-            return (2 + ROUTES[r].n) as u8;
+            return (2 + self.moves_open(r)) as u8;
         }
         // An inner art has three layers.
         if self.inner_on() && Self::is_passive(id) {

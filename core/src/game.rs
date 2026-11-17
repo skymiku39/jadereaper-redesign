@@ -202,6 +202,9 @@ pub struct Game {
     pub stolen: u32,
     /// The school elites on the field and their moves (`foes.rs`).
     pub foes: Vec<foes::Foe>,
+    /// The manuals (秘笈) gained, two bits per route id (`routes.rs`): from
+    /// earlier runs (the `manuals` tune) and this one.
+    pub manuals: u32,
     pub pending: u32,
     /// The log of what the player does, and a log being played back.
     pub replay: replay::Replay,
@@ -377,6 +380,7 @@ impl Game {
             dry: 0,
             stolen: 0,
             foes: Vec::with_capacity(16),
+            manuals: 0,
             pending: 0,
             replay: replay::Replay::default(),
             kills: 0,
@@ -413,6 +417,7 @@ impl Game {
         self.running = true;
         // The stolen routes learned in earlier runs.
         self.stolen = self.tune[T_STOLEN] as u32;
+        self.manuals = self.tune[T_MANUALS] as u32;
         // With weapon kinds on, the arts held from the start come in their start kinds.
         for a in 0..N_ARTS {
             if self.art_level(a) > 0 {
@@ -612,6 +617,7 @@ impl Game {
         if self.inner_on() {
             self.inner.mix(&mut mix);
             mix(self.stolen);
+            mix(self.manuals);
         }
         if self.decks_on() {
             mix(self.deck_pick as u32);
@@ -1160,9 +1166,12 @@ impl Game {
             if heart {
                 self.drop_gem(e.x + 14.0, e.y, 0.0, true);
             }
-            // A disciple of a school falling teaches its stolen routes.
+            // A disciple of a school falling teaches its stolen routes; a master drops a manual too.
             if k.school < N_SCHOOLS {
                 self.steal(k.school);
+                if k.manual {
+                    self.gain_manual(k.school);
+                }
             }
             // The second layer of the sleeve: an elite falling brings every jade in.
             if e.kind == K_ELITE && self.layer(U_LURE) >= 2 {
@@ -1867,6 +1876,7 @@ impl Game {
         s[S_ROUTES_ON] = (self.tune[T_ROUTES] > 0.5) as u8 as f32;
         s[S_DECK_PICK] = self.deck_pick as u8 as f32;
         s[S_STOLEN] = self.stolen as f32;
+        s[S_MANUALS] = self.manuals as f32;
         s[S_LAST_DECK] = self.last_deck as f32;
         for c in 0..3 {
             s[S_CHOICE_RANK0 + c] = self.ranks[c] as f32;
