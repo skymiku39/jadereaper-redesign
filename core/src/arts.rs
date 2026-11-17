@@ -137,15 +137,20 @@ impl Game {
         let reach = n.reach * self.melee_reach() * self.kind_reach(a);
         let dmg = n.damage * might * self.kind_power(a);
         let knock = n.knockback * self.kind_knock(a);
+        let mut far: Option<(f32, u32)> = None;
         for i in 0..self.enemies.len() {
             let e = &self.enemies[i];
             let (dx, dy) = (e.x - px, e.y - py);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             let r = KINDS[e.kind as usize].r;
             if d < reach + r && (d < 30.0 || (dx * ax + dy * ay) / d > n.width) {
+                if far.is_none_or(|(fd, _)| d > fd) {
+                    far = Some((d, e.id));
+                }
                 self.strike(i, dmg, dx / d * knock, dy / d * knock, element);
             }
         }
+        self.hook(a, far.map(|(_, id)| id));
         self.formation_hit_arc(px, py, ax, ay, reach, n.width, dmg);
         self.player.attack = 0.25;
         let rot = fmath::atan2(ay, ax);
@@ -185,6 +190,21 @@ impl Game {
         let (dmg, knock) = (n.damage * might * self.kind_power(a), n.knockback * self.kind_knock(a));
         self.line(a, px, py, dx, dy, reach, n.width, dmg, knock);
         self.event(EV_SLASH, px, py, 0.0);
+    }
+
+    /// A sickle's hook (the `hook` trait): the farthest enemy a sweep hit is
+    /// pulled in toward the player.
+    pub(crate) fn hook(&mut self, a: usize, id: Option<u32>) {
+        if self.kind_trait(a) != WT_HOOK {
+            return;
+        }
+        let Some(i) = id.and_then(|id| self.enemies.iter().position(|e| e.id == id)) else { return };
+        let (px, py) = (self.player.x, self.player.y);
+        let e = &mut self.enemies[i];
+        let (dx, dy) = (px - e.x, py - e.y);
+        let d = (dx * dx + dy * dy).sqrt().max(0.001);
+        e.kx = dx / d * 260.0;
+        e.ky = dy / d * 260.0;
     }
 
     /// Where a thrust goes: at the nearest enemy within `reach`, else along the aim.
@@ -234,6 +254,10 @@ impl Game {
             }
         }
         self.formation_hit_arc(x, y, dx, dy, reach, 0.95, dmg);
+        // A halberd (the `tip` trait) also sweeps round the tip of its thrust.
+        if self.kind_trait(a) == WT_TIP {
+            self.ring(a, x + dx * reach, y + dy * reach, 55.0, dmg * 0.5, knock);
+        }
         self.player.attack = 0.2;
         let color = self.art_color(a, JADE, 0.9);
         // A long thin streak along the thrust.
@@ -274,9 +298,12 @@ impl Game {
     pub(crate) fn shoot_nearest(&mut self, a: usize, n: &ArtLevel, might: f32) -> bool {
         let def = &ARTS[a];
         let (px, py) = (self.player.x, self.player.y);
-        // The nearest `count` enemies, nearest first.
+        // The nearest `count` enemies, nearest first. Needles throw twice as many at half the damage.
         const MOST: usize = 8;
-        let count = n.count.min(MOST);
+        let swarm = self.kind_trait(a) == WT_SWARM;
+        let count = if swarm { (n.count * 2).min(MOST) } else { n.count.min(MOST) };
+        let might = if swarm { might * 0.5 } else { might };
+        let extra = self.kind_pierce(a);
         let mut best = [(f32::MAX, 0usize); MOST];
         for (i, e) in self.enemies.iter().enumerate() {
             let d = (e.x - px) * (e.x - px) + (e.y - py) * (e.y - py);
@@ -305,7 +332,7 @@ impl Game {
                 vy: dy / d * def.speed,
                 life: def.life,
                 dmg: n.damage * might,
-                pierce: n.pierce,
+                pierce: n.pierce + extra,
                 last: 0,
                 art: a as u8,
                 push: n.knockback,

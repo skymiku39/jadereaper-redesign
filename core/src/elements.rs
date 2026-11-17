@@ -24,6 +24,8 @@ pub struct Tags {
     pub amount: [f32; N_ELEMENTS + 1],
     /// Seconds before the element's effect can take hold of this enemy again.
     pub rest: [f32; N_ELEMENTS + 1],
+    /// An opening (破綻) left by a route's needle: the next blow lands 30% harder.
+    pub opening: bool,
 }
 
 impl Tags {
@@ -47,6 +49,17 @@ impl Game {
     /// element the art carries (an `E_*` id; 0 for none).
     pub(crate) fn strike(&mut self, i: usize, dmg: f32, kx: f32, ky: f32, element: u8) {
         self.inner.since_strike = 0.0;
+        // An opening (破綻) left by a needle makes this blow land harder, and is spent.
+        let dmg = if self.enemies[i].tags.opening {
+            self.enemies[i].tags.opening = false;
+            dmg * 1.3
+        } else {
+            dmg
+        };
+        // A route that leaves openings leaves one with this hit, for the next.
+        if self.striking_opens() {
+            self.enemies[i].tags.opening = true;
+        }
         if element == 0 || element as usize > N_ELEMENTS {
             self.borrow_force(i, dmg, kx, ky);
             self.hurt_enemy(i, dmg, kx, ky);

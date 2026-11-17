@@ -57,6 +57,16 @@ impl Game {
         }
     }
 
+    /// What art `a`'s kind does of its own (a `WT_*`); nothing without a kind.
+    pub(crate) fn kind_trait(&self, a: usize) -> u8 {
+        self.kind_of(a).map_or(WT_NONE, |w| WEAPONS[w].trait_)
+    }
+
+    /// How many more enemies art `a`'s shots pass through for its kind.
+    pub(crate) fn kind_pierce(&self, a: usize) -> i32 {
+        (self.kind_trait(a) == WT_PIERCE) as i32
+    }
+
     /// The form tags of art `a`'s kind; none without a kind.
     fn forms(&self, a: usize) -> u8 {
         self.kind_of(a).map_or(0, |w| WEAPONS[w].forms)

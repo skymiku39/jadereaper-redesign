@@ -212,13 +212,14 @@ impl Game {
             return;
         }
         self.arts[a].timer = ROUTES[r].beat * haste * self.beat_factor() * self.kind_beat(a);
-        let might = might * self.kind_power(a);
+        let might = might * self.kind_power(a) * self.rule_power(r);
         let (order, len) = self.move_order(a);
         if len == 0 {
             return;
         }
         let step = self.arts[a].step as usize % len;
         self.arts[a].step = ((step + 1) % len) as u8;
+        self.striking = a as u8 + 1;
         // The last move of the order closes it: the mountain lifter makes it
         // land harder, and piercing qi sends a blade after it.
         let last = step + 1 == len && len > 1;
@@ -241,6 +242,53 @@ impl Game {
         }
         if last {
             self.qi_blade(a, Self::basic_numbers(a).damage * might);
+        }
+        self.striking = 0;
+    }
+
+    /// How much harder route `r`'s moves land now for its rule: the bandits'
+    /// crowd (4% for each enemy within 200, at most 60%), or the blood river's
+    /// momentum (5% for each kill of the last three seconds, at most ten).
+    pub(crate) fn rule_power(&self, r: usize) -> f32 {
+        match ROUTES[r].rule {
+            RL_CROWD => {
+                let (px, py) = (self.player.x, self.player.y);
+                let near = self
+                    .enemies
+                    .iter()
+                    .filter(|e| (e.x - px) * (e.x - px) + (e.y - py) * (e.y - py) < 200.0 * 200.0)
+                    .count();
+                1.0 + (near as f32 * 0.04).min(0.6)
+            }
+            RL_MOMENTUM => 1.0 + self.momentum as f32 * 0.05,
+            _ => 1.0,
+        }
+    }
+
+    /// An enemy fell: while an art follows a route with momentum, it adds a stack.
+    pub(crate) fn note_kill(&mut self) {
+        let any = (0..N_ARTS).any(|a| self.route_of(a).is_some_and(|r| ROUTES[r].rule == RL_MOMENTUM));
+        if any {
+            self.momentum = (self.momentum + 1).min(10);
+            self.momentum_left = 3.0;
+        }
+    }
+
+    /// Count the momentum down: it all goes once three seconds pass without a kill.
+    pub(crate) fn tick_momentum(&mut self, dt: f32) {
+        if self.momentum > 0 {
+            self.momentum_left -= dt;
+            if self.momentum_left <= 0.0 {
+                self.momentum = 0;
+            }
+        }
+    }
+
+    /// Whether the art that is striking now follows a route that leaves openings (破綻).
+    pub(crate) fn striking_opens(&self) -> bool {
+        match self.striking {
+            0 => false,
+            a => self.route_of(a as usize - 1).is_some_and(|r| ROUTES[r].rule == RL_OPENING),
         }
     }
 
@@ -378,15 +426,20 @@ impl Game {
     fn sweep(&mut self, a: usize, dmg: f32, reach: f32, width: f32, knockback: f32, ax: f32, ay: f32) {
         let element = self.arts[a].element;
         let (px, py) = (self.player.x, self.player.y);
+        let mut far: Option<(f32, u32)> = None;
         for i in 0..self.enemies.len() {
             let e = &self.enemies[i];
             let (dx, dy) = (e.x - px, e.y - py);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             let r = KINDS[e.kind as usize].r;
             if d < reach + r && (d < 30.0 || (dx * ax + dy * ay) / d > width) {
+                if far.is_none_or(|(fd, _)| d > fd) {
+                    far = Some((d, e.id));
+                }
                 self.strike(i, dmg, dx / d * knockback, dy / d * knockback, element);
             }
         }
+        self.hook(a, far.map(|(_, id)| id));
         self.formation_hit_arc(px, py, ax, ay, reach, width, dmg);
         self.player.attack = 0.25;
         let rot = fmath::atan2(ay, ax);
@@ -457,7 +510,7 @@ impl Game {
             vy: dy * def.speed,
             life: def.life,
             dmg: n.damage * def.power * might,
-            pierce: def.pierce.max(1),
+            pierce: def.pierce.max(1) + self.kind_pierce(a),
             last: 0,
             art: a as u8,
             push: def.knockback,
@@ -561,6 +614,7 @@ impl Game {
             let (a, m, k, might) = (d.art as usize, d.mv as usize, d.k as usize, d.might);
             // A hit of an ultimate at its height lands at its height too.
             self.zenith = d.zen;
+            self.striking = d.art + 1;
             match MOVES[m].shape {
                 MS_ARC => self.arc_sweep(a, m, k, d.ax, d.ay, might),
                 MS_WAVE => self.wave(a, m, k, d.ax, d.ay, might),
@@ -569,6 +623,7 @@ impl Game {
                 _ => self.mark_strike(a, m, d.x, d.y, might),
             }
             self.zenith = 0;
+            self.striking = 0;
         }
     }
 

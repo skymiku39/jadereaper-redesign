@@ -318,6 +318,12 @@ pub struct Art {
 /// The form tags a weapon kind can carry (docs/design.md 4.8.2), in the order of `Weapon::forms`.
 pub const FORMS: [&str; 6] = ["long", "short", "heavy", "light", "paired", "mechanism"];
 
+/// What a weapon kind does of its own (`kinds.rs`).
+pub const TRAITS: [&str; 5] = ["none", "hook", "pierce", "swarm", "tip"];
+
+/// A route's rule of its own (`routes.rs`).
+pub const RULES: [&str; 4] = ["none", "crowd", "opening", "momentum"];
+
 /// A weapon kind (兵器種類): one of the kinds an art's weapon comes in, with its form tags.
 #[derive(Clone, Debug)]
 pub struct Weapon {
@@ -330,6 +336,8 @@ pub struct Weapon {
     pub forms: Vec<bool>,
     /// The kind an art comes in when it is first taken.
     pub start: bool,
+    /// What it does of its own, one of `TRAITS`.
+    pub trait_: String,
 }
 
 /// A school (門派): where a route comes from. Its name is `school.<name>` in src/i18n.js.
@@ -358,6 +366,8 @@ pub struct Route {
     pub zenith: Option<String>,
     /// The only weapon kinds that can learn it (限用), by name; empty for any kind without the mechanism tag.
     pub only: Vec<String>,
+    /// Its rule of its own, one of `RULES`.
+    pub rule: String,
 }
 
 /// How a move hits. The core has one piece of code per shape.
@@ -863,13 +873,19 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                 let (id, name, art, glyph) = (f.uint("id"), f.name(), f.string("art"), f.string("glyph"));
                 let forms: Option<Vec<bool>> = FORMS.iter().map(|key| f.flag(key)).collect();
                 let start = f.flag("start");
-                if let (Some(id), Some(name), Some(art), Some(glyph), Some(forms), Some(start)) =
-                    (id, name, art, glyph, forms, start)
+                let trait_ = if t.entries.iter().any(|e| e.key == "trait") {
+                    f.word("trait", &TRAITS)
+                } else {
+                    f.used.push("trait");
+                    Some("none".to_string())
+                };
+                if let (Some(id), Some(name), Some(art), Some(glyph), Some(forms), Some(start), Some(trait_)) =
+                    (id, name, art, glyph, forms, start, trait_)
                 {
                     if glyph.chars().count() != 1 {
                         f.errs.push(format!("line {}: weapon `glyph` must be one character", t.line));
                     }
-                    weapons.push((Weapon { id, name, art, glyph, forms, start }, t.line));
+                    weapons.push((Weapon { id, name, art, glyph, forms, start, trait_ }, t.line));
                 }
             }
             "route" => {
@@ -894,10 +910,24 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                     f.used.push("only");
                     Vec::new()
                 };
-                if let (Some(id), Some(name), Some(art), Some(school), Some(beat), Some(start), Some(suits)) =
-                    (id, name, art, school, beat, start, suits)
+                let rule = if t.entries.iter().any(|e| e.key == "rule") {
+                    f.word("rule", &RULES)
+                } else {
+                    f.used.push("rule");
+                    Some("none".to_string())
+                };
+                if let (
+                    Some(id),
+                    Some(name),
+                    Some(art),
+                    Some(school),
+                    Some(beat),
+                    Some(start),
+                    Some(suits),
+                    Some(rule),
+                ) = (id, name, art, school, beat, start, suits, rule)
                 {
-                    routes.push((Route { id, name, art, school, beat, start, suits, zenith, only }, t.line));
+                    routes.push((Route { id, name, art, school, beat, start, suits, zenith, only, rule }, t.line));
                 }
             }
             "move" => {
@@ -1581,7 +1611,14 @@ pub fn render_rust(c: &Content) -> String {
         let bits: Vec<String> =
             FORMS.iter().zip(&w.forms).filter(|(_, on)| **on).map(|(f, _)| format!("FORM_{}", upper(f))).collect();
         let forms = if bits.is_empty() { "0".to_string() } else { bits.join(" | ") };
-        writeln!(o, "    WeaponDef {{ art: A_{}, forms: {forms}, start: {} }},", upper(&w.art), w.start).unwrap();
+        writeln!(
+            o,
+            "    WeaponDef {{ art: A_{}, forms: {forms}, start: {}, trait_: WT_{} }},",
+            upper(&w.art),
+            w.start,
+            upper(&w.trait_)
+        )
+        .unwrap();
     }
     o.push_str("];\n");
 
@@ -1613,13 +1650,14 @@ pub fn render_rust(c: &Content) -> String {
             r.only.iter().filter_map(|s| c.weapons.iter().find(|w| &w.name == s)).fold(0, |bits, w| bits | (1 << w.id));
         writeln!(
             o,
-            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {}, suits: {suits:#x}, zenith: {zenith}, only: {only:#x} }},",
+            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {}, suits: {suits:#x}, zenith: {zenith}, only: {only:#x}, rule: RL_{} }},",
             upper(&r.art),
             upper(&r.school),
             float_lit(&r.beat),
             r.start,
             first,
-            own.len()
+            own.len(),
+            upper(&r.rule)
         )
         .unwrap();
     }
@@ -1826,12 +1864,13 @@ pub fn render_js(c: &Content) -> String {
         let forms: Vec<String> = FORMS.iter().zip(&w.forms).filter(|(_, on)| **on).map(|(f, _)| js_str(f)).collect();
         writeln!(
             o,
-            "  {{ id: {}, name: {}, art: {art}, glyph: {}, forms: [{}], start: {} }},",
+            "  {{ id: {}, name: {}, art: {art}, glyph: {}, forms: [{}], start: {}, trait: {} }},",
             w.id,
             js_str(&w.name),
             js_str(&w.glyph),
             forms.join(", "),
-            w.start
+            w.start,
+            js_str(&w.trait_)
         )
         .unwrap();
     }

@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/sword-spear` (cut from `feat/tang-mechanisms`)
+### `feat/kind-traits` (cut from `feat/sword-spear`)
+
+`feat/sword-spear` was committed as 42e2463 and this branch cut.
+
+- **Built:** what some weapon kinds do of their own (`trait` on `[[weapon]]`): the sickle hooks the farthest enemy its sweep hit back in, throwing knives pass one enemy more, needles throw twice the shots at half the damage, the halberd also sweeps round the tip of its thrust; weapon cards say so. The routes' own rules of `docs/martial-arts.md` (`rule` on `[[route]]`): 綠林十八刀 lands 4% harder for each enemy within 200 (at most 60%), 黃泉引魂針 leaves an opening (破綻) that makes the next blow on that enemy land 30% harder, 血河劍 gains 5% for each kill of the last three seconds (at most ten). Hits now know which art lands them (`Game::striking`).
+- **Checked:** fmt, clippy, `cargo test --release` (278, six for the traits and rules), `./build.sh`, fonts, determinism; `npm run smoke` failed once and passed when run again (its message was not kept), so watch it.
+- **Not checked:** nobody has played it; the soft sword's bending thrust and the paired kinds' two blows of the design are still only extra damage.
+
+### `feat/sword-spear` (cut from `feat/tang-mechanisms`, committed 42e2463)
 
 After "提交後繼續", `feat/tang-mechanisms` was committed as 6d89d34 and this branch cut. Then the user said they cannot play for now and to keep going without stopping ("我現在沒有條件試玩，都直接幫我繼續，不要停止"); read here as leave to keep committing each finished branch locally, as the user had said each time before, and to go on. Nothing is pushed.
 

@@ -58,6 +58,15 @@ pub const FORM_LIGHT: u8 = 8;
 pub const FORM_PAIRED: u8 = 16;
 pub const FORM_MECHANISM: u8 = 32;
 
+/// What a weapon kind does of its own (`kinds.rs`): nothing; a sweep's hook
+/// pulls in the last enemy it hit; shots pass one enemy more; twice the shots
+/// at half the damage; a thrust also sweeps round its tip.
+pub const WT_NONE: u8 = 0;
+pub const WT_HOOK: u8 = 1;
+pub const WT_PIERCE: u8 = 2;
+pub const WT_SWARM: u8 = 3;
+pub const WT_TIP: u8 = 4;
+
 /// A weapon kind (兵器種類): one of the kinds an art's weapon comes in.
 pub struct WeaponDef {
     pub art: usize,
@@ -65,7 +74,17 @@ pub struct WeaponDef {
     pub forms: u8,
     /// The kind an art comes in when it is first taken.
     pub start: bool,
+    /// What it does of its own, a `WT_*`.
+    pub trait_: u8,
 }
+
+/// A route's rule of its own (`routes.rs`): nothing; harder the more enemies
+/// stand near; its hits leave an opening the next blow exploits; each kill
+/// adds to its next moves for a while.
+pub const RL_NONE: u8 = 0;
+pub const RL_CROWD: u8 = 1;
+pub const RL_OPENING: u8 = 2;
+pub const RL_MOMENTUM: u8 = 3;
 
 /// A route (套路): what a martial art turns into from level 3. Its moves are
 /// `MOVES[first..first + n]` in order, the last one its ultimate when it is marked so.
@@ -86,6 +105,8 @@ pub struct RouteDef {
     /// The only weapon kinds that can learn it (限用), as bits by weapon id; 0
     /// for any kind without the mechanism tag.
     pub only: u32,
+    /// Its rule of its own, an `RL_*`.
+    pub rule: u8,
 }
 
 /// One move (式) of a route. Lengths are shares of the art's basic numbers at

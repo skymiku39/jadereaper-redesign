@@ -216,6 +216,11 @@ pub struct Game {
     pub cast_might: f32,
     /// The mechanisms set down by route moves (`turrets.rs`).
     pub turrets: Vec<turrets::Turret>,
+    /// The art whose hits are landing now, plus 1; 0 for none or not a route's (`routes.rs`).
+    pub striking: u8,
+    /// Kills of the last few seconds while a route with momentum is followed, and the seconds before they go.
+    pub momentum: u8,
+    pub momentum_left: f32,
     pub pending: u32,
     /// The log of what the player does, and a log being played back.
     pub replay: replay::Replay,
@@ -396,6 +401,9 @@ impl Game {
             bulwark: 0.0,
             cast_might: 1.0,
             turrets: Vec::with_capacity(turrets::MAX_TURRETS),
+            striking: 0,
+            momentum: 0,
+            momentum_left: 0.0,
             pending: 0,
             replay: replay::Replay::default(),
             kills: 0,
@@ -635,6 +643,7 @@ impl Game {
             mix(self.stolen);
             mix(self.manuals);
             mix(self.bulwark.to_bits());
+            mix(self.momentum as u32);
         }
         if self.decks_on() {
             mix(self.deck_pick as u32);
@@ -652,6 +661,9 @@ impl Game {
             mix(e.hp.to_bits());
             for left in &e.tags.left[1..] {
                 mix(left.to_bits());
+            }
+            if e.tags.opening {
+                mix(1);
             }
         }
         mix(self.shots.len() as u32);
@@ -742,6 +754,7 @@ impl Game {
         self.time += dt;
         self.walk(dt);
         self.inner_tick(dt);
+        self.tick_momentum(dt);
         // A walled field: the player cannot leave the circle around where the mission began.
         let wall = self.tune[T_ARENA_RADIUS];
         if wall > 0.0 {
@@ -1153,8 +1166,10 @@ impl Game {
                 self.shots[s].dmg *= 1.0 + self.shots[s].grow;
                 // A wave of an ultimate at its height lands at its height (`zenith.rs`).
                 self.zenith = self.shots[s].zen;
+                self.striking = self.shots[s].art + 1;
                 self.strike(i, dmg, vx * push, vy * push, element);
                 self.zenith = 0;
+                self.striking = 0;
             } else if self.formation_hit_shot(x, y, dmg) {
                 self.shots[s].pierce = 0;
             }
@@ -1187,6 +1202,7 @@ impl Game {
             if heart {
                 self.drop_gem(e.x + 14.0, e.y, 0.0, true);
             }
+            self.note_kill();
             // A disciple of a school falling teaches its stolen routes; a master drops a manual too.
             if k.school < N_SCHOOLS {
                 self.steal(k.school);
@@ -1975,3 +1991,7 @@ mod foe_tests;
 #[cfg(test)]
 #[path = "zenith_tests.rs"]
 mod zenith_tests;
+
+#[cfg(test)]
+#[path = "trait_tests.rs"]
+mod trait_tests;

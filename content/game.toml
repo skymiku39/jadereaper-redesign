@@ -745,7 +745,10 @@ knockback = 260
 #   heavy      10% more damage, 30% more knockback, a beat 10% slower
 #   light      a beat 10% quicker
 #   paired     20% more damage (two blades)
-#   mechanism  nothing yet (for the Tang mechanisms to come)
+#   mechanism  learns only the routes limited to it (`only` on [[route]])
+# A `trait` is what the kind does of its own: `hook` pulls in the last enemy a
+# sweep hits, `pierce` lets shots pass one enemy more, `swarm` throws twice the
+# shots at half the damage, `tip` sweeps round the tip of a thrust.
 # Names are `weapon.<name>` in src/i18n.js.
 
 [[weapon]]
@@ -781,6 +784,7 @@ art = "scythe"
 glyph = "鐮"
 short = true
 light = true
+trait = "hook"
 
 [[weapon]]
 id = 4
@@ -810,6 +814,7 @@ name = "feidao"
 art = "talisman"
 glyph = "飛"
 light = true
+trait = "pierce"
 
 [[weapon]]
 id = 8
@@ -817,6 +822,7 @@ name = "zhen"
 art = "talisman"
 glyph = "針"
 light = true
+trait = "swarm"
 
 [[weapon]]
 id = 9
@@ -906,6 +912,7 @@ art = "spear"
 glyph = "戟"
 long = true
 heavy = true
+trait = "tip"
 
 # -------------------------------------------------------------- schools
 # Schools (門派): where a route comes from (docs/martial-arts.md). Ids index a
@@ -1068,6 +1075,7 @@ school = "heifeng"
 beat = 0.9
 suits = "dadao dandao"
 zenith = "vitality"
+rule = "crowd"
 
 [[route]]
 id = 9
@@ -1086,6 +1094,7 @@ school = "jiuyou"
 beat = 0.6
 suits = "zhen"
 zenith = "wanfa"
+rule = "opening"
 
 [[route]]
 id = 11
@@ -1137,6 +1146,7 @@ school = "jiuyou"
 beat = 0.7
 suits = "changjian shuangjian"
 zenith = "vitality"
+rule = "momentum"
 
 # The spear's routes.
 [[route]]

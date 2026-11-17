@@ -531,7 +531,11 @@ export function createUI({ onAction }) {
           ['glyph', weapon.glyph],
           ['name', `${t(`quality.${quality}`)}${name}`],
           ['rank', rank],
-          ['desc', [forms, suits ? t('levelup.suits', { routes: suits }) : ''].filter(Boolean).join('\n')],
+          ['desc', [
+            forms,
+            weapon.trait && weapon.trait !== 'none' ? t(`trait.${weapon.trait}`) : '',
+            suits ? t('levelup.suits', { routes: suits }) : '',
+          ].filter(Boolean).join('\n')],
         ]);
         return [card];
       }
