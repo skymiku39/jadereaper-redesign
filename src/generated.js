@@ -59,6 +59,7 @@ export const KINDS = [
   { id: 12, name: 'bandit_master', heavy: true },
   { id: 13, name: 'constable_master', heavy: true },
   { id: 14, name: 'sect_master', heavy: false },
+  { id: 15, name: 'tang_disciple', heavy: false },
 ];
 
 /** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and
@@ -88,6 +89,8 @@ export const WEAPONS = [
   { id: 9, name: 'tushou', art: 3, glyph: '拳', forms: ['short', 'light'], start: true },
   { id: 10, name: 'hushou', art: 3, glyph: '護', forms: ['short', 'heavy'], start: false },
   { id: 11, name: 'zhaotao', art: 3, glyph: '爪', forms: ['short', 'light'], start: false },
+  { id: 12, name: 'xiujian', art: 1, glyph: '袖', forms: ['light', 'mechanism'], start: false },
+  { id: 13, name: 'jiguanxia', art: 1, glyph: '匣', forms: ['heavy', 'mechanism'], start: false },
 ];
 
 /** Schools (門派), indexed by id. Names are in src/i18n.js as school.<name>. */
@@ -106,18 +109,19 @@ export const SCHOOLS = [
 /** Routes (套路), indexed by id. `art` is the art id that learns it; `moves` its move ids in
  * order, the last one the ultimate when `ultimate` is set. Text is route.<name>.name and .desc. */
 export const ROUTES = [
-  { id: 0, name: 'bengyue', art: 0, school: 0, beat: 1.0, start: true, moves: [0, 1, 2, 3], ultimate: true, suits: [2], zenith: 7 },
-  { id: 1, name: 'jinghong', art: 0, school: 1, beat: 0.5, start: true, moves: [4, 5, 6, 7, 8, 9], ultimate: true, suits: [0, 1], zenith: 8 },
-  { id: 2, name: 'poyu', art: 2, school: 1, beat: 1.0, start: true, moves: [10, 11, 12, 13], ultimate: true, suits: [5], zenith: 10 },
-  { id: 3, name: 'fanjiang', art: 2, school: 2, beat: 1.1, start: true, moves: [14, 15, 16, 17, 18], ultimate: true, suits: [5], zenith: 11 },
-  { id: 4, name: 'ershiba', art: 1, school: 3, beat: 0.95, start: true, moves: [19, 20, 21, 22, 23], ultimate: true, suits: [6, 7], zenith: 5 },
-  { id: 5, name: 'chuanyang', art: 1, school: 1, beat: 1.3, start: true, moves: [24, 25, 26, 27], ultimate: true, suits: [7, 6], zenith: 9 },
-  { id: 6, name: 'muguchenzhong', art: 3, school: 4, beat: 2.2, start: true, moves: [28, 29, 30, 31], ultimate: true, suits: [9, 10], zenith: 7 },
-  { id: 7, name: 'zhuoyu', art: 3, school: 5, beat: 0.5, start: true, moves: [32, 33, 34, 35, 36], ultimate: true, suits: [9], zenith: 8 },
-  { id: 8, name: 'lulin', art: 0, school: 6, beat: 0.9, start: false, moves: [37, 38, 39], ultimate: true, suits: [2, 0], zenith: 4 },
-  { id: 9, name: 'shuihuo', art: 2, school: 7, beat: 1.2, start: false, moves: [40, 41, 42, 43, 44], ultimate: true, suits: [4], zenith: 6 },
-  { id: 10, name: 'yinhun', art: 1, school: 8, beat: 0.6, start: false, moves: [45, 46, 47, 48], ultimate: true, suits: [8], zenith: 12 },
-  { id: 11, name: 'shesou', art: 3, school: 8, beat: 1.6, start: false, moves: [49, 50, 51], ultimate: true, suits: [11], zenith: 6 },
+  { id: 0, name: 'bengyue', art: 0, school: 0, beat: 1.0, start: true, moves: [0, 1, 2, 3], ultimate: true, suits: [2], zenith: 7, only: [] },
+  { id: 1, name: 'jinghong', art: 0, school: 1, beat: 0.5, start: true, moves: [4, 5, 6, 7, 8, 9], ultimate: true, suits: [0, 1], zenith: 8, only: [] },
+  { id: 2, name: 'poyu', art: 2, school: 1, beat: 1.0, start: true, moves: [10, 11, 12, 13], ultimate: true, suits: [5], zenith: 10, only: [] },
+  { id: 3, name: 'fanjiang', art: 2, school: 2, beat: 1.1, start: true, moves: [14, 15, 16, 17, 18], ultimate: true, suits: [5], zenith: 11, only: [] },
+  { id: 4, name: 'ershiba', art: 1, school: 3, beat: 0.95, start: true, moves: [19, 20, 21, 22, 23], ultimate: true, suits: [6, 7], zenith: 5, only: [] },
+  { id: 5, name: 'chuanyang', art: 1, school: 1, beat: 1.3, start: true, moves: [24, 25, 26, 27], ultimate: true, suits: [7, 6], zenith: 9, only: [] },
+  { id: 6, name: 'muguchenzhong', art: 3, school: 4, beat: 2.2, start: true, moves: [28, 29, 30, 31], ultimate: true, suits: [9, 10], zenith: 7, only: [] },
+  { id: 7, name: 'zhuoyu', art: 3, school: 5, beat: 0.5, start: true, moves: [32, 33, 34, 35, 36], ultimate: true, suits: [9], zenith: 8, only: [] },
+  { id: 8, name: 'lulin', art: 0, school: 6, beat: 0.9, start: false, moves: [37, 38, 39], ultimate: true, suits: [2, 0], zenith: 4, only: [] },
+  { id: 9, name: 'shuihuo', art: 2, school: 7, beat: 1.2, start: false, moves: [40, 41, 42, 43, 44], ultimate: true, suits: [4], zenith: 6, only: [] },
+  { id: 10, name: 'yinhun', art: 1, school: 8, beat: 0.6, start: false, moves: [45, 46, 47, 48], ultimate: true, suits: [8], zenith: 12, only: [] },
+  { id: 11, name: 'shesou', art: 3, school: 8, beat: 1.6, start: false, moves: [49, 50, 51], ultimate: true, suits: [11], zenith: 6, only: [] },
+  { id: 12, name: 'jiuji', art: 1, school: 3, beat: 1.5, start: false, moves: [52, 53, 54, 55, 56], ultimate: true, suits: [13], zenith: 5, only: [12, 13] },
 ];
 
 /** Moves (式), indexed by id. Text is move.<name>.name and .desc. */
@@ -174,6 +178,11 @@ export const MOVES = [
   { id: 49, name: 'gouhun', route: 11, ultimate: false, stop: false },
   { id: 50, name: 'poguan', route: 11, ultimate: false, stop: false },
   { id: 51, name: 'wangui', route: 11, ultimate: true, stop: true },
+  { id: 52, name: 'gongshu', route: 12, ultimate: false, stop: false },
+  { id: 53, name: 'jiugong', route: 12, ultimate: false, stop: false },
+  { id: 54, name: 'muniu', route: 12, ultimate: false, stop: false },
+  { id: 55, name: 'wannu', route: 12, ultimate: false, stop: false },
+  { id: 56, name: 'tianluo', route: 12, ultimate: true, stop: true },
 ];
 
 /** Magic elements. Ids start at 1 (0 means no element), so element `id` is ELEMENTS[id - 1].

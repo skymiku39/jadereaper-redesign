@@ -8,7 +8,16 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/zenith` (cut from `feat/martial-record`, uncommitted)
+### `feat/tang-mechanisms` (cut from `feat/zenith`, uncommitted)
+
+After "提交後繼續", `feat/zenith` was committed as d19f479 (not pushed) and this branch cut. The user had asked for the Tang clan's hidden weapons or mechanisms ("唐門暗器也要安排上，或者是機關").
+
+- **Built:** two mechanism kinds of the talisman (袖箭, 機關匣, form tag `mechanism`); `only` on `[[route]]` (限用): a limited route is learned only by those kinds, and a mechanism learns nothing else; a mechanism is only drawn once such a route is known, and an art on a route only changes to a kind that can learn it. The route 唐門九機匣 (stolen from a new `tang_disciple`), its five moves of a new `turret` shape (`core/src/turrets.rs`): a wooden bird circling the player and shooting (公輸木鵲), a mechanism set down (九攻九距), one that follows (木牛流馬), one that bursts into twelve shots when it ends (萬弩齊發), and a ring of eight (天羅地網, the ultimate); at most eight at once, each shooting the nearest enemy within 420. The generator allows a fourth route per art when it is limited.
+- **Decided here, not by the user:** every number; the net of 天羅地網 does not slow enemies; mechanisms are drawn as the talisman's paper part; the mechanism kinds' basic move is the talisman's.
+- **Checked:** fmt, clippy, `cargo test --release` (270, with tests for the limit and for mechanisms shooting, ending and the cap), `./build.sh`, fonts, determinism, smoke.
+- **Not checked:** nobody has played it and no browser run used the route: `jr_give` takes an art's first route, which for the talisman is not this one.
+
+### `feat/zenith` (cut from `feat/martial-record`, committed d19f479)
 
 After "提交後繼續", `feat/martial-record` was committed as 94d0a10 (not pushed) and this branch cut.
 

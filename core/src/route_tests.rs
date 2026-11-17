@@ -161,6 +161,7 @@ fn a_route_uses_its_moves_in_turn_and_they_land() {
             for _ in 0..60 {
                 g.move_shots(TICK);
                 g.tick_delayed(TICK);
+                g.tick_turrets(TICK);
             }
             if m != BASIC {
                 assert!(
@@ -210,7 +211,12 @@ fn a_stolen_route_is_offered_once_a_disciple_of_its_school_falls() {
 
 #[test]
 fn a_stolen_route_opens_one_more_move_per_manual() {
-    let r = (0..N_ROUTES).filter(|&r| !ROUTES[r].start).max_by_key(|&r| ROUTES[r].n).unwrap();
+    // The longest stolen route whose school has a master to drop its manuals.
+    let has_master = |s: usize| (0..N_KINDS).any(|k| KINDS[k].school == s && KINDS[k].manual);
+    let r = (0..N_ROUTES)
+        .filter(|&r| !ROUTES[r].start && has_master(ROUTES[r].school))
+        .max_by_key(|&r| ROUTES[r].n)
+        .unwrap();
     let (a, s, n) = (ROUTES[r].art, ROUTES[r].school, ROUTES[r].n);
     let mut g = base();
     g.stolen |= 1 << r;
@@ -236,6 +242,53 @@ fn a_stolen_route_opens_one_more_move_per_manual() {
     later.tune[T_MANUALS] = g.manuals as f32;
     later.start(M_ENDLESS);
     assert_eq!(later.moves_open(r), n);
+}
+
+#[test]
+fn a_route_limited_to_mechanisms_is_only_for_mechanisms() {
+    let r = (0..N_ROUTES).find(|&r| ROUTES[r].only != 0).expect("a limited route");
+    let a = ROUTES[r].art;
+    let mechanism = (0..N_WEAPONS).find(|&w| ROUTES[r].only & (1 << w) != 0).unwrap();
+    let plain = (0..N_WEAPONS).find(|&w| WEAPONS[w].art == a && WEAPONS[w].forms & FORM_MECHANISM == 0).unwrap();
+    let mut g = base();
+    g.stolen = u32::MAX;
+    g.up[ARTS[a].upgrade] = 2;
+    g.arts[a].kind = plain as u8 + 1;
+    assert!(!g.routes_of(a).any(|x| x == r), "a plain kind does not learn it");
+    g.arts[a].kind = mechanism as u8 + 1;
+    let open: Vec<usize> = g.routes_of(a).collect();
+    assert_eq!(open, vec![r], "a mechanism learns only it");
+    // A mechanism is only drawn once the route is known.
+    g.stolen = 0;
+    g.arts[a].kind = plain as u8 + 1;
+    assert!(!g.weapon_offerable(mechanism));
+    g.stolen = 1 << r;
+    assert!(g.weapon_offerable(mechanism));
+}
+
+#[test]
+fn mechanisms_shoot_by_themselves_and_end() {
+    let r = (0..N_ROUTES).find(|&r| ROUTES[r].only != 0).unwrap();
+    let a = ROUTES[r].art;
+    let m = ROUTES[r].first + 1;
+    let mut g = base();
+    let e = put(&mut g, 200.0, 0.0);
+    g.set_turrets(a, m, 1.0);
+    assert_eq!(g.turrets.len(), MOVES[m].count.max(1));
+    for _ in 0..(1.0 / TICK) as u32 {
+        g.tick_turrets(TICK);
+        g.move_shots(TICK);
+    }
+    assert!(g.enemies[e].hp < 100_000.0, "the mechanism shot the enemy");
+    for _ in 0..((MOVES[m].life + 1.0) / TICK) as u32 {
+        g.tick_turrets(TICK);
+    }
+    assert!(g.turrets.is_empty(), "it ends after its life");
+    // No more than the most at once.
+    for _ in 0..20 {
+        g.set_turrets(a, m, 1.0);
+    }
+    assert_eq!(g.turrets.len(), turrets::MAX_TURRETS);
 }
 
 #[test]

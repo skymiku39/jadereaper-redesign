@@ -214,6 +214,8 @@ pub struct Game {
     pub bulwark: f32,
     /// The damage factor of the route move being used, for its later hits.
     pub cast_might: f32,
+    /// The mechanisms set down by route moves (`turrets.rs`).
+    pub turrets: Vec<turrets::Turret>,
     pub pending: u32,
     /// The log of what the player does, and a log being played back.
     pub replay: replay::Replay,
@@ -393,6 +395,7 @@ impl Game {
             zenith: 0,
             bulwark: 0.0,
             cast_might: 1.0,
+            turrets: Vec::with_capacity(turrets::MAX_TURRETS),
             pending: 0,
             replay: replay::Replay::default(),
             kills: 0,
@@ -626,6 +629,7 @@ impl Game {
         mix(self.attach as u32);
         self.routes_hash(&mut mix);
         self.foes_hash(&mut mix);
+        self.turrets_hash(&mut mix);
         if self.inner_on() {
             self.inner.mix(&mut mix);
             mix(self.stolen);
@@ -780,6 +784,7 @@ impl Game {
         self.separate();
         self.move_shots(dt);
         self.tick_delayed(dt);
+        self.tick_turrets(dt);
         self.land_splash();
         self.tick_tags(dt);
         self.reap();
@@ -1627,6 +1632,7 @@ impl Game {
 
         // Things in the air.
         self.draw_arts();
+        self.draw_turrets();
         self.boss_draw_air();
         for i in 0..self.fx.len() {
             if self.fx[i].top {
@@ -1937,6 +1943,8 @@ mod mission_vendetta;
 pub mod replay;
 #[path = "routes.rs"]
 pub mod routes;
+#[path = "turrets.rs"]
+pub mod turrets;
 #[path = "zenith.rs"]
 pub mod zenith;
 

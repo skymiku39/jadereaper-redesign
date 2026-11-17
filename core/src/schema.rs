@@ -41,6 +41,8 @@ pub const MS_WAVE: u8 = 1;
 pub const MS_MARKS: u8 = 2;
 /// Rings of force, like the basic nova, around the player or ahead of him.
 pub const MS_RING: u8 = 3;
+/// Mechanisms set down that shoot by themselves for a while (`turrets.rs`).
+pub const MS_TURRET: u8 = 4;
 
 /// Form tags of a weapon kind, as bits (docs/design.md 4.8.2). `kinds.rs` says what each does.
 pub const FORM_LONG: u8 = 1;
@@ -75,6 +77,9 @@ pub struct RouteDef {
     /// The inner art (an upgrade id) its ultimate needs to reach its height
     /// (極致, `zenith.rs`); `N_UPGRADES` for none.
     pub zenith: usize,
+    /// The only weapon kinds that can learn it (限用), as bits by weapon id; 0
+    /// for any kind without the mechanism tag.
+    pub only: u32,
 }
 
 /// One move (式) of a route. Lengths are shares of the art's basic numbers at

@@ -354,10 +354,12 @@ pub struct Route {
     pub suits: Vec<String>,
     /// The inner art (a passive upgrade, by name) its ultimate needs to reach its height (極致).
     pub zenith: Option<String>,
+    /// The only weapon kinds that can learn it (限用), by name; empty for any kind without the mechanism tag.
+    pub only: Vec<String>,
 }
 
 /// How a move hits. The core has one piece of code per shape.
-pub const MOVE_SHAPES: [&str; 4] = ["arc", "wave", "marks", "ring"];
+pub const MOVE_SHAPES: [&str; 5] = ["arc", "wave", "marks", "ring", "turret"];
 
 /// The optional numbers of a move, in the order of `Move::numbers`. Each defaults to 0.
 pub const MOVE_KEYS: [&str; 14] = [
@@ -881,10 +883,16 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                     f.used.push("zenith");
                     None
                 };
+                let only: Vec<String> = if t.entries.iter().any(|e| e.key == "only") {
+                    f.string("only").map_or(Vec::new(), |s| s.split_whitespace().map(str::to_string).collect())
+                } else {
+                    f.used.push("only");
+                    Vec::new()
+                };
                 if let (Some(id), Some(name), Some(art), Some(school), Some(beat), Some(start), Some(suits)) =
                     (id, name, art, school, beat, start, suits)
                 {
-                    routes.push((Route { id, name, art, school, beat, start, suits, zenith }, t.line));
+                    routes.push((Route { id, name, art, school, beat, start, suits, zenith, only }, t.line));
                 }
             }
             "move" => {
@@ -1234,7 +1242,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                 ));
             }
         }
-        for s in &r.suits {
+        for s in r.suits.iter().chain(&r.only) {
             match weapons.iter().find(|(w, _)| &w.name == s) {
                 None => errs.push(format!("line {line}: route `{}` suits weapon `{s}`, which is not defined", r.name)),
                 Some((w, _)) if w.art != r.art => errs.push(format!(
@@ -1251,9 +1259,10 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         }
     }
     for (a, _, line) in &arts {
-        let n = routes.iter().filter(|(r, _)| r.art == a.name).count();
+        // Three for the ordinary kinds, and one more limited to some kinds (限用).
+        let n = routes.iter().filter(|(r, _)| r.art == a.name && r.only.is_empty()).count();
         if n > 3 {
-            errs.push(format!("line {line}: art `{}` has {n} routes, at most 3", a.name));
+            errs.push(format!("line {line}: art `{}` has {n} routes for any kind, at most 3", a.name));
         }
     }
 
@@ -1594,9 +1603,11 @@ pub fn render_rust(c: &Content) -> String {
             .filter_map(|s| c.weapons.iter().find(|w| &w.name == s))
             .fold(0, |bits, w| bits | (1 << w.id));
         let zenith = r.zenith.as_ref().map_or("N_UPGRADES".to_string(), |z| format!("U_{}", upper(z)));
+        let only: u32 =
+            r.only.iter().filter_map(|s| c.weapons.iter().find(|w| &w.name == s)).fold(0, |bits, w| bits | (1 << w.id));
         writeln!(
             o,
-            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {}, suits: {suits:#x}, zenith: {zenith} }},",
+            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {}, suits: {suits:#x}, zenith: {zenith}, only: {only:#x} }},",
             upper(&r.art),
             upper(&r.school),
             float_lit(&r.beat),
@@ -1840,14 +1851,20 @@ pub fn render_js(c: &Content) -> String {
             r.suits.iter().filter_map(|s| c.weapons.iter().find(|w| &w.name == s)).map(|w| w.id.to_string()).collect();
         writeln!(
             o,
-            "  {{ id: {}, name: {}, art: {art}, school: {school}, beat: {}, start: {}, moves: [{}], ultimate: {ultimate}, suits: [{}], zenith: {} }},",
+            "  {{ id: {}, name: {}, art: {art}, school: {school}, beat: {}, start: {}, moves: [{}], ultimate: {ultimate}, suits: [{}], zenith: {}, only: [{}] }},",
             r.id,
             js_str(&r.name),
             r.beat,
             r.start,
             ids.join(", "),
             suits.join(", "),
-            r.zenith.as_ref().and_then(|z| c.upgrades.iter().find(|u| &u.name == z)).map_or(-1, |u| u.id as i64)
+            r.zenith.as_ref().and_then(|z| c.upgrades.iter().find(|u| &u.name == z)).map_or(-1, |u| u.id as i64),
+            r.only
+                .iter()
+                .filter_map(|s| c.weapons.iter().find(|w| &w.name == s))
+                .map(|w| w.id.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
         )
         .unwrap();
     }

@@ -55,7 +55,24 @@ impl Game {
     /// known from the start and the stolen ones learned so far.
     pub(crate) fn routes_of(&self, a: usize) -> impl Iterator<Item = usize> {
         let stolen = self.stolen;
-        (0..N_ROUTES).filter(move |&r| ROUTES[r].art == a && (ROUTES[r].start || stolen & (1 << r) != 0)).take(3)
+        let kind = self.kind_of(a);
+        (0..N_ROUTES)
+            .filter(move |&r| {
+                let def = &ROUTES[r];
+                def.art == a && (def.start || stolen & (1 << r) != 0) && Self::kind_fits(kind, r)
+            })
+            .take(3)
+    }
+
+    /// Whether an art of weapon kind `kind` can learn route `r`: a route limited
+    /// to some kinds (限用) only by those, any other by any kind but a mechanism.
+    pub(crate) fn kind_fits(kind: Option<usize>, r: usize) -> bool {
+        let only = ROUTES[r].only;
+        match kind {
+            Some(w) if only != 0 => only & (1 << w) != 0,
+            Some(w) => WEAPONS[w].forms & FORM_MECHANISM == 0,
+            None => only == 0,
+        }
     }
 
     /// How many manuals (秘笈) route `r` has: moves opened beyond the second, 0 to 3.
@@ -277,6 +294,10 @@ impl Game {
                         self.wave(a, m, k, ax, ay, might);
                     }
                 }
+                self.event(EV_SHOOT, px, py, 0.0);
+            }
+            MS_TURRET => {
+                self.set_turrets(a, m, might);
                 self.event(EV_SHOOT, px, py, 0.0);
             }
             MS_RING => {

@@ -556,6 +556,25 @@ school = "jiuyou"
 strike = "wangui"
 manual = true
 
+# A Tang clan disciple, who throws from afar; felling one teaches the clan's
+# mechanism route (唐門九機匣).
+[[enemy]]
+id = 15
+name = "tang_disciple"
+part = "wisp"
+color = [0.30, 0.34, 0.30]
+hp = 16
+speed = 92
+radius = 12
+damage = 5
+xp = 2
+half_width = 22
+half_height = 13
+pose_rate = 8
+hover = true
+tune = "school_share"
+school = "tangmen"
+
 # ------------------------------------------------------------------ arts
 # Martial arts (武學): how the player attacks. Each has one `behaviour`, which
 # is code in core/src/arts.rs, and the numbers below. A new art of an existing
@@ -743,6 +762,24 @@ glyph = "爪"
 short = true
 light = true
 
+# The Tang clan's mechanisms: hidden weapons that only learn the routes limited
+# to them (`only` on [[route]]), and only come once such a route is known.
+[[weapon]]
+id = 12
+name = "xiujian"
+art = "talisman"
+glyph = "袖"
+light = true
+mechanism = true
+
+[[weapon]]
+id = 13
+name = "jiguanxia"
+art = "talisman"
+glyph = "匣"
+heavy = true
+mechanism = true
+
 # -------------------------------------------------------------- schools
 # Schools (門派): where a route comes from (docs/martial-arts.md). Ids index a
 # table, so they run 0, 1, 2... without gaps. Names are `school.<name>` in
@@ -919,6 +956,18 @@ school = "jiuyou"
 beat = 1.6
 suits = "zhaotao"
 zenith = "lure"
+
+# 唐門九機匣: limited to the mechanisms (`only`), stolen from the Tang
+# clan's disciples. Its moves set down mechanisms that shoot by themselves.
+[[route]]
+id = 12
+name = "jiuji"
+art = "talisman"
+school = "tangmen"
+beat = 1.5
+suits = "jiguanxia"
+zenith = "swift"
+only = "xiujian jiguanxia"
 
 # ---------------------------------------------------------------- moves
 # Moves (式) of the routes above. A route's moves have ids that follow each
@@ -1598,6 +1647,77 @@ count = 2
 delay = 0.6
 grow = -0.8
 knockback = -2.0
+ultimate = true
+stop = true
+
+# 唐門九機匣: mechanisms that shoot by themselves (core/src/turrets.rs).
+#   turret  `count` mechanisms: at the player, in a ring `offset × 100` round
+#           him, or circling him at radius `width`; each lives `life` s,
+#           shoots every `delay` s, follows with `seek = 1`, bursts into
+#           `split` shots when it ends
+[[move]]
+id = 52
+name = "gongshu"
+route = "jiuji"
+shape = "turret"
+power = 0.6
+width = 120
+count = 1
+life = 6
+delay = 0.6
+speed = 620
+pierce = 1
+
+[[move]]
+id = 53
+name = "jiugong"
+route = "jiuji"
+shape = "turret"
+power = 0.45
+count = 1
+life = 4
+delay = 0.5
+speed = 620
+pierce = 1
+
+[[move]]
+id = 54
+name = "muniu"
+route = "jiuji"
+shape = "turret"
+power = 0.45
+count = 1
+life = 5
+delay = 0.5
+speed = 620
+pierce = 1
+seek = 1
+
+[[move]]
+id = 55
+name = "wannu"
+route = "jiuji"
+shape = "turret"
+power = 0.45
+count = 1
+life = 4
+delay = 0.5
+speed = 620
+pierce = 1
+split = 12
+
+[[move]]
+id = 56
+name = "tianluo"
+route = "jiuji"
+shape = "turret"
+power = 0.4
+offset = 1.6
+count = 8
+life = 3
+delay = 0.35
+speed = 640
+pierce = 2
 ultimate = true
 stop = true
 

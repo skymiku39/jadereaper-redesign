@@ -74,9 +74,10 @@ pub const K_CLAW_CRONE: u8 = 11;
 pub const K_BANDIT_MASTER: u8 = 12;
 pub const K_CONSTABLE_MASTER: u8 = 13;
 pub const K_SECT_MASTER: u8 = 14;
-pub const N_KINDS: usize = 15;
+pub const K_TANG_DISCIPLE: u8 = 15;
+pub const N_KINDS: usize = 16;
 #[rustfmt::skip]
-pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet", "bandit_chief", "constable_chief", "claw_crone", "bandit_master", "constable_master", "sect_master"];
+pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet", "bandit_chief", "constable_chief", "claw_crone", "bandit_master", "constable_master", "sect_master", "tang_disciple"];
 #[rustfmt::skip]
 pub const KINDS: [Kind; N_KINDS] = [
     Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES, manual: false },
@@ -94,6 +95,7 @@ pub const KINDS: [Kind; N_KINDS] = [
     Kind { hp: 1100.0, speed: 52.0, r: 40.0, dmg: 14.0, xp: 40.0, part: P_BRUTE, color: [0.42, 0.16, 0.08], hw: 48.0, hh: 48.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 240.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG, strike: MV_SHEDE, manual: true },
     Kind { hp: 1200.0, speed: 50.0, r: 40.0, dmg: 12.0, xp: 40.0, part: P_BRUTE, color: [0.10, 0.14, 0.32], hw: 48.0, hh: 48.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 300.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: MV_GUANMEN, manual: true },
     Kind { hp: 1000.0, speed: 64.0, r: 30.0, dmg: 12.0, xp: 40.0, part: P_WISP, color: [0.22, 0.30, 0.20], hw: 44.0, hh: 26.0, rate: 5.0, corpse: true, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 360.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: MV_WANGUI, manual: true },
+    Kind { hp: 16.0, speed: 92.0, r: 12.0, dmg: 5.0, xp: 2.0, part: P_WISP, color: [0.30, 0.34, 0.30], hw: 22.0, hh: 13.0, rate: 8.0, corpse: false, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_TANGMEN, strike: N_MOVES, manual: false },
 ];
 
 // Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.
@@ -155,9 +157,11 @@ pub const W_ZHEN: usize = 8;
 pub const W_TUSHOU: usize = 9;
 pub const W_HUSHOU: usize = 10;
 pub const W_ZHAOTAO: usize = 11;
-pub const N_WEAPONS: usize = 12;
+pub const W_XIUJIAN: usize = 12;
+pub const W_JIGUANXIA: usize = 13;
+pub const N_WEAPONS: usize = 14;
 #[rustfmt::skip]
-pub const WEAPON_NAMES: [&str; N_WEAPONS] = ["dandao", "shuangdao", "dadao", "lian", "qimeigun", "changgun", "biao", "feidao", "zhen", "tushou", "hushou", "zhaotao"];
+pub const WEAPON_NAMES: [&str; N_WEAPONS] = ["dandao", "shuangdao", "dadao", "lian", "qimeigun", "changgun", "biao", "feidao", "zhen", "tushou", "hushou", "zhaotao", "xiujian", "jiguanxia"];
 #[rustfmt::skip]
 pub const WEAPONS: [WeaponDef; N_WEAPONS] = [
     WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT, start: true },
@@ -172,6 +176,8 @@ pub const WEAPONS: [WeaponDef; N_WEAPONS] = [
     WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: true },
     WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_HEAVY, start: false },
     WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: false },
+    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT | FORM_MECHANISM, start: false },
+    WeaponDef { art: A_TALISMAN, forms: FORM_HEAVY | FORM_MECHANISM, start: false },
 ];
 
 // Schools (門派).
@@ -201,23 +207,25 @@ pub const RT_LULIN: usize = 8;
 pub const RT_SHUIHUO: usize = 9;
 pub const RT_YINHUN: usize = 10;
 pub const RT_SHESOU: usize = 11;
-pub const N_ROUTES: usize = 12;
+pub const RT_JIUJI: usize = 12;
+pub const N_ROUTES: usize = 13;
 #[rustfmt::skip]
-pub const ROUTE_NAMES: [&str; N_ROUTES] = ["bengyue", "jinghong", "poyu", "fanjiang", "ershiba", "chuanyang", "muguchenzhong", "zhuoyu", "lulin", "shuihuo", "yinhun", "shesou"];
+pub const ROUTE_NAMES: [&str; N_ROUTES] = ["bengyue", "jinghong", "poyu", "fanjiang", "ershiba", "chuanyang", "muguchenzhong", "zhuoyu", "lulin", "shuihuo", "yinhun", "shesou", "jiuji"];
 #[rustfmt::skip]
 pub const ROUTES: [RouteDef; N_ROUTES] = [
-    RouteDef { art: A_SCYTHE, school: SC_DUANYUE, beat: 1.0, start: true, first: 0, n: 4, suits: 0x4, zenith: U_MIGHT },
-    RouteDef { art: A_SCYTHE, school: SC_CHANGFENG, beat: 0.5, start: true, first: 4, n: 6, suits: 0x3, zenith: U_HASTE },
-    RouteDef { art: A_BEADS, school: SC_CHANGFENG, beat: 1.0, start: true, first: 10, n: 4, suits: 0x20, zenith: U_JIELI },
-    RouteDef { art: A_BEADS, school: SC_CAOBANG, beat: 1.1, start: true, first: 14, n: 5, suits: 0x20, zenith: U_QIGUAN },
-    RouteDef { art: A_TALISMAN, school: SC_TANGMEN, beat: 0.95, start: true, first: 19, n: 5, suits: 0xc0, zenith: U_SWIFT },
-    RouteDef { art: A_TALISMAN, school: SC_CHANGFENG, beat: 1.3, start: true, first: 24, n: 4, suits: 0xc0, zenith: U_MENDING },
-    RouteDef { art: A_PULSE, school: SC_XUANZHONG, beat: 2.2, start: true, first: 28, n: 4, suits: 0x600, zenith: U_MIGHT },
-    RouteDef { art: A_PULSE, school: SC_QIUSHUI, beat: 0.5, start: true, first: 32, n: 5, suits: 0x200, zenith: U_HASTE },
-    RouteDef { art: A_SCYTHE, school: SC_HEIFENG, beat: 0.9, start: false, first: 37, n: 3, suits: 0x5, zenith: U_VITALITY },
-    RouteDef { art: A_BEADS, school: SC_LIUSHANMEN, beat: 1.2, start: false, first: 40, n: 5, suits: 0x10, zenith: U_LURE },
-    RouteDef { art: A_TALISMAN, school: SC_JIUYOU, beat: 0.6, start: false, first: 45, n: 4, suits: 0x100, zenith: U_WANFA },
-    RouteDef { art: A_PULSE, school: SC_JIUYOU, beat: 1.6, start: false, first: 49, n: 3, suits: 0x800, zenith: U_LURE },
+    RouteDef { art: A_SCYTHE, school: SC_DUANYUE, beat: 1.0, start: true, first: 0, n: 4, suits: 0x4, zenith: U_MIGHT, only: 0x0 },
+    RouteDef { art: A_SCYTHE, school: SC_CHANGFENG, beat: 0.5, start: true, first: 4, n: 6, suits: 0x3, zenith: U_HASTE, only: 0x0 },
+    RouteDef { art: A_BEADS, school: SC_CHANGFENG, beat: 1.0, start: true, first: 10, n: 4, suits: 0x20, zenith: U_JIELI, only: 0x0 },
+    RouteDef { art: A_BEADS, school: SC_CAOBANG, beat: 1.1, start: true, first: 14, n: 5, suits: 0x20, zenith: U_QIGUAN, only: 0x0 },
+    RouteDef { art: A_TALISMAN, school: SC_TANGMEN, beat: 0.95, start: true, first: 19, n: 5, suits: 0xc0, zenith: U_SWIFT, only: 0x0 },
+    RouteDef { art: A_TALISMAN, school: SC_CHANGFENG, beat: 1.3, start: true, first: 24, n: 4, suits: 0xc0, zenith: U_MENDING, only: 0x0 },
+    RouteDef { art: A_PULSE, school: SC_XUANZHONG, beat: 2.2, start: true, first: 28, n: 4, suits: 0x600, zenith: U_MIGHT, only: 0x0 },
+    RouteDef { art: A_PULSE, school: SC_QIUSHUI, beat: 0.5, start: true, first: 32, n: 5, suits: 0x200, zenith: U_HASTE, only: 0x0 },
+    RouteDef { art: A_SCYTHE, school: SC_HEIFENG, beat: 0.9, start: false, first: 37, n: 3, suits: 0x5, zenith: U_VITALITY, only: 0x0 },
+    RouteDef { art: A_BEADS, school: SC_LIUSHANMEN, beat: 1.2, start: false, first: 40, n: 5, suits: 0x10, zenith: U_LURE, only: 0x0 },
+    RouteDef { art: A_TALISMAN, school: SC_JIUYOU, beat: 0.6, start: false, first: 45, n: 4, suits: 0x100, zenith: U_WANFA, only: 0x0 },
+    RouteDef { art: A_PULSE, school: SC_JIUYOU, beat: 1.6, start: false, first: 49, n: 3, suits: 0x800, zenith: U_LURE, only: 0x0 },
+    RouteDef { art: A_TALISMAN, school: SC_TANGMEN, beat: 1.5, start: false, first: 52, n: 5, suits: 0x2000, zenith: U_SWIFT, only: 0x3000 },
 ];
 pub const MV_HENGYUN: usize = 0;
 pub const MV_HUISHOU: usize = 1;
@@ -271,9 +279,14 @@ pub const MV_SHIDIAN: usize = 48;
 pub const MV_GOUHUN: usize = 49;
 pub const MV_POGUAN: usize = 50;
 pub const MV_WANGUI: usize = 51;
-pub const N_MOVES: usize = 52;
+pub const MV_GONGSHU: usize = 52;
+pub const MV_JIUGONG: usize = 53;
+pub const MV_MUNIU: usize = 54;
+pub const MV_WANNU: usize = 55;
+pub const MV_TIANLUO: usize = 56;
+pub const N_MOVES: usize = 57;
 #[rustfmt::skip]
-pub const MOVE_NAMES: [&str; N_MOVES] = ["hengyun", "huishou", "wanren", "wuyue", "yipie", "pianruo", "shuangyan", "hongfei", "xueni", "zhaoying", "shouwei", "fengjuan", "luoye", "bafang", "chaosheng", "jingtao", "nishui", "dajiang", "changhe", "sanxing", "wuxing", "qixing", "xingluo", "zhoutian", "moshi", "sanjian", "shuangdiao", "houyi", "chenzhong", "yuyin", "geshan", "hongzhong", "qiecuo", "zhuomo", "tashan", "yushi", "ningwei", "menghu", "kaitang", "shede", "qianyang", "yuqin", "shengdong", "dacao", "guanmen", "huangquan", "guimen", "yanwang", "shidian", "gouhun", "poguan", "wangui"];
+pub const MOVE_NAMES: [&str; N_MOVES] = ["hengyun", "huishou", "wanren", "wuyue", "yipie", "pianruo", "shuangyan", "hongfei", "xueni", "zhaoying", "shouwei", "fengjuan", "luoye", "bafang", "chaosheng", "jingtao", "nishui", "dajiang", "changhe", "sanxing", "wuxing", "qixing", "xingluo", "zhoutian", "moshi", "sanjian", "shuangdiao", "houyi", "chenzhong", "yuyin", "geshan", "hongzhong", "qiecuo", "zhuomo", "tashan", "yushi", "ningwei", "menghu", "kaitang", "shede", "qianyang", "yuqin", "shengdong", "dacao", "guanmen", "huangquan", "guimen", "yanwang", "shidian", "gouhun", "poguan", "wangui", "gongshu", "jiugong", "muniu", "wannu", "tianluo"];
 #[rustfmt::skip]
 pub const MOVES: [MoveDef; N_MOVES] = [
     MoveDef { route: 0, shape: MS_ARC, power: 1.3, reach: 1.0, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
@@ -328,6 +341,11 @@ pub const MOVES: [MoveDef; N_MOVES] = [
     MoveDef { route: 11, shape: MS_RING, power: 0.5, reach: 1.25, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: -1.2, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
     MoveDef { route: 11, shape: MS_RING, power: 1.5, reach: 1.25, width: 0.0, count: 2, spread: 0.0, delay: 0.3, knockback: -0.6, pierce: 0, speed: 0.0, life: 0.0, grow: -0.6, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
     MoveDef { route: 11, shape: MS_RING, power: 3.0, reach: 3.0, width: 0.0, count: 2, spread: 0.0, delay: 0.6, knockback: -2.0, pierce: 0, speed: 0.0, life: 0.0, grow: -0.8, offset: 0.0, seek: 0, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 12, shape: MS_TURRET, power: 0.6, reach: 0.0, width: 120.0, count: 1, spread: 0.0, delay: 0.6, knockback: 0.0, pierce: 1, speed: 620.0, life: 6.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 12, shape: MS_TURRET, power: 0.45, reach: 0.0, width: 0.0, count: 1, spread: 0.0, delay: 0.5, knockback: 0.0, pierce: 1, speed: 620.0, life: 4.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 12, shape: MS_TURRET, power: 0.45, reach: 0.0, width: 0.0, count: 1, spread: 0.0, delay: 0.5, knockback: 0.0, pierce: 1, speed: 620.0, life: 5.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 12, shape: MS_TURRET, power: 0.45, reach: 0.0, width: 0.0, count: 1, spread: 0.0, delay: 0.5, knockback: 0.0, pierce: 1, speed: 620.0, life: 4.0, grow: 0.0, offset: 0.0, seek: 0, split: 12, ultimate: false, stop: false },
+    MoveDef { route: 12, shape: MS_TURRET, power: 0.4, reach: 0.0, width: 0.0, count: 8, spread: 0.0, delay: 0.35, knockback: 0.0, pierce: 2, speed: 640.0, life: 3.0, grow: 0.0, offset: 1.6, seek: 0, split: 0, ultimate: true, stop: true },
 ];
 
 // Magic elements. Id 0 means no element; `ELEMENTS[0]` is that empty entry.

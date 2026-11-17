@@ -126,9 +126,22 @@ impl Game {
     /// is while it is not yet a famous blade.
     pub(crate) fn weapon_offerable(&self, w: usize) -> bool {
         let a = WEAPONS[w].art;
+        // A mechanism only comes once a route it can learn is known.
+        if WEAPONS[w].forms & FORM_MECHANISM != 0 {
+            let known = (0..N_ROUTES).any(|r| {
+                let def = &ROUTES[r];
+                def.art == a && (def.start || self.stolen & (1 << r) != 0) && Self::kind_fits(Some(w), r)
+            });
+            if !known {
+                return false;
+            }
+        }
         let level = self.art_level(a);
         if level == 0 {
             self.arts_held() < MAX_ARTS && self.offerable_art(a)
+        } else if let Some(r) = self.route_of(a) {
+            // An art on a route only changes to a kind that can learn that route.
+            Self::kind_fits(Some(w), r) && (self.kind_of(a) != Some(w) || self.arts[a].quality < FAMOUS)
         } else {
             self.kind_of(a) != Some(w) || self.arts[a].quality < FAMOUS
         }
