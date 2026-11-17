@@ -74,6 +74,7 @@
       <div class="buttons">
         <!-- One button per mission, built by ui.js from the generated mission list. -->
         <div class="buttons missions" id="missions"></div>
+        <button data-action="record" data-i18n="title.record">Martial record</button>
         <button data-action="settings" data-i18n="title.settings">Settings</button>
       </div>
       <p class="records" id="records"></p>
@@ -94,6 +95,17 @@
       <div class="buttons">
         <button data-action="tune-reset" data-i18n="setup.reset">Back to defaults</button>
         <button data-action="quit" data-i18n="settings.back">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- The martial record (武學錄, docs/design.md 4.12): every route by weapon, the moves learned with their lines. -->
+  <section class="screen" id="record" hidden>
+    <div class="sheet record-sheet">
+      <h2 data-i18n="record.title">Martial record</h2>
+      <div class="record-body" id="recordBody"></div>
+      <div class="buttons">
+        <button data-action="record-back" data-i18n="settings.back">Back</button>
       </div>
     </div>
   </section>

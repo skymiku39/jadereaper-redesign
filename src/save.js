@@ -27,6 +27,8 @@ const DEFAULTS = {
   stolen: 0,
   // The manuals (秘笈) gained, two bits per route id; kept from run to run.
   manuals: 0,
+  // The ids of the route moves ever used: what the martial record (武學錄) shows.
+  learned: [],
 };
 
 export function loadSave() {
@@ -38,9 +40,10 @@ export function loadSave() {
     const plain = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {});
     save.missions = plain(save.missions);
     save.tuning = plain(save.tuning);
+    save.learned = Array.isArray(save.learned) ? save.learned.filter((id) => Number.isInteger(id)) : [];
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {}, tuning: {} };
+    return { ...DEFAULTS, missions: {}, tuning: {}, learned: [] };
   }
 }
 

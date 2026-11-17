@@ -4,7 +4,7 @@ import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['title', 'setup', 'settings', 'levelup', 'pause', 'over', 'won', 'error'];
+const SCREENS = ['title', 'setup', 'settings', 'record', 'levelup', 'pause', 'over', 'won', 'error'];
 
 /** An element's colour as CSS. `color` is 0..1 RGB. */
 const elementCss = (element) => `rgb(${element.color.map((c) => Math.round(c * 255)).join(', ')})`;
@@ -417,6 +417,59 @@ export function createUI({ onAction }) {
   }
 
   /**
+   * The martial record (武學錄): per art, every route with its school and whether it is known,
+   * stolen or not yet, its manuals, and its moves: a learned move shows its name and its line,
+   * one not yet learned only the outline of its name.
+   */
+  function record(save) {
+    const learned = new Set(Array.isArray(save.learned) ? save.learned : []);
+    const stolen = Number(save.stolen) || 0;
+    const manuals = Number(save.manuals) || 0;
+    const el = (tag, cls, text) => {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const hidden = (text) => '？'.repeat([...text].length);
+    const parts = ARTS.flatMap((art) => {
+      const routes = ROUTES.filter((r) => r.art === art.id);
+      if (!routes.length) return [];
+      const head = el('h3', 'record-art', `${UPGRADES[art.upgrade].glyph} ${t(`upgrade.${art.upgrade}.name`)}`);
+      const entries = routes.map((route) => {
+        const known = route.start || (stolen & (1 << route.id)) !== 0;
+        const school = SCHOOLS[route.school];
+        const box = el('div', known ? 'record-route' : 'record-route unknown');
+        const title = el('div', 'record-route-title');
+        const name = t(`route.${route.name}.name`);
+        title.append(el('b', '', known ? name : hidden(name)), el('span', 'record-tag', school ? t(`school.${school.name}`) : ''));
+        const got = route.moves.filter((m) => learned.has(m)).length;
+        let status = route.start ? t('record.native') : known ? t('record.stolen') : t('record.notYet');
+        if (!route.start && known) {
+          const open = Math.min(route.moves.length, 2 + ((manuals >>> (2 * route.id)) & 3));
+          status += ` · ${t('record.manuals', { n: open, m: route.moves.length })}`;
+        }
+        title.append(el('span', 'record-tag', `${status} · ${t('record.count', { n: got, m: route.moves.length })}`));
+        box.append(title);
+        for (const id of route.moves) {
+          const move = MOVES[id];
+          const moveName = t(`move.${move.name}.name`);
+          const row = el('div', learned.has(id) ? 'record-move' : 'record-move unknown');
+          if (learned.has(id)) {
+            row.append(el('b', move.ultimate ? 'ultimate' : '', moveName), el('span', '', t(`move.${move.name}.desc`)));
+          } else {
+            row.append(el('b', '', hidden(moveName)));
+          }
+          box.append(row);
+        }
+        return box;
+      });
+      return [head, ...entries];
+    });
+    $('recordBody').replaceChildren(...parts);
+  }
+
+  /**
    * Write a move's name in brush strokes over the game for a moment. `kind` is 'big' for an
    * ultimate the first time, 'ultimate' for one used again, or '' for a move. Names shown at
    * once take the free rows over the player instead of covering each other.
@@ -733,7 +786,7 @@ export function createUI({ onAction }) {
 
   return {
     show, navigate, confirm, hud, pointers, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
-    replaying, replayCopied, lowHealth, flashLevel, callout,
+    replaying, replayCopied, lowHealth, flashLevel, callout, record,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };

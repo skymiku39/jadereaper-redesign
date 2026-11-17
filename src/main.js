@@ -147,6 +147,14 @@ async function boot() {
     if (save.motion && move.stop) hitstop = Math.max(hitstop, move.ultimate ? 0.09 : 0.05);
     if (move.ultimate) audio.play('ultimate');
     const first = !calledOut.has(id);
+    // A move used for the first time ever goes into the martial record (武學錄).
+    if (first && !replaying) {
+      const learned = Array.isArray(save.learned) ? save.learned : [];
+      if (!learned.includes(id)) {
+        save.learned = [...learned, id];
+        writeSave(save);
+      }
+    }
     if (move.ultimate || first) {
       calledOut.add(id);
       ui.callout(t(`move.${move.name}.name`), move.ultimate ? (first ? 'big' : 'ultimate') : '');
@@ -325,6 +333,8 @@ async function boot() {
       case 'quit': toTitle(); break;
       case 'settings': settingsFrom = ui.screen; ui.show('settings'); break;
       case 'back': ui.show(settingsFrom); break;
+      case 'record': ui.record(save); ui.show('record'); break;
+      case 'record-back': ui.show('title'); break;
       case 'lang':
         setLang(nextLang(getLang()));
         save.lang = getLang();
@@ -371,6 +381,7 @@ async function boot() {
 
   function back() {
     if (ui.screen === 'settings') onAction('back');
+    else if (ui.screen === 'record') onAction('record-back');
     else if (ui.screen === 'setup') onAction('quit');
     else if (mode === 'paused') setPaused(false);
   }

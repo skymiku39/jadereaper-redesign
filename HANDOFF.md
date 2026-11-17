@@ -8,7 +8,16 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/masters-manuals` (cut from `feat/school-elites`, uncommitted)
+### `feat/martial-record` (cut from `feat/masters-manuals`, uncommitted)
+
+After "提交後繼續", `feat/masters-manuals` was committed as 6dcecec (not pushed) and this branch cut.
+
+- **Built (host only, no core change):** the martial record (武學錄, design 4.12), a title button and screen: per art, every route with its school, whether it is known, stolen or not yet (its name hidden as ？ until stolen), how far its manuals open it, and its moves; a move used at least once shows its name and card line, the rest only an outline of question marks. The save keeps `learned`, the ids of the moves ever used (written the first time a move is called out, not during a replay).
+- **Decided here, not by the user:** a move counts as learned when it is first used, not when its card is picked; inner arts and weapon kinds are not in the record yet; the memory lines of ultimates (design 4.8.5) are not written yet.
+- **Checked:** `npm run fonts:subset` and `fonts:check`, `npm run smoke`; a headless browser used the scythe's route, went back to the title, opened the record, read it and took a picture.
+- **Not checked:** gamepad scrolling of the long record; narrow screens.
+
+### `feat/masters-manuals` (cut from `feat/school-elites`, committed 6dcecec)
 
 After "提交後繼續", `feat/school-elites` was committed as 4b12df4 (not pushed) and this branch cut.
 
