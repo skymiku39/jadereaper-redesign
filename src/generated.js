@@ -53,6 +53,9 @@ export const KINDS = [
   { id: 6, name: 'constable', heavy: false },
   { id: 7, name: 'needler', heavy: false },
   { id: 8, name: 'puppet', heavy: false },
+  { id: 9, name: 'bandit_chief', heavy: true },
+  { id: 10, name: 'constable_chief', heavy: true },
+  { id: 11, name: 'claw_crone', heavy: false },
 ];
 
 /** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and
@@ -211,6 +214,7 @@ export const EVENT = {
   COMMISSION_FAILED: 17,
   MOVE: 18,
   STEAL: 19,
+  FOE: 20,
 };
 
 /** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).

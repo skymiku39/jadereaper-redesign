@@ -198,6 +198,8 @@ pub struct Kind {
     /// The school it belongs to; `N_SCHOOLS` for none. Felling one teaches
     /// the player that school's stolen routes (偷師).
     pub school: usize,
+    /// The move it uses with a warning first (`foes.rs`); `N_MOVES` for none.
+    pub strike: usize,
 }
 
 /// The stats a passive upgrade can raise. `Game::stat` says how each one adds up.

@@ -534,6 +534,8 @@ body.low-health::after { opacity: 1; animation: low-pulse 0.9s ease-in-out infin
 }
 .callout.big { font-size: 56px; color: var(--vermilion); animation-duration: 1.4s; }
 .callout.ultimate { color: var(--vermilion); }
+/* A school elite's move: red ink, a little smaller, like a challenge called across the field. */
+.callout.foe { color: #9b1d12; font-size: 30px; transform: translate(-50%, -50%) rotate(3deg); }
 @keyframes callout {
   0% { opacity: 0; transform: translate(-50%, -50%) rotate(-3deg) scale(1.8); }
   15% { opacity: 1; transform: translate(-50%, -50%) rotate(-3deg) scale(1); }
@@ -543,7 +545,7 @@ body.low-health::after { opacity: 1; animation: low-pulse 0.9s ease-in-out infin
 
 @media (prefers-reduced-motion: reduce) {
   body.low-health::after { animation: none; }
-  .callout, .callout.big, .callout.ultimate { animation: fade 1s ease-out reverse forwards; }
+  .callout, .callout.big, .callout.ultimate, .callout.foe { animation: fade 1s ease-out reverse forwards; }
   #hud .xp.flash .xp-fill { animation: none; }
 }
 

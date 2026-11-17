@@ -208,6 +208,11 @@ export function createAudio() {
       noise({ dur: 0.18, type: 'lowpass', f0: 420, f1: 160, gain: 0.35 });
       tone({ dur: 0.9, type: 'triangle', f0: PENTATONIC[0] / 2, gain: 0.12, delay: 0.05 });
     },
+    // Played by the host when a school elite winds up a move: a sharp clack and a low hum.
+    warn: () => {
+      noise({ dur: 0.05, type: 'highpass', f0: 3000, f1: 1500, gain: 0.3 });
+      tone({ dur: 0.5, type: 'triangle', f0: 98, f1: 110, gain: 0.18, delay: 0.04 });
+    },
     // Played by the host when a route move is learned.
     learn: () => {
       [0, 2, 4].forEach((n, i) => tone({ dur: 0.22, type: 'triangle', f0: PENTATONIC[n], gain: 0.2, delay: i * 0.07 }));

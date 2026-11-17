@@ -8,7 +8,16 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/weapon-quality` (cut from `feat/level-decks`, uncommitted)
+### `feat/school-elites` (cut from `feat/weapon-quality`, uncommitted)
+
+After "提交後繼續", `feat/weapon-quality` was committed as 4a6c28b (not pushed) and this branch cut.
+
+- **Built:** `core/src/foes.rs`: an `[[enemy]]` may name a `strike` move; such a foe stops, shows the move's shape on the ground in faint red for 0.8 s (`EV_FOE`, its name called out in red ink with a warning sound), then lands it: an arc toward where the player stood, or a ring round itself, `reach × 100` across; a negative knockback pulls the player in. Three elites come alone on their clocks while `school_share` is above 0: `bandit_chief` (開膛破肚, every 75 s), `constable_chief` (順手牽羊, 105 s), `claw_crone` (勾魂攝魄, 135 s); felling one teaches its school's route like a disciple. A kind that comes alone with a share tune now only comes while that tune is above 0 (the old elite has no share tune, so it is unchanged).
+- **Decided here, not by the user:** the warning time, the rest between moves, the 100-unit scale, the shove sizes, which move each elite uses, that a foe's move ignores elements and inner arts other than the player's own defences; masters (高手) with whole routes and ultimates, and manuals, are still not built.
+- **Checked:** fmt, clippy, `cargo test --release` (261 with five foe tests: warning, standing still, landing, dodging by stepping out, pulling; 26 content), `./build.sh`, fonts, determinism, smoke, the balance tool; a headless browser run saw the call-out 開膛破肚.
+- **Not checked:** nobody has played it; how readable the faint red warning is on the paper ground was not seen (the one picture was taken as the bot died).
+
+### `feat/weapon-quality` (cut from `feat/level-decks`, committed 4a6c28b)
 
 After "提交後繼續" again, `feat/level-decks` was committed as b72050f (not pushed) and this branch cut.
 

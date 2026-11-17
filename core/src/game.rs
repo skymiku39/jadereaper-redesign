@@ -200,6 +200,8 @@ pub struct Game {
     /// The stolen routes learned (偷師), as bits by route id: from earlier runs
     /// (the `stolen` tune) and this one (`routes.rs`).
     pub stolen: u32,
+    /// The school elites on the field and their moves (`foes.rs`).
+    pub foes: Vec<foes::Foe>,
     pub pending: u32,
     /// The log of what the player does, and a log being played back.
     pub replay: replay::Replay,
@@ -374,6 +376,7 @@ impl Game {
             ranks: [0; 3],
             dry: 0,
             stolen: 0,
+            foes: Vec::with_capacity(16),
             pending: 0,
             replay: replay::Replay::default(),
             kills: 0,
@@ -605,6 +608,7 @@ impl Game {
         }
         mix(self.attach as u32);
         self.routes_hash(&mut mix);
+        self.foes_hash(&mut mix);
         if self.inner_on() {
             self.inner.mix(&mut mix);
             mix(self.stolen);
@@ -745,6 +749,7 @@ impl Game {
         self.boss_think(dt);
         self.vendetta.step(self.player.x, self.player.y);
         self.move_enemies(dt);
+        self.foes_step(dt);
         self.escort_step(dt);
         self.commission_step(dt);
         // The shrine falling on the step the player dies counts as dying.
@@ -891,7 +896,9 @@ impl Game {
         }
         // The kinds that come alone, on a clock.
         for k in 0..N_KINDS {
-            if KINDS[k].every > 0.0 && t >= self.next_lone[k] {
+            // A kind that comes alone but belongs to a tune's share only comes while that share is above 0.
+            let off = KINDS[k].share_tune < N_TUNES && self.tune[KINDS[k].share_tune] <= 0.0;
+            if KINDS[k].every > 0.0 && !off && t >= self.next_lone[k] {
                 self.next_lone[k] += KINDS[k].every;
                 self.spawn_enemy(k as u8);
                 self.event(EV_ELITE, self.player.x, self.player.y, 0.0);
@@ -907,6 +914,13 @@ impl Game {
         let pace = self.tune[T_ENEMY_SPEED];
         let escort = &self.escort;
         let mut hit: Option<f32> = None;
+        // School elites winding up a move stand still (`foes.rs`).
+        let mut still = [0u32; 16];
+        let mut n_still = 0;
+        for f in self.foes.iter().filter(|f| f.wind > 0.0).take(16) {
+            still[n_still] = f.id;
+            n_still += 1;
+        }
         let hold = &mut self.hold;
         let siege = &mut self.commission;
         for e in self.enemies.iter_mut() {
@@ -966,6 +980,7 @@ impl Game {
                 (None, Some(v)) => v,
                 // Rooted by an element: it stands where the blow threw it.
                 (None, None) if e.tags.rooted() => (0.0, 0.0),
+                (None, None) if still[..n_still].contains(&e.id) => (0.0, 0.0),
                 (None, None) => (hx / hd * speed, hy / hd * speed),
             };
             e.x += (vx + e.kx) * dt;
@@ -1878,6 +1893,8 @@ pub mod commission;
 pub mod decks;
 #[path = "elements.rs"]
 pub mod elements;
+#[path = "foes.rs"]
+pub mod foes;
 #[path = "inner.rs"]
 pub mod inner;
 #[path = "kinds.rs"]
@@ -1914,3 +1931,7 @@ mod inner_tests;
 #[cfg(test)]
 #[path = "deck_tests.rs"]
 mod deck_tests;
+
+#[cfg(test)]
+#[path = "foe_tests.rs"]
+mod foe_tests;

@@ -430,6 +430,67 @@ corpse = true
 tune = "school_share"
 school = "jiuyou"
 
+# School elites (core/src/foes.rs): one of each comes alone on its clock while
+# `school_share` is above 0, and uses its school's move named by `strike`,
+# warned of on the ground first and called out in red.
+[[enemy]]
+id = 9
+name = "bandit_chief"
+part = "brute"
+color = [0.55, 0.24, 0.14]
+hp = 240
+speed = 58
+radius = 26
+damage = 9
+xp = 12
+half_width = 30
+half_height = 30
+pose_rate = 3
+heavy = true
+every = 75
+tune = "school_share"
+school = "heifeng"
+strike = "kaitang"
+
+[[enemy]]
+id = 10
+name = "constable_chief"
+part = "brute"
+color = [0.16, 0.22, 0.40]
+hp = 280
+speed = 54
+radius = 26
+damage = 8
+xp = 12
+half_width = 30
+half_height = 30
+pose_rate = 3
+heavy = true
+every = 105
+tune = "school_share"
+school = "liushanmen"
+strike = "qianyang"
+
+[[enemy]]
+id = 11
+name = "claw_crone"
+part = "wisp"
+color = [0.30, 0.40, 0.30]
+hp = 200
+speed = 72
+radius = 20
+damage = 8
+xp = 12
+half_width = 30
+half_height = 18
+pose_rate = 6
+hover = true
+corpse = true
+every = 135
+tune = "school_share"
+school = "jiuyou"
+strike = "gouhun"
+
 # ------------------------------------------------------------------ arts
 # Martial arts (武學): how the player attacks. Each has one `behaviour`, which
 # is code in core/src/arts.rs, and the numbers below. A new art of an existing
@@ -1688,6 +1749,11 @@ name = "move"
 [[event]]
 id = 19
 name = "steal"
+
+# A school elite began a move, warned of on the ground. The value is the move's id.
+[[event]]
+id = 20
+name = "foe"
 
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...

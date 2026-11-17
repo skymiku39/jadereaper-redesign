@@ -68,20 +68,26 @@ pub const K_BANDIT: u8 = 5;
 pub const K_CONSTABLE: u8 = 6;
 pub const K_NEEDLER: u8 = 7;
 pub const K_PUPPET: u8 = 8;
-pub const N_KINDS: usize = 9;
+pub const K_BANDIT_CHIEF: u8 = 9;
+pub const K_CONSTABLE_CHIEF: u8 = 10;
+pub const K_CLAW_CRONE: u8 = 11;
+pub const N_KINDS: usize = 12;
 #[rustfmt::skip]
-pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet"];
+pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet", "bandit_chief", "constable_chief", "claw_crone"];
 #[rustfmt::skip]
 pub const KINDS: [Kind; N_KINDS] = [
-    Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS },
-    Kind { hp: 7.0, speed: 118.0, r: 12.0, dmg: 4.0, xp: 1.0, part: P_WISP, color: [0.36, 0.40, 0.56], hw: 22.0, hh: 13.0, rate: 9.0, corpse: true, heavy: false, hover: true, from: 25.0, share: 0.3, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS },
-    Kind { hp: 70.0, speed: 44.0, r: 26.0, dmg: 12.0, xp: 5.0, part: P_BRUTE, color: [0.58, 0.31, 0.24], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 60.0, share: 0.25, ramp: 400.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS },
-    Kind { hp: 600.0, speed: 56.0, r: 44.0, dmg: 20.0, xp: 40.0, part: P_BRUTE, color: [0.74, 0.25, 0.18], hw: 52.0, hh: 52.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 90.0, share_tune: N_TUNES, school: N_SCHOOLS },
-    Kind { hp: 10.0, speed: 215.0, r: 11.0, dmg: 6.0, xp: 1.0, part: P_WISP, color: [0.52, 0.20, 0.16], hw: 17.0, hh: 10.0, rate: 12.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_CHASERS, school: N_SCHOOLS },
-    Kind { hp: 22.0, speed: 70.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.50, 0.30, 0.20], hw: 19.0, hh: 19.0, rate: 6.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG },
-    Kind { hp: 26.0, speed: 66.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.22, 0.28, 0.42], hw: 19.0, hh: 19.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN },
-    Kind { hp: 12.0, speed: 104.0, r: 12.0, dmg: 5.0, xp: 2.0, part: P_WISP, color: [0.42, 0.24, 0.46], hw: 22.0, hh: 13.0, rate: 9.0, corpse: false, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU },
-    Kind { hp: 34.0, speed: 48.0, r: 18.0, dmg: 7.0, xp: 2.0, part: P_BLOT, color: [0.38, 0.44, 0.36], hw: 20.0, hh: 20.0, rate: 3.0, corpse: true, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU },
+    Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES },
+    Kind { hp: 7.0, speed: 118.0, r: 12.0, dmg: 4.0, xp: 1.0, part: P_WISP, color: [0.36, 0.40, 0.56], hw: 22.0, hh: 13.0, rate: 9.0, corpse: true, heavy: false, hover: true, from: 25.0, share: 0.3, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES },
+    Kind { hp: 70.0, speed: 44.0, r: 26.0, dmg: 12.0, xp: 5.0, part: P_BRUTE, color: [0.58, 0.31, 0.24], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 60.0, share: 0.25, ramp: 400.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES },
+    Kind { hp: 600.0, speed: 56.0, r: 44.0, dmg: 20.0, xp: 40.0, part: P_BRUTE, color: [0.74, 0.25, 0.18], hw: 52.0, hh: 52.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 90.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES },
+    Kind { hp: 10.0, speed: 215.0, r: 11.0, dmg: 6.0, xp: 1.0, part: P_WISP, color: [0.52, 0.20, 0.16], hw: 17.0, hh: 10.0, rate: 12.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_CHASERS, school: N_SCHOOLS, strike: N_MOVES },
+    Kind { hp: 22.0, speed: 70.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.50, 0.30, 0.20], hw: 19.0, hh: 19.0, rate: 6.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG, strike: N_MOVES },
+    Kind { hp: 26.0, speed: 66.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.22, 0.28, 0.42], hw: 19.0, hh: 19.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: N_MOVES },
+    Kind { hp: 12.0, speed: 104.0, r: 12.0, dmg: 5.0, xp: 2.0, part: P_WISP, color: [0.42, 0.24, 0.46], hw: 22.0, hh: 13.0, rate: 9.0, corpse: false, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: N_MOVES },
+    Kind { hp: 34.0, speed: 48.0, r: 18.0, dmg: 7.0, xp: 2.0, part: P_BLOT, color: [0.38, 0.44, 0.36], hw: 20.0, hh: 20.0, rate: 3.0, corpse: true, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: N_MOVES },
+    Kind { hp: 240.0, speed: 58.0, r: 26.0, dmg: 9.0, xp: 12.0, part: P_BRUTE, color: [0.55, 0.24, 0.14], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 75.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG, strike: MV_KAITANG },
+    Kind { hp: 280.0, speed: 54.0, r: 26.0, dmg: 8.0, xp: 12.0, part: P_BRUTE, color: [0.16, 0.22, 0.40], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 105.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: MV_QIANYANG },
+    Kind { hp: 200.0, speed: 72.0, r: 20.0, dmg: 8.0, xp: 12.0, part: P_WISP, color: [0.30, 0.40, 0.30], hw: 30.0, hh: 18.0, rate: 6.0, corpse: true, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 135.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: MV_GOUHUN },
 ];
 
 // Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.
@@ -373,6 +379,7 @@ pub const EV_COMMISSION_DONE: f32 = 16.0;
 pub const EV_COMMISSION_FAILED: f32 = 17.0;
 pub const EV_MOVE: f32 = 18.0;
 pub const EV_STEAL: f32 = 19.0;
+pub const EV_FOE: f32 = 20.0;
 
 // Mission ids, and what each one asks for (seconds for `survive`, enemies for `kills`).
 pub const M_ENDLESS: usize = 0;

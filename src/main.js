@@ -436,6 +436,11 @@ async function boot() {
           if (type === EVENT.LEVELUP) ui.flashLevel();
           if (type === EVENT.MOVE) onMove(ev[i * 4 + 3]);
           if (type === EVENT.STEAL) onSteal(ev[i * 4 + 3]);
+          // A school elite winds up a move: its name in red, so the player knows what is coming.
+          if (type === EVENT.FOE && MOVES[ev[i * 4 + 3]]) {
+            ui.callout(t(`move.${MOVES[ev[i * 4 + 3]].name}.name`), 'foe');
+            audio.play('warn');
+          }
           if (type === EVENT.COMMISSION_DONE) notice = { key: 'commission.done', until: clock + 4 };
           if (type === EVENT.COMMISSION_FAILED) notice = { key: 'commission.failed', until: clock + 4 };
         }

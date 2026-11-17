@@ -268,6 +268,8 @@ pub struct Enemy {
     pub share_tune: Option<String>,
     /// The school it belongs to, if any.
     pub school: Option<String>,
+    /// The `[[move]]` it uses with a warning first, if any.
+    pub strike: Option<String>,
 }
 
 /// The stats a passive upgrade can raise. The core reads each where it is used.
@@ -778,8 +780,27 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         f.used.push("school");
                         None
                     };
-                    let enemy =
-                        Enemy { id, name, part, color, numbers, corpse, heavy, hover, spawn, share_tune, school };
+                    // The move it uses with a warning first, if any.
+                    let strike = if t.entries.iter().any(|e| e.key == "strike") {
+                        f.string("strike")
+                    } else {
+                        f.used.push("strike");
+                        None
+                    };
+                    let enemy = Enemy {
+                        id,
+                        name,
+                        part,
+                        color,
+                        numbers,
+                        corpse,
+                        heavy,
+                        hover,
+                        spawn,
+                        share_tune,
+                        school,
+                        strike,
+                    };
                     enemies.push((enemy, t.line));
                 }
             }
@@ -1167,6 +1188,11 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                 errs.push(format!("line {line}: enemy `{}` names school `{s}`, which is not defined", e.name));
             }
         }
+        if let Some(m) = &e.strike {
+            if !moves.iter().any(|(mv, _)| &mv.name == m) {
+                errs.push(format!("line {line}: enemy `{}` strikes with move `{m}`, which is not defined", e.name));
+            }
+        }
     }
 
     // Weapon kinds: each belongs to an art, which comes in exactly one start kind.
@@ -1449,12 +1475,13 @@ pub fn render_rust(c: &Content) -> String {
         let color: Vec<String> = e.color.iter().map(|v| float_lit(v)).collect();
         let tune = e.share_tune.as_ref().map_or("N_TUNES".to_string(), |t| format!("T_{}", upper(t)));
         let school = e.school.as_ref().map_or("N_SCHOOLS".to_string(), |s| format!("SC_{}", upper(s)));
+        let strike = e.strike.as_ref().map_or("N_MOVES".to_string(), |m| format!("MV_{}", upper(m)));
         writeln!(
             o,
-            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {} }},",
+            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {}, strike: {} }},",
             n("hp"), n("speed"), n("radius"), n("damage"), n("xp"), upper(&e.part), color.join(", "),
             n("half_width"), n("half_height"), n("pose_rate"), e.corpse, e.heavy, e.hover,
-            s("from"), s("share"), s("ramp"), s("every"), tune, school
+            s("from"), s("share"), s("ramp"), s("every"), tune, school, strike
         )
         .unwrap();
     }
