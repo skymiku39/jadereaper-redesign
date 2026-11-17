@@ -15,6 +15,10 @@ use core::f32::consts::TAU;
 const JADE: [f32; 3] = [0.25, 0.62, 0.48];
 const PAPER_GOLD: [f32; 3] = [0.89, 0.77, 0.38];
 const BEAD_GREEN: [f32; 3] = [0.30, 0.66, 0.50];
+/// A soft sword's bend (the `bend` trait): how far it reaches on from the tip,
+/// as a share of the thrust, and how hard it lands.
+const BEND_REACH: f32 = 0.6;
+const BEND_POWER: f32 = 0.6;
 
 /// What a run keeps per martial art, held or not.
 #[derive(Clone, Copy)]
@@ -135,8 +139,8 @@ impl Game {
         let (px, py) = (self.player.x, self.player.y);
         let (ax, ay) = self.player.aim;
         let reach = n.reach * self.melee_reach() * self.kind_reach(a);
-        let dmg = n.damage * might * self.kind_power(a);
         let knock = n.knockback * self.kind_knock(a);
+        let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, ax, ay);
         let mut far: Option<(f32, u32)> = None;
         for i in 0..self.enemies.len() {
             let e = &self.enemies[i];
@@ -187,7 +191,8 @@ impl Game {
         let reach = n.reach * self.melee_reach() * self.kind_reach(a);
         let (dx, dy) = self.thrust_aim(reach * 1.2);
         let (px, py) = (self.player.x, self.player.y);
-        let (dmg, knock) = (n.damage * might * self.kind_power(a), n.knockback * self.kind_knock(a));
+        let knock = n.knockback * self.kind_knock(a);
+        let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, dx, dy);
         self.line(a, px, py, dx, dy, reach, n.width, dmg, knock);
         self.event(EV_SLASH, px, py, 0.0);
     }
@@ -242,6 +247,42 @@ impl Game {
         dmg: f32,
         knock: f32,
     ) {
+        self.line_hits(a, x, y, dx, dy, reach, width, dmg, knock);
+        let (tx, ty) = (x + dx * reach, y + dy * reach);
+        match self.kind_trait(a) {
+            // A halberd also sweeps round the tip of its thrust.
+            WT_TIP => self.ring(a, tx, ty, 55.0, dmg * 0.5, knock),
+            // A soft sword bends on from its tip to the nearest enemy there.
+            WT_BEND => {
+                let bend = reach * BEND_REACH;
+                if let Some((bx, by)) = self.nearest_from(tx, ty, bend) {
+                    self.line_hits(a, tx, ty, bx, by, bend, width, dmg * BEND_POWER, knock);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// The way from (x, y) to the nearest enemy within `reach` of it and
+    /// more than a step away, if any.
+    fn nearest_from(&self, x: f32, y: f32, reach: f32) -> Option<(f32, f32)> {
+        let mut best: Option<(f32, f32, f32)> = None;
+        for e in &self.enemies {
+            let (dx, dy) = (e.x - x, e.y - y);
+            let d2 = dx * dx + dy * dy;
+            if d2 > 100.0 && d2 < reach * reach && best.is_none_or(|(b, _, _)| d2 < b) {
+                best = Some((d2, dx, dy));
+            }
+        }
+        best.map(|(d2, dx, dy)| {
+            let d = d2.sqrt();
+            (dx / d, dy / d)
+        })
+    }
+
+    /// The hits and the streak of one straight line, without the kind's trait.
+    #[allow(clippy::too_many_arguments)]
+    fn line_hits(&mut self, a: usize, x: f32, y: f32, dx: f32, dy: f32, reach: f32, width: f32, dmg: f32, knock: f32) {
         let element = self.arts[a].element;
         for i in 0..self.enemies.len() {
             let e = &self.enemies[i];
@@ -254,10 +295,6 @@ impl Game {
             }
         }
         self.formation_hit_arc(x, y, dx, dy, reach, 0.95, dmg);
-        // A halberd (the `tip` trait) also sweeps round the tip of its thrust.
-        if self.kind_trait(a) == WT_TIP {
-            self.ring(a, x + dx * reach, y + dy * reach, 55.0, dmg * 0.5, knock);
-        }
         self.player.attack = 0.2;
         let color = self.art_color(a, JADE, 0.9);
         // A long thin streak along the thrust.

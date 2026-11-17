@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/net-slow` (cut from `feat/hud-weapon`)
+### `feat/paired-blows` (cut from `feat/net-slow`)
+
+`feat/net-slow` was committed as 5cfb964 and this branch cut.
+
+- **Built:** a paired kind (雙刀, 雙劍) lands its basic blow as two of half the damage each, the other hand's 0.12 s after the first along the same aim (`kinds.rs`, `Echo`); the whole stays the 20% more of the paired tag, so the numbers are as before but each blow can carry an element or open a 破綻 twice. Route moves other than the basic one are not doubled. The soft sword (軟劍) has the new trait `bend`: from the tip of each thrust it whips on, 60% as far and 60% as hard, to the nearest enemy there (`line` is now the hits plus the kind's trait, `line_hits` the hits alone).
+- **Checked:** fmt, clippy (core and generator), tests (281, two new), `./build.sh`, fonts (new characters subset), determinism, smoke; the balance tool's bots stay where they were (seek 216 s, circle 109 s).
+- **Not checked:** nobody has played it.
+
+### `feat/net-slow` (cut from `feat/hud-weapon`, committed 5cfb964)
 
 `feat/hud-weapon` was committed as 3fbcb8e and this branch cut.
 

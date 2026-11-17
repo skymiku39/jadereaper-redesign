@@ -310,7 +310,8 @@ impl Game {
             B_ARC => {
                 let (ax, ay) = self.player.aim;
                 let (reach, knock) = (n.reach * self.kind_reach(a), n.knockback * light * self.kind_knock(a));
-                self.sweep(a, n.damage * might * light, reach, n.width, knock, ax, ay);
+                let dmg = self.second_hand(a, n.damage * might * light, reach, n.width, knock, ax, ay);
+                self.sweep(a, dmg, reach, n.width, knock, ax, ay);
                 self.event(EV_SLASH, px, py, 0.0);
             }
             B_PROJECTILE => {
@@ -320,7 +321,8 @@ impl Game {
                 let reach = n.reach * self.melee_reach() * self.kind_reach(a);
                 let (dx, dy) = self.thrust_aim(reach * 1.2);
                 let knock = n.knockback * light * self.kind_knock(a);
-                self.line(a, px, py, dx, dy, reach, n.width, n.damage * might * light, knock);
+                let dmg = self.second_hand(a, n.damage * might * light, reach, n.width, knock, dx, dy);
+                self.line(a, px, py, dx, dy, reach, n.width, dmg, knock);
                 self.event(EV_SLASH, px, py, 0.0);
             }
             B_NOVA => {
@@ -423,7 +425,7 @@ impl Game {
     /// One sweep around the player towards (ax, ay): everything within `reach`
     /// and inside the `width` bound is hit and pushed away.
     #[allow(clippy::too_many_arguments)]
-    fn sweep(&mut self, a: usize, dmg: f32, reach: f32, width: f32, knockback: f32, ax: f32, ay: f32) {
+    pub(crate) fn sweep(&mut self, a: usize, dmg: f32, reach: f32, width: f32, knockback: f32, ax: f32, ay: f32) {
         let element = self.arts[a].element;
         let (px, py) = (self.player.x, self.player.y);
         let mut far: Option<(f32, u32)> = None;

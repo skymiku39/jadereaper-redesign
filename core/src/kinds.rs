@@ -28,6 +28,24 @@ const STEEL_CHANCE: f32 = 0.25;
 const FAMOUS_CHANCE: f32 = 0.05;
 /// Weapon cards in a row without fine steel or better before the next is sure to be.
 const PITY: u8 = 3;
+/// The most second blows waiting at once.
+pub const MAX_ECHOES: usize = 8;
+/// How long after the first blow of a paired kind the second lands.
+const SECOND_HAND: f32 = 0.12;
+
+/// The second blow of a paired kind (雙刀, 雙劍): the art's basic blow is two
+/// of half the damage each, the other hand's a moment after the first.
+#[derive(Clone, Copy)]
+pub struct Echo {
+    pub left: f32,
+    pub art: u8,
+    pub dmg: f32,
+    pub reach: f32,
+    pub width: f32,
+    pub knock: f32,
+    pub ax: f32,
+    pub ay: f32,
+}
 
 impl Game {
     /// Whether arts come in weapon kinds in this run.
@@ -112,6 +130,62 @@ impl Game {
             x *= ONENESS;
         }
         x
+    }
+
+    /// The basic blow of art `a` lands for `dmg`: with a paired kind it is
+    /// two blows of half that, the second a moment later along the same aim.
+    /// Returns the damage of the first.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn second_hand(
+        &mut self,
+        a: usize,
+        dmg: f32,
+        reach: f32,
+        width: f32,
+        knock: f32,
+        ax: f32,
+        ay: f32,
+    ) -> f32 {
+        if self.forms(a) & FORM_PAIRED == 0 || self.echoes.len() >= MAX_ECHOES {
+            return dmg;
+        }
+        let half = dmg * 0.5;
+        self.echoes.push(Echo { left: SECOND_HAND, art: a as u8, dmg: half, reach, width, knock, ax, ay });
+        half
+    }
+
+    /// Count down the second blows and land the ones that are due.
+    pub(crate) fn tick_echoes(&mut self, dt: f32) {
+        if self.echoes.is_empty() {
+            return;
+        }
+        let mut i = 0;
+        while i < self.echoes.len() {
+            self.echoes[i].left -= dt;
+            if self.echoes[i].left > 0.0 {
+                i += 1;
+                continue;
+            }
+            let e = self.echoes.remove(i);
+            let a = e.art as usize;
+            let (px, py) = (self.player.x, self.player.y);
+            self.striking = e.art + 1;
+            if ARTS[a].behaviour == B_THRUST {
+                self.line(a, px, py, e.ax, e.ay, e.reach, e.width, e.dmg, e.knock);
+            } else {
+                self.sweep(a, e.dmg, e.reach, e.width, e.knock, e.ax, e.ay);
+            }
+            self.striking = 0;
+            self.event(EV_SLASH, px, py, 0.0);
+        }
+    }
+
+    /// The words the hash takes from the second blows, when there are any.
+    pub(crate) fn echoes_hash(&self, mix: &mut impl FnMut(u32)) {
+        for e in &self.echoes {
+            mix(e.left.to_bits());
+            mix(e.dmg.to_bits());
+        }
     }
 
     /// How much harder art `a` throws enemies back for its kind.

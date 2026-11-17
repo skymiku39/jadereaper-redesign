@@ -101,7 +101,7 @@ export const WEAPONS = [
   { id: 13, name: 'jiguanxia', art: 1, glyph: '匣', forms: ['heavy', 'mechanism'], start: false, trait: 'none' },
   { id: 14, name: 'changjian', art: 4, glyph: '劍', forms: ['light'], start: true, trait: 'none' },
   { id: 15, name: 'shuangjian', art: 4, glyph: '雙', forms: ['light', 'paired'], start: false, trait: 'none' },
-  { id: 16, name: 'ruanjian', art: 4, glyph: '軟', forms: ['light'], start: false, trait: 'none' },
+  { id: 16, name: 'ruanjian', art: 4, glyph: '軟', forms: ['light'], start: false, trait: 'bend' },
   { id: 17, name: 'changqiang', art: 5, glyph: '槍', forms: ['long'], start: true, trait: 'none' },
   { id: 18, name: 'huaqiang', art: 5, glyph: '花', forms: ['light'], start: false, trait: 'none' },
   { id: 19, name: 'ji', art: 5, glyph: '戟', forms: ['long', 'heavy'], start: false, trait: 'tip' },

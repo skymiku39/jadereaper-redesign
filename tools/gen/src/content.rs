@@ -319,7 +319,7 @@ pub struct Art {
 pub const FORMS: [&str; 6] = ["long", "short", "heavy", "light", "paired", "mechanism"];
 
 /// What a weapon kind does of its own (`kinds.rs`).
-pub const TRAITS: [&str; 5] = ["none", "hook", "pierce", "swarm", "tip"];
+pub const TRAITS: [&str; 6] = ["none", "hook", "pierce", "swarm", "tip", "bend"];
 
 /// A route's rule of its own (`routes.rs`).
 pub const RULES: [&str; 4] = ["none", "crowd", "opening", "momentum"];

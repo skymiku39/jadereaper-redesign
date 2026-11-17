@@ -212,7 +212,7 @@ pub const WEAPONS: [WeaponDef; N_WEAPONS] = [
     WeaponDef { art: A_TALISMAN, forms: FORM_HEAVY | FORM_MECHANISM, start: false, trait_: WT_NONE },
     WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: true, trait_: WT_NONE },
     WeaponDef { art: A_SWORD, forms: FORM_LIGHT | FORM_PAIRED, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: false, trait_: WT_NONE },
+    WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: false, trait_: WT_BEND },
     WeaponDef { art: A_SPEAR, forms: FORM_LONG, start: true, trait_: WT_NONE },
     WeaponDef { art: A_SPEAR, forms: FORM_LIGHT, start: false, trait_: WT_NONE },
     WeaponDef { art: A_SPEAR, forms: FORM_LONG | FORM_HEAVY, start: false, trait_: WT_TIP },

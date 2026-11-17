@@ -188,6 +188,8 @@ pub struct Game {
     pub route_pick: u8,
     /// Hits of route moves that land a moment after the move.
     pub delayed: Vec<Delayed>,
+    /// The second blows of paired weapon kinds, still to land (`kinds.rs`).
+    pub echoes: Vec<kinds::Echo>,
     /// The clocks of the inner arts (心法).
     pub inner: inner::Inner,
     /// True while a level-up asks which deck to draw from (`decks.rs`).
@@ -391,6 +393,7 @@ impl Game {
             attach: 0,
             route_pick: 0,
             delayed: Vec::with_capacity(64),
+            echoes: Vec::with_capacity(kinds::MAX_ECHOES),
             inner: inner::Inner::default(),
             deck_pick: false,
             last_deck: 0,
@@ -641,6 +644,7 @@ impl Game {
         self.routes_hash(&mut mix);
         self.foes_hash(&mut mix);
         self.turrets_hash(&mut mix);
+        self.echoes_hash(&mut mix);
         if self.inner_on() {
             self.inner.mix(&mut mix);
             mix(self.stolen);
@@ -800,6 +804,7 @@ impl Game {
         self.separate();
         self.move_shots(dt);
         self.tick_delayed(dt);
+        self.tick_echoes(dt);
         self.tick_turrets(dt);
         self.tick_net(dt);
         self.land_splash();

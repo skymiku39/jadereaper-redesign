@@ -66,6 +66,7 @@ pub const WT_HOOK: u8 = 1;
 pub const WT_PIERCE: u8 = 2;
 pub const WT_SWARM: u8 = 3;
 pub const WT_TIP: u8 = 4;
+pub const WT_BEND: u8 = 5;
 
 /// A weapon kind (兵器種類): one of the kinds an art's weapon comes in.
 pub struct WeaponDef {

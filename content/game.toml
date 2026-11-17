@@ -759,7 +759,8 @@ knockback = 260
 #   mechanism  learns only the routes limited to it (`only` on [[route]])
 # A `trait` is what the kind does of its own: `hook` pulls in the last enemy a
 # sweep hits, `pierce` lets shots pass one enemy more, `swarm` throws twice the
-# shots at half the damage, `tip` sweeps round the tip of a thrust.
+# shots at half the damage, `tip` sweeps round the tip of a thrust, `bend`
+# whips on from the tip of a thrust to the nearest enemy there.
 # Names are `weapon.<name>` in src/i18n.js.
 
 [[weapon]]
@@ -900,6 +901,7 @@ name = "ruanjian"
 art = "sword"
 glyph = "軟"
 light = true
+trait = "bend"
 
 [[weapon]]
 id = 17

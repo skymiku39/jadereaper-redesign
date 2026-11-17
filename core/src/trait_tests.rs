@@ -52,6 +52,43 @@ fn a_hook_pulls_the_farthest_enemy_in() {
 }
 
 #[test]
+fn a_soft_sword_bends_on_to_an_enemy_beside_its_tip() {
+    let w = weapon_with(WT_BEND);
+    let a = WEAPONS[w].art;
+    let mut g = base();
+    g.up[ARTS[a].upgrade] = 1;
+    // One enemy off to the side of the thrust's tip, out of the line itself.
+    let beside = put(&mut g, 100.0, 50.0);
+    g.line(a, 0.0, 0.0, 1.0, 0.0, 100.0, 10.0, 10.0, 0.0);
+    assert_eq!(g.enemies[beside].hp, 100_000.0, "a stiff sword misses it");
+    g.arts[a].kind = w as u8 + 1;
+    g.line(a, 0.0, 0.0, 1.0, 0.0, 100.0, 10.0, 10.0, 0.0);
+    assert!(g.enemies[beside].hp < 100_000.0, "the soft one bends to it");
+}
+
+#[test]
+fn a_paired_kind_lands_two_blows_of_half() {
+    let w = (0..N_WEAPONS).find(|&w| WEAPONS[w].forms & FORM_PAIRED != 0).expect("a paired kind");
+    let a = WEAPONS[w].art;
+    let mut g = base();
+    g.up[ARTS[a].upgrade] = 1;
+    let first = g.second_hand(a, 10.0, 80.0, -2.0, 0.0, 1.0, 0.0);
+    assert_eq!(first, 10.0, "an art without a paired kind hits once, whole");
+    assert!(g.echoes.is_empty());
+    g.arts[a].kind = w as u8 + 1;
+    let e = put(&mut g, 40.0, 0.0);
+    let first = g.second_hand(a, 10.0, 80.0, -2.0, 0.0, 1.0, 0.0);
+    assert_eq!(first, 5.0);
+    assert_eq!(g.echoes.len(), 1);
+    let hp = g.enemies[e].hp;
+    for _ in 0..(0.3 / TICK) as u32 {
+        g.tick_echoes(TICK);
+    }
+    assert!(g.echoes.is_empty(), "the second blow landed");
+    assert!(g.enemies[e].hp < hp, "and hit the enemy");
+}
+
+#[test]
 fn pierce_and_swarm_change_the_shots() {
     let w = weapon_with(WT_PIERCE);
     let a = WEAPONS[w].art;
