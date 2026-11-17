@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/record-inner` (cut from `feat/manual-choice`)
+### `feat/weapon-shop` (cut from `feat/record-inner`)
+
+`feat/record-inner` was committed as c7b39d8 and this branch cut.
+
+- **Built:** the out-of-run growth of design 4.12, as proposed there. Silver (銀兩) comes from every finished run that is not a test run or a replay (`src/shop.js`: 30 per commission done, 60 for a mission won, 1 per 30 s lived) and shows on the over and won screens. The weapon shop (兵器鋪) on the title screen sells, for 120 each, every weapon kind but each art's start kind and the mechanisms; and, for 200 each, the four inner arts beyond the five every player has (周天吐納功, 一葦渡江功, 袖裡乾坤, 銅皮鐵骨功, 拔山訣). The host passes what is owned in two new host tunes, `kinds_owned` (55) and `inner_owned` (56), bits by weapon and upgrade id; their default has everything, so the tools, the tests and old replays play as before.
+- **Checked:** fmt, clippy, tests (283, one for the two tunes), `./build.sh`, fonts, determinism, smoke; in a headless browser, a save with 400 silver shows 16 things to buy, and buying 雙刀 and 萬法歸宗 leaves 80 with every button greyed out.
+- **Not checked:** nobody has played it. A player's save now starts with the basic kinds only, so the weapons deck is thinner early on than in the balance tool, which still has everything; the prices and the silver per run are guesses. Famous blades (名器) in the shop are not done.
+
+### `feat/record-inner` (cut from `feat/manual-choice`, committed c7b39d8)
 
 `feat/manual-choice` was committed as 78d1229 and this branch cut.
 

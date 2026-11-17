@@ -75,6 +75,7 @@
         <!-- One button per mission, built by ui.js from the generated mission list. -->
         <div class="buttons missions" id="missions"></div>
         <button data-action="record" data-i18n="title.record">Martial record</button>
+        <button data-action="shop" data-i18n="title.shop">Weapon shop</button>
         <button data-action="settings" data-i18n="title.settings">Settings</button>
       </div>
       <p class="records" id="records"></p>
@@ -95,6 +96,18 @@
       <div class="buttons">
         <button data-action="tune-reset" data-i18n="setup.reset">Back to defaults</button>
         <button data-action="quit" data-i18n="settings.back">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- The weapon shop (兵器鋪, docs/design.md 4.12): weapon kinds and inner arts bought with silver. -->
+  <section class="screen" id="shop" hidden>
+    <div class="sheet record-sheet">
+      <h2 data-i18n="shop.title">Weapon shop</h2>
+      <p class="sub" id="shopSilver"></p>
+      <div class="record-body" id="shopBody"></div>
+      <div class="buttons">
+        <button data-action="shop-back" data-i18n="settings.back">Back</button>
       </div>
     </div>
   </section>

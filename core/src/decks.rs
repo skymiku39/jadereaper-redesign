@@ -47,7 +47,7 @@ impl Game {
 
     /// The cards a deck holds now (not magic, which holds elements): upgrade
     /// ids, or with weapon kinds on, weapon kind cards for the weapons deck.
-    fn deck_pool(&self, deck: usize) -> ([usize; 64], usize) {
+    pub(crate) fn deck_pool(&self, deck: usize) -> ([usize; 64], usize) {
         let mut pool = [0usize; 64];
         let mut n = 0;
         if deck == DECK_WEAPONS && self.kinds_on() && N_WEAPONS > 0 {

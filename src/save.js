@@ -36,6 +36,11 @@ const DEFAULTS = {
   zeniths: [],
   // Per inner art (心法) name, the highest layer ever reached.
   inner: {},
+  // Silver (銀兩), earned by runs and spent at the weapon shop (src/shop.js).
+  silver: 0,
+  // The weapon kinds and inner arts bought, by name.
+  kindsBought: [],
+  innerBought: [],
 };
 
 export function loadSave() {
@@ -49,11 +54,14 @@ export function loadSave() {
     save.tuning = plain(save.tuning);
     save.scrolls = plain(save.scrolls);
     save.inner = plain(save.inner);
+    const names = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+    save.kindsBought = names(save.kindsBought);
+    save.innerBought = names(save.innerBought);
     save.learned = Array.isArray(save.learned) ? save.learned.filter((id) => Number.isInteger(id)) : [];
     save.zeniths = Array.isArray(save.zeniths) ? save.zeniths.filter((k) => typeof k === 'string') : [];
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, inner: {}, learned: [], zeniths: [] };
+    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, inner: {}, kindsBought: [], innerBought: [], learned: [], zeniths: [] };
   }
 }
 

@@ -371,6 +371,8 @@ export const TUNES = [
   { id: 52, name: 'school_share', mission: 'any', def: 0.04, min: 0.0, max: 0.25, step: 0.01 },
   { id: 53, name: 'stolen', mission: 'host', def: 0, min: 0, max: 16777215, step: 1 },
   { id: 54, name: 'manuals', mission: 'host', def: 0, min: 0, max: 16777215, step: 1 },
+  { id: 55, name: 'kinds_owned', mission: 'host', def: 16777215, min: 0, max: 16777215, step: 1 },
+  { id: 56, name: 'inner_owned', mission: 'host', def: 16777215, min: 0, max: 16777215, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */

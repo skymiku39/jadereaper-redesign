@@ -26,6 +26,29 @@ fn a_level_up_asks_for_a_deck_first() {
 }
 
 #[test]
+fn only_kinds_and_inner_arts_owned_come() {
+    let mut g = Game::new(1);
+    g.tune[T_KINDS_OWNED] = 0.0;
+    g.tune[T_INNER_OWNED] = (1u32 << PASSIVES[0].upgrade) as f32;
+    g.start(M_ENDLESS);
+    for (w, def) in WEAPONS.iter().enumerate() {
+        let free = def.start || def.forms & FORM_MECHANISM != 0;
+        if !free {
+            assert!(!g.weapon_offerable(w), "kind {w} was not bought");
+        }
+    }
+    let (inner_pool, n) = g.deck_pool(DECK_INNER);
+    assert!(n > 0);
+    for &id in &inner_pool[..n] {
+        assert_eq!(id, PASSIVES[0].upgrade, "only the inner art learned comes");
+    }
+    // Bought: it comes again.
+    let w = (0..N_WEAPONS).find(|&w| !WEAPONS[w].start && WEAPONS[w].art == A_SCYTHE).unwrap();
+    g.tune[T_KINDS_OWNED] = (1u32 << w) as f32;
+    assert!(g.weapon_offerable(w));
+}
+
+#[test]
 fn each_deck_draws_only_its_own_kind() {
     for seed in 1..30 {
         for d in [DECK_WEAPONS, DECK_ARTS, DECK_INNER, DECK_MAGIC] {

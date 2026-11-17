@@ -10,6 +10,7 @@ import {
   MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, MOVES, ROUTES, SCHOOLS, ELEMENTS, EVENT, KINDS,
 } from './data.js';
 import { pickLang, setLang, getLang, nextLang, t } from './i18n.js';
+import { kindsOwned, innerOwned, silverEarned, buy } from './shop.js';
 import { packReplay, unpackReplay } from './replay.js';
 
 async function boot() {
@@ -256,11 +257,17 @@ async function boot() {
       tunes[tune.name] = value;
       if (value !== tune.def) testRun = true;
     }
-    // Tunes the host sets itself: the stolen routes and the manuals gained in earlier runs.
-    for (const name of ['stolen', 'manuals']) {
+    // Tunes the host sets itself: the stolen routes and the manuals gained in earlier runs,
+    // and the weapon kinds and inner arts bought with silver.
+    const host = {
+      stolen: Number(save.stolen) || 0,
+      manuals: Number(save.manuals) || 0,
+      kinds_owned: kindsOwned(save),
+      inner_owned: innerOwned(save),
+    };
+    for (const [name, value] of Object.entries(host)) {
       const tune = TUNES.find((x) => x.name === name);
       if (!tune) continue;
-      const value = Number(save[name]) || 0;
       core.jr_tune(tune.id, value);
       tunes[name] = value;
     }
@@ -382,6 +389,15 @@ async function boot() {
       case 'back': ui.show(settingsFrom); break;
       case 'record': ui.record(save, writeSave); ui.show('record'); break;
       case 'record-back': ui.show('title'); break;
+      case 'shop':
+        ui.shop(save, (what, name) => {
+          const ok = buy(save, what, name);
+          if (ok) writeSave(save);
+          return ok;
+        });
+        ui.show('shop');
+        break;
+      case 'shop-back': ui.show('title'); break;
       case 'lang':
         setLang(nextLang(getLang()));
         save.lang = getLang();
@@ -429,6 +445,7 @@ async function boot() {
   function back() {
     if (ui.screen === 'settings') onAction('back');
     else if (ui.screen === 'record') onAction('record-back');
+    else if (ui.screen === 'shop') onAction('shop-back');
     else if (ui.screen === 'setup') onAction('quit');
     else if (mode === 'paused') setPaused(false);
   }
@@ -563,7 +580,13 @@ async function boot() {
       }
       ui.pointers(tags, view);
       const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL], commissions: s[STATE.COMMISSION_DONE] };
-      if ((s[STATE.WON] || s[STATE.OVER]) && !testRun && !replaying) keepInner(s);
+      if ((s[STATE.WON] || s[STATE.OVER]) && !testRun && !replaying) {
+        keepInner(s);
+        // Silver (銀兩) for the weapon shop: the over and won screens show it.
+        run.silver = silverEarned(run, s[STATE.WON] === 1);
+        save.silver = (Number(save.silver) || 0) + run.silver;
+        writeSave(save);
+      }
       if (s[STATE.WON]) {
         mode = 'won';
         if (!testRun) recordMission(save, mission.name, true);

@@ -3156,6 +3156,30 @@ min = 0
 max = 16777215
 step = 1
 
+# The weapon kinds bought at the weapon shop (兵器鋪, docs/design.md 4.12), as
+# bits by weapon id. A kind not bought does not come in the weapons deck; an
+# art's start kind and the mechanisms always do. Set by the host; the default
+# has every kind, as before the shop.
+[[tune]]
+id = 55
+name = "kinds_owned"
+mission = "host"
+default = 16777215
+min = 0
+max = 16777215
+step = 1
+
+# The inner arts (心法) learned with silver, as bits by upgrade id. One not
+# learned is not offered. Set by the host; the default has every one.
+[[tune]]
+id = 56
+name = "inner_owned"
+mission = "host"
+default = 16777215
+min = 0
+max = 16777215
+step = 1
+
 # Routes (套路, the [[route]] entries above): 1 on, 0 off. Off, every art
 # grows by its own numbers up to its top level as before routes existed.
 [[tune]]

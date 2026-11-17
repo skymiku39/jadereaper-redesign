@@ -71,7 +71,11 @@ impl Game {
     /// inner arts and the second batch of weapons while routes are off.
     pub(crate) fn upgrade_hidden(&self, id: usize) -> bool {
         let routes_only = ARTS.iter().any(|art| art.upgrade == id && art.routes_only);
-        !self.inner_on() && (Self::inner_only(id) || routes_only)
+        if !self.inner_on() {
+            return Self::inner_only(id) || routes_only;
+        }
+        // An inner art not yet learned with silver (the `inner_owned` tune).
+        Self::is_passive(id) && (self.tune[T_INNER_OWNED] as u32 >> id.min(31)) & 1 == 0
     }
 
     /// Whether an upgrade is a passive, so an inner art while they are on.

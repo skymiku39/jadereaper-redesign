@@ -210,6 +210,12 @@ impl Game {
     /// is while it is not yet a famous blade.
     pub(crate) fn weapon_offerable(&self, w: usize) -> bool {
         let a = WEAPONS[w].art;
+        // A kind not bought at the weapon shop does not come; a start kind
+        // and a mechanism (which comes with its stolen route) always may.
+        let free = WEAPONS[w].start || WEAPONS[w].forms & FORM_MECHANISM != 0;
+        if !free && (self.tune[T_KINDS_OWNED] as u32 >> w.min(31)) & 1 == 0 {
+            return false;
+        }
         // A mechanism only comes once a route it can learn is known.
         if WEAPONS[w].forms & FORM_MECHANISM != 0 {
             let known = (0..N_ROUTES).any(|r| {

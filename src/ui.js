@@ -2,9 +2,10 @@
 import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, WEAPONS, ELEMENTS, SCHOOLS, ROUTES, MOVES } from './data.js';
 import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
+import { KIND_PRICE, INNER_PRICE, kindFree, innerArts, innerFree } from './shop.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['title', 'setup', 'settings', 'record', 'levelup', 'pause', 'over', 'won', 'error'];
+const SCREENS = ['title', 'setup', 'settings', 'record', 'shop', 'levelup', 'pause', 'over', 'won', 'error'];
 
 /** An element's colour as CSS. `color` is 0..1 RGB. */
 const elementCss = (element) => `rgb(${element.color.map((c) => Math.round(c * 255)).join(', ')})`;
@@ -530,6 +531,55 @@ export function createUI({ onAction }) {
   }
 
   /**
+   * The weapon shop (兵器鋪, docs/design.md 4.12): the weapon kinds and inner arts not yet owned,
+   * each with its price and a button to buy it with silver; the ones owned are listed as such.
+   * `onBuy(what, name)` buys and returns whether it could.
+   */
+  function shop(save, onBuy) {
+    const el = (tag, cls, text) => {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const silver = Number(save.silver) || 0;
+    const kindsBought = new Set(save.kindsBought || []);
+    const innerBought = new Set(save.innerBought || []);
+    $('shopSilver').textContent = t('shop.silver', { n: silver });
+    const row = (glyph, name, line, owned, price, what, key) => {
+      const box = el('div', owned ? 'record-route' : 'record-route unknown');
+      const title = el('div', 'record-route-title');
+      title.append(el('b', '', `${glyph} ${name}`), el('span', 'record-tag', line));
+      box.append(title);
+      if (owned) {
+        title.append(el('span', 'record-tag', t('shop.owned')));
+      } else {
+        const btn = el('button', 'record-give', t('shop.buy', { n: price }));
+        btn.disabled = silver < price;
+        btn.addEventListener('click', () => {
+          if (onBuy(what, key)) shop(save, onBuy);
+        });
+        box.append(btn);
+      }
+      return box;
+    };
+    const parts = [el('h3', 'record-art', t('shop.kinds'))];
+    for (const art of ARTS) {
+      for (const w of WEAPONS.filter((x) => x.art === art.id)) {
+        const free = kindFree(w);
+        const forms = w.forms.map((f) => t(`form.${f}`)).join('・');
+        const line = `${t(`upgrade.${art.upgrade}.name`)}${forms ? `・${forms}` : ''}${w.trait !== 'none' ? `・${t(`trait.${w.trait}`)}` : ''}`;
+        parts.push(row(w.glyph, t(`weapon.${w.name}`), line, free || kindsBought.has(w.name), KIND_PRICE, 'kind', w.name));
+      }
+    }
+    parts.push(el('h3', 'record-art', t('record.inner')));
+    for (const u of innerArts()) {
+      parts.push(row(u.glyph, t(`inner.${u.name}.name`), t(`inner.${u.name}.1`), innerFree(u) || innerBought.has(u.name), INNER_PRICE, 'inner', u.name));
+    }
+    $('shopBody').replaceChildren(...parts);
+  }
+
+  /**
    * Write a move's name in brush strokes over the game for a moment. `kind` is 'big' for an
    * ultimate the first time, 'ultimate' for one used again, or '' for a move. Names shown at
    * once take the free rows over the player instead of covering each other.
@@ -677,7 +727,7 @@ export function createUI({ onAction }) {
    * `reason` is the text key of the title when the run ended without the player dying
    * (the pursuit target got away, the villager or the shrine fell); null for death.
    */
-  function gameOver(mission, { time, kills, level, commissions = 0 }, save, beaten, reason = null) {
+  function gameOver(mission, { time, kills, level, commissions = 0, silver }, save, beaten, reason = null) {
     const title = $('overTitle');
     title.dataset.i18n = reason || 'over.title';
     setText(title, t(title.dataset.i18n));
@@ -690,6 +740,7 @@ export function createUI({ onAction }) {
     if (mission.id === MISSION_IDS.endless) rows.push([t('over.commissions'), String(commissions), false]);
     if (beaten) rows.push([t('over.bestTime'), formatTime(save.bestTime), false]);
     else rows.unshift([t('over.mission'), t(`mission.${mission.name}.name`), false]);
+    if (silver !== undefined) rows.push([t('over.silver'), t('shop.earned', { n: silver, total: save.silver }), false]);
     statRows('stats', rows);
     $('recordStamp').hidden = !(beaten && (beaten.time || beaten.kills || beaten.level));
     resetReplayButtons();
@@ -697,14 +748,16 @@ export function createUI({ onAction }) {
   }
 
   /** The mission's goal was met. */
-  function missionWon(mission, { time, kills, level }, save) {
+  function missionWon(mission, { time, kills, level, silver }, save) {
     $('wonMission').textContent = t(`mission.${mission.name}.name`);
-    statRows('wonStats', [
+    const rows = [
       [t('won.time'), formatTime(time), false],
       [t('over.kills'), String(kills), false],
       [t('over.level'), String(level), false],
       [t('won.wins'), String(missionRecord(save, mission.name).wins), false],
-    ]);
+    ];
+    if (silver !== undefined) rows.push([t('over.silver'), t('shop.earned', { n: silver, total: save.silver }), false]);
+    statRows('wonStats', rows);
     resetReplayButtons();
     show('won');
   }
@@ -850,7 +903,7 @@ export function createUI({ onAction }) {
 
   return {
     show, navigate, confirm, hud, pointers, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
-    replaying, replayCopied, lowHealth, flashLevel, callout, record,
+    replaying, replayCopied, lowHealth, flashLevel, callout, record, shop,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };
