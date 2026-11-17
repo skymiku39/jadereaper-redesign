@@ -24,6 +24,22 @@ const FOLLOW: f32 = 0.6 * 190.0;
 /// How fast a wooden bird circles, in radians a second.
 const CIRCLE: f32 = 3.0;
 
+/// How far past the ring of mechanisms a net reaches.
+const NET_MARGIN: f32 = 20.0;
+
+/// The net a ring of mechanisms stretches between them (天羅地網): enemies
+/// inside walk slower while it stands.
+#[derive(Clone, Copy)]
+pub struct Net {
+    pub x: f32,
+    pub y: f32,
+    pub r: f32,
+    pub life: f32,
+    /// The share taken off an enemy's speed inside.
+    pub slow: f32,
+    pub art: u8,
+}
+
 /// A mechanism set down by a route move.
 #[derive(Clone, Copy)]
 pub struct Turret {
@@ -72,6 +88,42 @@ impl Game {
                 angle,
                 dmg,
             });
+        }
+        if def.slow > 0.0 && count > 1 && def.width <= 0.0 {
+            // The ring of mechanisms is a net.
+            self.net = Some(Net {
+                x: px,
+                y: py,
+                r: def.offset * 100.0 + NET_MARGIN,
+                life: def.life.max(0.5),
+                slow: def.slow.min(0.9),
+                art: a as u8,
+            });
+        }
+    }
+
+    /// How much of its speed an enemy at (x, y) keeps: less inside a net.
+    pub(crate) fn net_pace(net: &Option<Net>, x: f32, y: f32) -> f32 {
+        match net {
+            Some(n) => {
+                let (dx, dy) = (x - n.x, (y - n.y) / 0.8);
+                if dx * dx + dy * dy < n.r * n.r {
+                    1.0 - n.slow
+                } else {
+                    1.0
+                }
+            }
+            None => 1.0,
+        }
+    }
+
+    /// One step of the net: it comes down when its time is up.
+    pub(crate) fn tick_net(&mut self, dt: f32) {
+        if let Some(n) = &mut self.net {
+            n.life -= dt;
+            if n.life <= 0.0 {
+                self.net = None;
+            }
         }
     }
 
@@ -162,6 +214,12 @@ impl Game {
 
     /// Draw the mechanisms: a small paper box on the ground, or a bird in the air.
     pub(crate) fn draw_turrets(&mut self) {
+        if let Some(n) = self.net {
+            // The net: a ring of thread on the ground, fading as it ends.
+            let color = self.art_color(n.art as usize, [0.55, 0.42, 0.26], 0.55 * n.life.min(1.0));
+            self.put(n.x, n.y, n.r, n.r * 0.8, 0.0, P_RING, 0.0, 0.3, color);
+            self.put(n.x, n.y, n.r * 0.6, n.r * 0.48, 0.0, P_RING, 0.0, 0.31, color);
+        }
         for i in 0..self.turrets.len() {
             let t = self.turrets[i];
             let a = t.art as usize;
@@ -174,6 +232,10 @@ impl Game {
 
     /// The words the hash takes from the mechanisms, when there are any.
     pub(crate) fn turrets_hash(&self, mix: &mut impl FnMut(u32)) {
+        if let Some(n) = &self.net {
+            mix(n.life.to_bits());
+            mix(n.r.to_bits());
+        }
         if self.turrets.is_empty() {
             return;
         }

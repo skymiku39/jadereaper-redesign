@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/hud-weapon` (cut from `feat/kind-traits`)
+### `feat/net-slow` (cut from `feat/hud-weapon`)
+
+`feat/hud-weapon` was committed as 3fbcb8e and this branch cut.
+
+- **Built:** `slow` on `[[move]]`: a turret move that sets down a ring of mechanisms with it stretches a net (`turrets::Net`) inside the ring, and enemies there walk at that share less speed until it comes down with the mechanisms. 天羅地網 has `slow = 0.5`, as `docs/martial-arts.md` has it. The net is drawn as two rings of thread on the ground and fades in its last second. Nothing changes without a net (the enemy speed is only multiplied while one stands, and the hash takes it only then).
+- **Checked:** fmt, clippy (core and generator), tests (279, one for the net), `./build.sh`, fonts, determinism, smoke.
+- **Not checked:** nobody has played it or seen the net drawn; the console cannot give a stolen route's ultimate.
+
+### `feat/hud-weapon` (cut from `feat/kind-traits`, committed 3fbcb8e)
 
 `feat/kind-traits` was committed as 8481ab1 and this branch cut.
 

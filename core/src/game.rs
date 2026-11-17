@@ -216,6 +216,8 @@ pub struct Game {
     pub cast_might: f32,
     /// The mechanisms set down by route moves (`turrets.rs`).
     pub turrets: Vec<turrets::Turret>,
+    /// The net a ring of mechanisms stretches, while it stands.
+    pub net: Option<turrets::Net>,
     /// The art whose hits are landing now, plus 1; 0 for none or not a route's (`routes.rs`).
     pub striking: u8,
     /// Kills of the last few seconds while a route with momentum is followed, and the seconds before they go.
@@ -401,6 +403,7 @@ impl Game {
             bulwark: 0.0,
             cast_might: 1.0,
             turrets: Vec::with_capacity(turrets::MAX_TURRETS),
+            net: None,
             striking: 0,
             momentum: 0,
             momentum_left: 0.0,
@@ -798,6 +801,7 @@ impl Game {
         self.move_shots(dt);
         self.tick_delayed(dt);
         self.tick_turrets(dt);
+        self.tick_net(dt);
         self.land_splash();
         self.tick_tags(dt);
         self.reap();
@@ -960,13 +964,14 @@ impl Game {
         }
         let hold = &mut self.hold;
         let siege = &mut self.commission;
+        let net = self.net;
         for e in self.enemies.iter_mut() {
             // The pursuit target moves itself and never leaves its route.
             if e.id == mission_pursuit::PURSUIT_ID {
                 continue;
             }
             let k = &KINDS[e.kind as usize];
-            let speed = k.speed * pace;
+            let speed = if net.is_some() { k.speed * pace * Self::net_pace(&net, e.x, e.y) } else { k.speed * pace };
             let (dx, dy) = (px - e.x, py - e.y);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             // The boss of the boss mission steers itself.

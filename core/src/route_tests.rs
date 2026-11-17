@@ -292,6 +292,22 @@ fn mechanisms_shoot_by_themselves_and_end() {
 }
 
 #[test]
+fn a_net_slows_the_enemies_inside_until_it_comes_down() {
+    let m = (0..N_MOVES).find(|&m| MOVES[m].slow > 0.0).expect("a net move");
+    let a = ROUTES[MOVES[m].route].art;
+    let mut g = base();
+    assert_eq!(Game::net_pace(&g.net, 0.0, 0.0), 1.0, "no net, no slowing");
+    g.set_turrets(a, m, 1.0);
+    let n = g.net.expect("the ring is a net");
+    assert_eq!(Game::net_pace(&g.net, 50.0, 0.0), 1.0 - MOVES[m].slow);
+    assert_eq!(Game::net_pace(&g.net, n.r + 10.0, 0.0), 1.0, "outside the net");
+    for _ in 0..((MOVES[m].life + 0.5) / TICK) as u32 {
+        g.tick_net(TICK);
+    }
+    assert!(g.net.is_none(), "it comes down after its life");
+}
+
+#[test]
 fn a_thrust_hits_along_its_line_and_not_beside_it() {
     let a = (0..N_ARTS).find(|&a| ARTS[a].behaviour == B_THRUST).expect("a thrust art");
     let mut g = base();

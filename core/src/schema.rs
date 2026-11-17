@@ -138,6 +138,9 @@ pub struct MoveDef {
     pub seek: u32,
     /// wave: small waves a wave bursts into where its flight ends.
     pub split: u32,
+    /// turret: a share taken off the speed of enemies inside the ring the
+    /// mechanisms stand on, while they stand (a net).
+    pub slow: f32,
     pub ultimate: bool,
     pub stop: bool,
 }

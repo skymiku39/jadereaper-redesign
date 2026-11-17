@@ -374,7 +374,7 @@ pub struct Route {
 pub const MOVE_SHAPES: [&str; 6] = ["arc", "wave", "marks", "ring", "turret", "thrust"];
 
 /// The optional numbers of a move, in the order of `Move::numbers`. Each defaults to 0.
-pub const MOVE_KEYS: [&str; 14] = [
+pub const MOVE_KEYS: [&str; 15] = [
     "power",
     "reach",
     "width",
@@ -389,6 +389,7 @@ pub const MOVE_KEYS: [&str; 14] = [
     "offset",
     "seek",
     "split",
+    "slow",
 ];
 
 /// The move keys that are whole numbers.

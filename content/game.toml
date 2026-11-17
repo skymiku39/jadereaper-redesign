@@ -1874,7 +1874,8 @@ stop = true
 #   turret  `count` mechanisms: at the player, in a ring `offset × 100` round
 #           him, or circling him at radius `width`; each lives `life` s,
 #           shoots every `delay` s, follows with `seek = 1`, bursts into
-#           `split` shots when it ends
+#           `split` shots when it ends; with `slow`, a ring of them is a net
+#           that takes that share off the speed of the enemies inside
 [[move]]
 id = 52
 name = "gongshu"
@@ -1938,6 +1939,7 @@ life = 3
 delay = 0.35
 speed = 640
 pierce = 2
+slow = 0.5
 ultimate = true
 stop = true
 
