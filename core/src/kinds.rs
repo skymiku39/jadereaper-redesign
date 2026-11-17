@@ -16,6 +16,18 @@ use crate::defs::*;
 pub const CARD_WEAPON0: usize = N_UPGRADES + N_ELEMENTS;
 /// How much harder a route lands with a kind it suits.
 const ONENESS: f32 = 1.15;
+/// Weapon quality (品質, docs/design.md 4.8.2): plain iron, fine steel, a famous blade.
+pub const PLAIN: u8 = 0;
+pub const STEEL: u8 = 1;
+pub const FAMOUS: u8 = 2;
+/// Per quality: damage and reach.
+const QUALITY_POWER: [f32; 3] = [1.0, 1.15, 1.3];
+const QUALITY_REACH: [f32; 3] = [1.0, 1.05, 1.1];
+/// The chance of fine steel and of a famous blade on a weapon card.
+const STEEL_CHANCE: f32 = 0.25;
+const FAMOUS_CHANCE: f32 = 0.05;
+/// Weapon cards in a row without fine steel or better before the next is sure to be.
+const PITY: u8 = 3;
 
 impl Game {
     /// Whether arts come in weapon kinds in this run.
@@ -50,10 +62,10 @@ impl Game {
         self.kind_of(a).map_or(0, |w| WEAPONS[w].forms)
     }
 
-    /// How much further art `a` reaches for its kind.
+    /// How much further art `a` reaches for its kind and quality.
     pub(crate) fn kind_reach(&self, a: usize) -> f32 {
         let f = self.forms(a);
-        let mut x = 1.0;
+        let mut x = QUALITY_REACH[(self.arts[a].quality as usize).min(2)];
         if f & FORM_LONG != 0 {
             x *= 1.15;
         }
@@ -76,10 +88,10 @@ impl Game {
         x
     }
 
-    /// How much harder art `a` hits for its kind, and for a route that suits it.
+    /// How much harder art `a` hits for its kind and quality, and for a route that suits it.
     pub(crate) fn kind_power(&self, a: usize) -> f32 {
         let f = self.forms(a);
-        let mut x = 1.0;
+        let mut x = QUALITY_POWER[(self.arts[a].quality as usize).min(2)];
         if f & FORM_HEAVY != 0 {
             x *= 1.1;
         }
@@ -110,23 +122,51 @@ impl Game {
     }
 
     /// Whether weapon kind `w` can be handed out now: a new art while a slot
-    /// is free, or another kind for a held art.
+    /// is free, another kind for a held art, or a better one of the kind it
+    /// is while it is not yet a famous blade.
     pub(crate) fn weapon_offerable(&self, w: usize) -> bool {
         let a = WEAPONS[w].art;
         let level = self.art_level(a);
         if level == 0 {
             self.arts_held() < MAX_ARTS && self.offerable_art(a)
         } else {
-            self.kind_of(a) != Some(w)
+            self.kind_of(a) != Some(w) || self.arts[a].quality < FAMOUS
         }
     }
 
-    /// Take weapon kind card `w`: a new art at level 1 in that kind, or a held
-    /// art changed to it.
-    pub(crate) fn take_weapon(&mut self, w: usize) {
+    /// The quality of a weapon card for kind `w` just drawn. A card of the
+    /// kind an art already is always brings a better one; after `PITY` cards
+    /// without fine steel or better, the next is sure to be.
+    pub(crate) fn roll_quality(&mut self, w: usize) -> u8 {
+        let roll = self.rng.f();
+        let mut q = if roll < FAMOUS_CHANCE {
+            FAMOUS
+        } else if roll < FAMOUS_CHANCE + STEEL_CHANCE {
+            STEEL
+        } else {
+            PLAIN
+        };
+        if q == PLAIN && self.dry >= PITY {
+            q = STEEL;
+        }
+        self.dry = if q == PLAIN { self.dry.saturating_add(1) } else { 0 };
+        let a = WEAPONS[w].art;
+        if self.art_level(a) > 0 && self.kind_of(a) == Some(w) {
+            q = q.max(self.arts[a].quality + 1).min(FAMOUS);
+        }
+        q
+    }
+
+    /// Take weapon kind card `w` of quality `q`: a new art at level 1 in that
+    /// kind, or a held art changed to it. A held art keeps the better of its
+    /// old quality and the new one.
+    pub(crate) fn take_weapon(&mut self, w: usize, q: u8) {
         let a = WEAPONS[w].art;
         if self.art_level(a) == 0 {
             self.up[ARTS[a].upgrade] = 1;
+            self.arts[a].quality = q;
+        } else {
+            self.arts[a].quality = self.arts[a].quality.max(q);
         }
         self.arts[a].kind = w as u8 + 1;
         self.event(EV_ATTACH, self.player.x, self.player.y, 0.0);

@@ -23,6 +23,8 @@ const DEFAULTS = {
   // Full drawing quality; off for slow devices.
   quality: true,
   lang: null, // null: use DEFAULT_LANG from i18n.js
+  // The stolen routes learned (偷師), as bits by route id; kept from run to run.
+  stolen: 0,
 };
 
 export function loadSave() {

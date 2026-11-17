@@ -79,12 +79,40 @@ fn a_weapon_card_brings_a_new_art_or_changes_a_held_one() {
 }
 
 #[test]
+fn weapon_quality_has_a_pity_and_never_goes_down() {
+    let mut g = levelled(7);
+    let w = Game::start_kind(A_TALISMAN).unwrap();
+    // Three plain cards in a row make the next one fine steel at least.
+    for seed in 1..400u32 {
+        g.rng = Rng(seed | 1);
+        g.dry = 3;
+        assert!(g.roll_quality(w) >= kinds::STEEL);
+        assert_eq!(g.dry, 0);
+    }
+    // A card of the kind an art already is brings a better one.
+    let a = WEAPONS[w].art;
+    g.take_weapon(w, kinds::PLAIN);
+    for _ in 0..20 {
+        let q = g.roll_quality(w);
+        assert!(q > g.arts[a].quality || g.arts[a].quality == kinds::FAMOUS);
+        g.take_weapon(w, q);
+    }
+    assert_eq!(g.arts[a].quality, kinds::FAMOUS);
+    assert!(!g.weapon_offerable(w), "a famous blade of the same kind is not offered again");
+    // Changing to another kind keeps the better quality.
+    let other = (0..N_WEAPONS).find(|&o| o != w && WEAPONS[o].art == a).unwrap();
+    g.take_weapon(other, kinds::PLAIN);
+    assert_eq!(g.arts[a].quality, kinds::FAMOUS);
+    assert!(g.kind_power(a) > 1.0);
+}
+
+#[test]
 fn the_start_art_comes_in_its_start_kind_and_routes_suit_kinds() {
     let mut g = Game::new(1);
     g.start(M_ENDLESS);
     assert_eq!(g.kind_of(A_SCYTHE), Game::start_kind(A_SCYTHE));
     // A route that suits the kind the art is in hits harder.
-    let r = Game::routes_of(A_SCYTHE).next().unwrap();
+    let r = g.routes_of(A_SCYTHE).next().unwrap();
     g.give(A_SCYTHE, 3, 0);
     g.take_route(A_SCYTHE, r);
     let suited = (0..N_WEAPONS).find(|&w| ROUTES[r].suits & (1 << w) != 0).unwrap();

@@ -6,7 +6,9 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createUI } from './ui.js';
 import { loadSave, writeSave, recordRun, recordMission, clearRecords, tuneValue, setTune } from './save.js';
-import { MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, MOVES, EVENT, KINDS } from './data.js';
+import {
+  MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, MOVES, ROUTES, SCHOOLS, EVENT, KINDS,
+} from './data.js';
 import { pickLang, setLang, getLang, nextLang, t } from './i18n.js';
 import { packReplay, unpackReplay } from './replay.js';
 
@@ -106,6 +108,26 @@ async function boot() {
       artKinds: artKinds(s),
     },
   );
+  /**
+   * A stolen route was learned (偷師): say so, and keep it for later runs. A replay
+   * plays with what was known then and changes nothing.
+   */
+  function onSteal(id) {
+    const route = ROUTES[id];
+    if (!route) return;
+    const school = SCHOOLS[route.school];
+    notice = {
+      key: 'steal.notice',
+      vars: { name: t(`route.${route.name}.name`), school: school ? t(`school.${school.name}`) : '' },
+      until: clock + 4,
+    };
+    audio.play('learn');
+    if (!replaying) {
+      save.stolen = (Number(save.stolen) || 0) | (1 << id);
+      writeSave(save);
+    }
+  }
+
   /** A route move was used: hit-stop for a heavy one, and its name the first time (an ultimate's every time). */
   function onMove(id) {
     const move = MOVES[id];
@@ -166,6 +188,13 @@ async function boot() {
       core.jr_tune(tune.id, value);
       tunes[tune.name] = value;
       if (value !== tune.def) testRun = true;
+    }
+    // Tunes the host sets itself: the stolen routes learned in earlier runs.
+    const stolen = TUNES.find((tune) => tune.name === 'stolen');
+    if (stolen) {
+      const value = Number(save.stolen) || 0;
+      core.jr_tune(stolen.id, value);
+      tunes.stolen = value;
     }
     const s = seed();
     core.jr_start(s, mission.id);
@@ -406,6 +435,7 @@ async function boot() {
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) input.rumble(80, 0.35);
           if (type === EVENT.LEVELUP) ui.flashLevel();
           if (type === EVENT.MOVE) onMove(ev[i * 4 + 3]);
+          if (type === EVENT.STEAL) onSteal(ev[i * 4 + 3]);
           if (type === EVENT.COMMISSION_DONE) notice = { key: 'commission.done', until: clock + 4 };
           if (type === EVENT.COMMISSION_FAILED) notice = { key: 'commission.failed', until: clock + 4 };
         }
@@ -427,6 +457,7 @@ async function boot() {
         // What the elements on the arts are doing: the metal guard and wood's slow healing.
         artElements: artElements(s), artRoutes: artRoutes(s), artSteps: artSteps(s), artOrders: artOrders(s),
         routesOn: s[STATE.ROUTES_ON] === 1, artKinds: artKinds(s),
+        artQualities: Array.from(s.subarray(STATE.ART_QUALITY0, STATE.ART_QUALITY0 + ARTS.length)),
         guard: s[STATE.GUARD], guardMax: s[STATE.GUARD_MAX], regrow: s[STATE.REGROW],
         accept: accepting ? { held: s[STATE.ACCEPT_HELD], need: s[STATE.ACCEPT_NEED] } : null,
         commission: {
@@ -434,7 +465,7 @@ async function boot() {
           held: s[STATE.COMMISSION_HELD], hp: s[STATE.COMMISSION_HP], max: s[STATE.COMMISSION_MAX],
           kind: s[STATE.COMMISSION_KIND], band: s[STATE.COMMISSION_BAND], walked: s[STATE.COMMISSION_WALKED],
         },
-        notice: notice && clock < notice.until ? notice.key : null,
+        notice: notice && clock < notice.until ? (notice.vars ? notice : notice.key) : null,
         goal: s[STATE.GOAL], progress: s[STATE.PROGRESS],
         // Values of single missions; the HUD ignores them in the others.
         carried: s[STATE.CARRIED], escape: s[STATE.ESCAPE], bossWait: s[STATE.BOSS_WAIT],

@@ -266,6 +266,8 @@ pub struct Enemy {
     pub spawn: Vec<String>,
     /// The tune that holds its share of the horde instead of `share`, if any.
     pub share_tune: Option<String>,
+    /// The school it belongs to, if any.
+    pub school: Option<String>,
 }
 
 /// The stats a passive upgrade can raise. The core reads each where it is used.
@@ -769,7 +771,15 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                     Some(share_tune),
                 ) = (id, name, part, color, numbers, corpse, heavy, hover, spawn, share_tune)
                 {
-                    let enemy = Enemy { id, name, part, color, numbers, corpse, heavy, hover, spawn, share_tune };
+                    // The school it belongs to, if any; falling to the player teaches its stolen routes.
+                    let school = if t.entries.iter().any(|e| e.key == "school") {
+                        f.string("school")
+                    } else {
+                        f.used.push("school");
+                        None
+                    };
+                    let enemy =
+                        Enemy { id, name, part, color, numbers, corpse, heavy, hover, spawn, share_tune, school };
                     enemies.push((enemy, t.line));
                 }
             }
@@ -987,7 +997,8 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     }
     for (t, line) in &tunes {
         let owner = missions.iter().find(|(m, _)| m.name == t.mission);
-        if t.mission != "any" && owner.is_none() {
+        // "host" marks a tune the host sets itself and never shows on a setup screen.
+        if t.mission != "any" && t.mission != "host" && owner.is_none() {
             errs.push(format!("line {line}: tune `{}` is for mission `{}`, which is not defined", t.name, t.mission));
         }
         let v = |s: &String| s.parse::<f64>().unwrap_or(f64::NAN);
@@ -1150,6 +1161,14 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
             errs.push(format!("line {line}: route `{}` has {} moves, at most 8", r.name, own.len()));
         }
     }
+    for (e, line) in &enemies {
+        if let Some(s) = &e.school {
+            if !schools.iter().any(|(sc, _)| &sc.name == s) {
+                errs.push(format!("line {line}: enemy `{}` names school `{s}`, which is not defined", e.name));
+            }
+        }
+    }
+
     // Weapon kinds: each belongs to an art, which comes in exactly one start kind.
     unique(&mut errs, "weapon", weapons.iter().map(|(w, l): &(Weapon, usize)| (w.id, w.name.as_str(), *l)));
     ids_run(&mut errs, "weapon", weapons.iter().map(|(w, _)| w.id).collect());
@@ -1429,12 +1448,13 @@ pub fn render_rust(c: &Content) -> String {
         let s = |key: &str| float_lit(&e.spawn[ENEMY_SPAWN_KEYS.iter().position(|k| *k == key).unwrap()]);
         let color: Vec<String> = e.color.iter().map(|v| float_lit(v)).collect();
         let tune = e.share_tune.as_ref().map_or("N_TUNES".to_string(), |t| format!("T_{}", upper(t)));
+        let school = e.school.as_ref().map_or("N_SCHOOLS".to_string(), |s| format!("SC_{}", upper(s)));
         writeln!(
             o,
-            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {} }},",
+            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {} }},",
             n("hp"), n("speed"), n("radius"), n("damage"), n("xp"), upper(&e.part), color.join(", "),
             n("half_width"), n("half_height"), n("pose_rate"), e.corpse, e.heavy, e.hover,
-            s("from"), s("share"), s("ramp"), s("every"), tune
+            s("from"), s("share"), s("ramp"), s("every"), tune, school
         )
         .unwrap();
     }

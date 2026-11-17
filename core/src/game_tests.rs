@@ -16,6 +16,7 @@ fn near(a: f32, b: f32) -> bool {
 fn base() -> Game {
     let mut g = Game::new(1);
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_SCHOOL_SHARE] = 0.0;
     g.tune[T_DECKS] = 0.0;
     g.running = true;
     g.arts[A_SCYTHE].timer = 100.0;
@@ -535,6 +536,7 @@ fn offer_never_includes_maxed_upgrades() {
         g.tune[T_DECKS] = 0.0;
         g.tune[T_ELEMENT_CARDS] = 0.0;
         g.tune[T_ROUTES] = 0.0;
+        g.tune[T_SCHOOL_SHARE] = 0.0;
         g.tune[T_DECKS] = 0.0;
         g.up = UPGRADE_MAX;
         // Leave three upgrades one level short.
@@ -554,6 +556,7 @@ fn offer_pads_with_empty_slots_when_few_remain() {
     let mut g = Game::new(5);
     g.tune[T_DECKS] = 0.0;
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_SCHOOL_SHARE] = 0.0;
     g.tune[T_DECKS] = 0.0;
     g.up = UPGRADE_MAX;
     g.up[U_HASTE] -= 1;
@@ -634,6 +637,7 @@ fn vitality_at_full_health_overheals_current_health() {
     let mut g = Game::new(9);
     g.tune[T_DECKS] = 0.0;
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_SCHOOL_SHARE] = 0.0;
     g.tune[T_DECKS] = 0.0;
     g.choosing = true;
     g.pending = 1;
@@ -808,6 +812,7 @@ fn whole_run() -> (u32, u32, f32, usize, u64) {
     g.tune[T_ELEMENT_CARDS] = 0.0;
     g.tune[T_COMMISSIONS] = 0.0;
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_SCHOOL_SHARE] = 0.0;
     g.tune[T_DECKS] = 0.0;
     g.set_view(640.0, 360.0);
     g.running = true;

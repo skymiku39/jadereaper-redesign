@@ -151,6 +151,11 @@ impl Game {
             pool.swap(c, j);
             let id = pool[c];
             self.choices[c] = id as i32;
+            // A weapon card's rank is its quality.
+            if id >= CARD_WEAPON0 {
+                self.ranks[c] = self.roll_quality(id - CARD_WEAPON0);
+                continue;
+            }
             // An inner art with two layers left is now and then a fine card: both at once.
             let two_left = Self::is_passive(id) && self.up[id] + 2 <= self.upgrade_top(id);
             if two_left && (d == DECK_INNER || d == DECK_FATE) && self.rng.f() < fine {

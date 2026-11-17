@@ -38,8 +38,9 @@ fn put(g: &mut Game, x: f32, y: f32) -> usize {
 
 /// The first art that has a route to take, and its routes.
 fn art_with_routes() -> (usize, Vec<usize>) {
-    let a = (0..N_ARTS).find(|&a| Game::routes_of(a).next().is_some()).expect("an art with routes");
-    (a, Game::routes_of(a).collect())
+    let g = Game::new(1);
+    let a = (0..N_ARTS).find(|&a| g.routes_of(a).next().is_some()).expect("an art with routes");
+    (a, g.routes_of(a).collect())
 }
 
 /// Offer art `a`'s upgrade as the only card and pick it.
@@ -180,6 +181,31 @@ fn a_route_uses_its_moves_in_turn_and_they_land() {
         assert_eq!(g.arts[a].step, 0, "the order wraps around");
         assert!(g.delayed.is_empty());
     }
+}
+
+#[test]
+fn a_stolen_route_is_offered_once_a_disciple_of_its_school_falls() {
+    let r = (0..N_ROUTES).find(|&r| !ROUTES[r].start).expect("a stolen route");
+    let (a, s) = (ROUTES[r].art, ROUTES[r].school);
+    let mut g = base();
+    assert!(!g.routes_of(a).any(|x| x == r), "not known at first");
+    // A disciple of that school falls in play.
+    let k = (0..N_KINDS).find(|&k| KINDS[k].school == s).expect("a disciple of the school");
+    let i = put(&mut g, 60.0, 0.0);
+    g.enemies[i].kind = k as u8;
+    g.enemies[i].hp = 0.0;
+    g.reap();
+    assert!(g.routes_of(a).any(|x| x == r));
+    assert!(g.events.iter().any(|e| e[0] == EV_STEAL && e[3] == r as f32));
+    // A second one teaches nothing new.
+    g.events.clear();
+    g.steal(s);
+    assert!(!g.events.iter().any(|e| e[0] == EV_STEAL));
+    // A later run knows it from the start through the `stolen` tune.
+    let mut later = Game::new(2);
+    later.tune[T_STOLEN] = g.stolen as f32;
+    later.start(M_ENDLESS);
+    assert!(later.routes_of(a).any(|x| x == r));
 }
 
 #[test]

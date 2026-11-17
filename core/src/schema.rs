@@ -195,6 +195,9 @@ pub struct Kind {
     pub every: f32,
     /// The tune that holds its share instead of `share`; `N_TUNES` for none.
     pub share_tune: usize,
+    /// The school it belongs to; `N_SCHOOLS` for none. Felling one teaches
+    /// the player that school's stolen routes (偷師).
+    pub school: usize,
 }
 
 /// The stats a passive upgrade can raise. `Game::stat` says how each one adds up.

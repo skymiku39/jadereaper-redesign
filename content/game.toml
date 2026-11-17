@@ -360,6 +360,76 @@ half_height = 10
 pose_rate = 12
 tune = "chasers"
 
+# Disciples of the schools (docs/design.md 4.8.6): they join the horde at the
+# share of the `school_share` tune each, and the first one the player fells
+# teaches him that school's stolen routes (偷師). For now they only charge;
+# the elites that use a school's moves with a warning are still to come.
+[[enemy]]
+id = 5
+name = "bandit"
+part = "blot"
+color = [0.50, 0.30, 0.20]
+hp = 22
+speed = 70
+radius = 17
+damage = 6
+xp = 2
+half_width = 19
+half_height = 19
+pose_rate = 6
+tune = "school_share"
+school = "heifeng"
+
+[[enemy]]
+id = 6
+name = "constable"
+part = "blot"
+color = [0.22, 0.28, 0.42]
+hp = 26
+speed = 66
+radius = 17
+damage = 6
+xp = 2
+half_width = 19
+half_height = 19
+pose_rate = 5
+tune = "school_share"
+school = "liushanmen"
+
+[[enemy]]
+id = 7
+name = "needler"
+part = "wisp"
+color = [0.42, 0.24, 0.46]
+hp = 12
+speed = 104
+radius = 12
+damage = 5
+xp = 2
+half_width = 22
+half_height = 13
+pose_rate = 9
+hover = true
+tune = "school_share"
+school = "jiuyou"
+
+[[enemy]]
+id = 8
+name = "puppet"
+part = "blot"
+color = [0.38, 0.44, 0.36]
+hp = 34
+speed = 48
+radius = 18
+damage = 7
+xp = 2
+half_width = 20
+half_height = 20
+pose_rate = 3
+corpse = true
+tune = "school_share"
+school = "jiuyou"
+
 # ------------------------------------------------------------------ arts
 # Martial arts (武學): how the player attacks. Each has one `behaviour`, which
 # is code in core/src/arts.rs, and the numbers below. A new art of an existing
@@ -576,6 +646,20 @@ name = "xuanzhong"
 id = 5
 name = "qiushui"
 
+# The schools of the three powers (docs/martial-arts.md): their routes are
+# stolen, not known from the start.
+[[school]]
+id = 6
+name = "heifeng"
+
+[[school]]
+id = 7
+name = "liushanmen"
+
+[[school]]
+id = 8
+name = "jiuyou"
+
 # --------------------------------------------------------------- routes
 # Routes (套路, docs/design.md 4.8.3): with the `routes` tune on, an art that
 # reaches level 3 takes one of the routes that name it, and from then on uses
@@ -660,6 +744,41 @@ school = "qiushui"
 beat = 0.5
 start = true
 suits = "tushou"
+
+# Stolen routes (偷師): offered only once a disciple of their school has
+# fallen to the player, in this run or an earlier one (the `stolen` tune).
+# A negative knockback pulls enemies in instead of throwing them back.
+[[route]]
+id = 8
+name = "lulin"
+art = "scythe"
+school = "heifeng"
+beat = 0.9
+suits = "dadao dandao"
+
+[[route]]
+id = 9
+name = "shuihuo"
+art = "beads"
+school = "liushanmen"
+beat = 1.2
+suits = "qimeigun"
+
+[[route]]
+id = 10
+name = "yinhun"
+art = "talisman"
+school = "jiuyou"
+beat = 0.6
+suits = "zhen"
+
+[[route]]
+id = 11
+name = "shesou"
+art = "pulse"
+school = "jiuyou"
+beat = 1.6
+suits = "zhaotao"
 
 # ---------------------------------------------------------------- moves
 # Moves (式) of the routes above. A route's moves have ids that follow each
@@ -1151,6 +1270,197 @@ knockback = 0.4
 ultimate = true
 stop = true
 
+# 綠林十八刀 (stolen from the bandits): two crude cuts and a desperate one.
+[[move]]
+id = 37
+name = "menghu"
+route = "lulin"
+shape = "arc"
+power = 1.1
+reach = 1.1
+width = 0.0
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 38
+name = "kaitang"
+route = "lulin"
+shape = "arc"
+power = 1.8
+reach = 1.0
+width = 0.6
+count = 1
+knockback = 1.5
+stop = true
+
+[[move]]
+id = 39
+name = "shede"
+route = "lulin"
+shape = "arc"
+power = 3.0
+reach = 1.3
+width = -2
+count = 2
+delay = 0.12
+knockback = 2.0
+ultimate = true
+stop = true
+
+# 六扇門水火棍 (stolen from the constables): seize them, then strike.
+[[move]]
+id = 40
+name = "qianyang"
+route = "shuihuo"
+shape = "arc"
+power = 1.0
+reach = 1.6
+width = -2
+count = 1
+knockback = -1.5
+
+[[move]]
+id = 41
+name = "yuqin"
+route = "shuihuo"
+shape = "ring"
+power = 1.6
+reach = 1.2
+count = 1
+knockback = 0.3
+
+[[move]]
+id = 42
+name = "shengdong"
+route = "shuihuo"
+shape = "arc"
+power = 1.4
+reach = 1.5
+width = -0.15
+count = 2
+spread = 0.5
+knockback = 1.0
+
+[[move]]
+id = 43
+name = "dacao"
+route = "shuihuo"
+shape = "arc"
+power = 1.2
+reach = 1.5
+width = 0.3
+count = 3
+delay = 0.15
+knockback = 1.0
+
+[[move]]
+id = 44
+name = "guanmen"
+route = "shuihuo"
+shape = "ring"
+power = 2.4
+reach = 2.8
+count = 2
+delay = 0.4
+grow = -0.55
+knockback = -2.0
+ultimate = true
+stop = true
+
+# 黃泉引魂針 (stolen from the sect): needles everywhere.
+[[move]]
+id = 45
+name = "huangquan"
+route = "yinhun"
+shape = "wave"
+power = 0.5
+count = 4
+spread = 1.0
+pierce = 1
+speed = 520
+life = 0.9
+knockback = 0.1
+
+[[move]]
+id = 46
+name = "guimen"
+route = "yinhun"
+shape = "wave"
+power = 0.5
+count = 8
+spread = 1.0
+pierce = 1
+speed = 520
+life = 0.9
+knockback = 0.1
+
+[[move]]
+id = 47
+name = "yanwang"
+route = "yinhun"
+shape = "wave"
+seek = 1
+power = 0.6
+count = 6
+spread = 0.4
+pierce = 2
+speed = 600
+life = 1.0
+knockback = 0.1
+
+[[move]]
+id = 48
+name = "shidian"
+route = "yinhun"
+shape = "wave"
+power = 0.5
+count = 32
+spread = 1.0
+pierce = 2
+speed = 500
+life = 1.1
+knockback = 0.1
+ultimate = true
+stop = true
+
+# 三屍攝魂爪 (stolen from the sect): draw them in, then tear.
+[[move]]
+id = 49
+name = "gouhun"
+route = "shesou"
+shape = "ring"
+power = 0.5
+reach = 1.25
+count = 1
+knockback = -1.2
+
+[[move]]
+id = 50
+name = "poguan"
+route = "shesou"
+shape = "ring"
+power = 1.5
+reach = 1.25
+count = 2
+delay = 0.3
+grow = -0.6
+knockback = -0.6
+
+[[move]]
+id = 51
+name = "wangui"
+route = "shesou"
+shape = "ring"
+power = 3.0
+reach = 3.0
+count = 2
+delay = 0.6
+grow = -0.8
+knockback = -2.0
+ultimate = true
+stop = true
+
 # -------------------------------------------------------------- elements
 # Magic elements (魔法): what a martial art adds to its hits once the element's
 # card is put on it. An art carries one element at most; a new card replaces
@@ -1373,6 +1683,11 @@ name = "commission_failed"
 [[event]]
 id = 18
 name = "move"
+
+# A stolen route was learned (偷師). The value is the route's id.
+[[event]]
+id = 19
+name = "steal"
 
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...
@@ -1984,6 +2299,29 @@ min = 0
 max = 1
 step = 1
 
+# The share of the horde each school's disciples take (the enemies with a
+# `school`). 0 sends none.
+[[tune]]
+id = 52
+name = "school_share"
+mission = "any"
+default = 0.04
+min = 0.0
+max = 0.25
+step = 0.01
+
+# The stolen routes learned in earlier runs, as bits by route id. The host
+# sets it from the save (mission "host": never on a setup screen), so a
+# replay plays with what the player knew then.
+[[tune]]
+id = 53
+name = "stolen"
+mission = "host"
+default = 0
+min = 0
+max = 16777215
+step = 1
+
 # Routes (套路, the [[route]] entries above): 1 on, 0 off. Off, every art
 # grows by its own numbers up to its top level as before routes existed.
 [[tune]]
@@ -2086,6 +2424,17 @@ len = 3
 [[state]]
 name = "art_kind"
 index = 112
+len = "art"
+
+# The stolen routes learned so far, as bits by route id (the host saves them).
+[[state]]
+name = "stolen"
+index = 120
+
+# The quality of each martial art's weapon: 0 plain iron, 1 fine steel, 2 a famous blade.
+[[state]]
+name = "art_quality"
+index = 116
 len = "art"
 
 # Current level of each upgrade. It moved here from index 16, where there is

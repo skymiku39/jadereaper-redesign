@@ -8,7 +8,16 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/level-decks` (cut from `feat/martial-routes`, uncommitted)
+### `feat/weapon-quality` (cut from `feat/level-decks`, uncommitted)
+
+After "提交後繼續" again, `feat/level-decks` was committed as b72050f (not pushed) and this branch cut.
+
+- **Built:** weapon quality (plain iron, fine steel, famous blade: damage ×1, 1.15, 1.3, reach ×1, 1.05, 1.1) as the rank of weapon cards (25% steel, 5% famous, steel sure after three plain cards; a card of the kind an art already is always brings a better one; a change of kind keeps the better quality); silver and gold card frames and HUD chips. Stealing (偷師): four stolen routes (綠林十八刀, 六扇門水火棍, 黃泉引魂針, 三屍攝魂爪, 15 moves, pulls through negative knockback), three schools of the powers, four disciple enemies (`bandit`, `constable`, `needler`, `puppet`) that join the horde at the `school_share` tune each (0.04); the first disciple of a school to fall teaches its routes in that run (`EV_STEAL`, a notice), and the host keeps them in the save as bits, passed to later runs and replays through the `stolen` tune (mission "host": the generator now accepts it, and no setup screen shows it).
+- **Decided here, not by the user:** every number; disciples only charge (the elites with telegraphed moves of design 4.8.6 are not built), and stealing needs any disciple, not an elite; manuals that cap stolen routes at the second move are not built, so a stolen route is whole at once; the route rules of the design (the bandits' crowd bonus, the needles' opening, homing) are left out and the moves are made of the existing shapes.
+- **Checked:** fmt, clippy, `cargo test --release` (256 and 26 content), `./build.sh`, fonts, determinism, smoke; the balance tool; a headless browser with more disciples saw the notice "偷師：三屍攝魂爪（九幽教）" and the save and the core both holding the four stolen routes.
+- **Not checked:** nobody has played it; the stolen routes' cards and moves were not looked at on screen.
+
+### `feat/level-decks` (cut from `feat/martial-routes`, committed b72050f)
 
 After the user said "提交後繼續", `docs/martial-routes` (05df291) and `feat/martial-routes` (a2e42d9) were committed locally (nothing pushed), and this branch was cut.
 

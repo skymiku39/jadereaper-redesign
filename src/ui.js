@@ -142,7 +142,7 @@ export function createUI({ onAction }) {
   function hud({
     hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
     carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait, accept,
-    artElements = [], artRoutes = [], artSteps = [], artOrders = [], routesOn = false, artKinds = [],
+    artElements = [], artRoutes = [], artSteps = [], artOrders = [], routesOn = false, artKinds = [], artQualities = [],
     guard = 0, guardMax = 0, regrow = 0, commission = null, notice = null,
   }) {
     set('hpFill', 'width', `${Math.max(0, Math.min(100, (hp / maxHp) * 100)).toFixed(1)}%`);
@@ -209,7 +209,8 @@ export function createUI({ onAction }) {
     } else if (commission?.phase === 2) {
       label = t('commission.hunt', { n: commission.band, time: left });
     }
-    if (notice) label = t(notice);
+    // A notice is a text key, or { key, vars } for a line that names something.
+    if (notice) label = typeof notice === 'string' ? t(notice) : t(notice.key, notice.vars);
     // Before the mission is accepted, the label says what to do: go to the circle, then stay in it.
     if (accept) {
       label = accept.held > 0 ? t('hud.accept', { n: Math.ceil(accept.need - accept.held) }) : t('hud.acceptGo');
@@ -241,7 +242,7 @@ export function createUI({ onAction }) {
     const marked = mission.id === MISSION_IDS.vendetta;
     const killsText = counted ? `${Math.min(kills, goal)} / ${goal}` : String(kills);
     set('killsText', 'text', marked ? `${progress} / ${goal}` : killsText);
-    const sig = `${getLang()}${routesOn}${artKinds.join(',')}${upgrades.join(',')}|${artElements.join(',')}|${artRoutes.join(',')}|${artSteps.join(',')}|${artOrders.join(',')}`;
+    const sig = `${getLang()}${routesOn}${artKinds.join(',')}${artQualities.join(',')}${upgrades.join(',')}|${artElements.join(',')}|${artRoutes.join(',')}|${artSteps.join(',')}|${artOrders.join(',')}`;
     if (cache.chips !== sig) {
       cache.chips = sig;
       $('chips').replaceChildren(...upgrades.flatMap((lvl, id) => {
@@ -252,7 +253,10 @@ export function createUI({ onAction }) {
         chip.title = !art && routesOn ? t(`inner.${UPGRADES[id].name}.name`) : t(`upgrade.${id}.name`);
         // An art in a weapon kind shows the kind's mark and name.
         const kind = art ? WEAPONS[(artKinds[art.id] || 0) - 1] : null;
-        if (kind) chip.title = `${t(`weapon.${kind.name}`)} · ${chip.title}`;
+        const quality = art ? artQualities[art.id] || 0 : 0;
+        if (kind) chip.title = `${t(`quality.${quality}`)}${t(`weapon.${kind.name}`)} · ${chip.title}`;
+        if (quality === 1) chip.classList.add('chip-steel');
+        if (quality === 2) chip.classList.add('chip-famous');
         const glyph = document.createElement('b');
         glyph.textContent = kind ? kind.glyph : UPGRADES[id].glyph;
         chip.append(glyph, String(lvl));
@@ -329,11 +333,11 @@ export function createUI({ onAction }) {
     } else {
       banner.dataset.i18n = 'levelup.banner';
       setText(banner, t('levelup.banner'));
-      $('cards').replaceChildren(...offerCards(choices, upgrades, artRoutes, routesOn, artKinds));
-      // A fine card brings two layers at once: it says so and shines.
+      $('cards').replaceChildren(...offerCards(choices, upgrades, artRoutes, routesOn, artKinds, ranks));
+      // A fine card brings two layers at once: it says so and shines. (A weapon card's rank is its quality.)
       ranks.forEach((rank, slot) => {
         const card = document.querySelector(`#cards .card[data-value="${slot}"]`);
-        if (!card || rank !== 1) return;
+        if (!card || rank !== 1 || card.classList.contains('weapon-card')) return;
         card.classList.add('fine-card');
         const label = card.querySelector('.rank');
         if (label) label.textContent = t('levelup.fine');
@@ -430,7 +434,7 @@ export function createUI({ onAction }) {
   }
 
   /** One card per offered upgrade or element. A card's value is its slot. */
-  function offerCards(choices, upgrades, artRoutes = [], routesOn = false, artKinds = []) {
+  function offerCards(choices, upgrades, artRoutes = [], routesOn = false, artKinds = [], ranks = []) {
     return choices.flatMap((id, slot) => {
       if (id < 0) return [];
       const card = document.createElement('button');
@@ -448,11 +452,15 @@ export function createUI({ onAction }) {
           : t('levelup.newWeapon', { art: t(`upgrade.${art.upgrade}.name`) });
         const forms = weapon.forms.map((f) => t(`form.${f}`)).join('・');
         const suits = ROUTES.filter((r) => r.suits.includes(weapon.id)).map((r) => t(`route.${r.name}.name`)).join('、');
-        card.classList.add('route-card');
+        // Its rank is its quality: fine steel shines silver, a famous blade gold.
+        const quality = ranks[slot] || 0;
+        card.classList.add('route-card', 'weapon-card');
+        if (quality === 1) card.classList.add('steel-card');
+        if (quality === 2) card.classList.add('fine-card');
         cardParts(card, [
           ['key', String(slot + 1)],
           ['glyph', weapon.glyph],
-          ['name', name],
+          ['name', `${t(`quality.${quality}`)}${name}`],
           ['rank', rank],
           ['desc', [forms, suits ? t('levelup.suits', { routes: suits }) : ''].filter(Boolean).join('\n')],
         ]);

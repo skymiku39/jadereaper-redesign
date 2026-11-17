@@ -64,16 +64,24 @@ pub const K_WISP: u8 = 1;
 pub const K_BRUTE: u8 = 2;
 pub const K_ELITE: u8 = 3;
 pub const K_HOUND: u8 = 4;
-pub const N_KINDS: usize = 5;
+pub const K_BANDIT: u8 = 5;
+pub const K_CONSTABLE: u8 = 6;
+pub const K_NEEDLER: u8 = 7;
+pub const K_PUPPET: u8 = 8;
+pub const N_KINDS: usize = 9;
 #[rustfmt::skip]
-pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound"];
+pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet"];
 #[rustfmt::skip]
 pub const KINDS: [Kind; N_KINDS] = [
-    Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES },
-    Kind { hp: 7.0, speed: 118.0, r: 12.0, dmg: 4.0, xp: 1.0, part: P_WISP, color: [0.36, 0.40, 0.56], hw: 22.0, hh: 13.0, rate: 9.0, corpse: true, heavy: false, hover: true, from: 25.0, share: 0.3, ramp: 0.0, every: 0.0, share_tune: N_TUNES },
-    Kind { hp: 70.0, speed: 44.0, r: 26.0, dmg: 12.0, xp: 5.0, part: P_BRUTE, color: [0.58, 0.31, 0.24], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 60.0, share: 0.25, ramp: 400.0, every: 0.0, share_tune: N_TUNES },
-    Kind { hp: 600.0, speed: 56.0, r: 44.0, dmg: 20.0, xp: 40.0, part: P_BRUTE, color: [0.74, 0.25, 0.18], hw: 52.0, hh: 52.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 90.0, share_tune: N_TUNES },
-    Kind { hp: 10.0, speed: 215.0, r: 11.0, dmg: 6.0, xp: 1.0, part: P_WISP, color: [0.52, 0.20, 0.16], hw: 17.0, hh: 10.0, rate: 12.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_CHASERS },
+    Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS },
+    Kind { hp: 7.0, speed: 118.0, r: 12.0, dmg: 4.0, xp: 1.0, part: P_WISP, color: [0.36, 0.40, 0.56], hw: 22.0, hh: 13.0, rate: 9.0, corpse: true, heavy: false, hover: true, from: 25.0, share: 0.3, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS },
+    Kind { hp: 70.0, speed: 44.0, r: 26.0, dmg: 12.0, xp: 5.0, part: P_BRUTE, color: [0.58, 0.31, 0.24], hw: 30.0, hh: 30.0, rate: 3.0, corpse: false, heavy: true, hover: false, from: 60.0, share: 0.25, ramp: 400.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS },
+    Kind { hp: 600.0, speed: 56.0, r: 44.0, dmg: 20.0, xp: 40.0, part: P_BRUTE, color: [0.74, 0.25, 0.18], hw: 52.0, hh: 52.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 90.0, share_tune: N_TUNES, school: N_SCHOOLS },
+    Kind { hp: 10.0, speed: 215.0, r: 11.0, dmg: 6.0, xp: 1.0, part: P_WISP, color: [0.52, 0.20, 0.16], hw: 17.0, hh: 10.0, rate: 12.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_CHASERS, school: N_SCHOOLS },
+    Kind { hp: 22.0, speed: 70.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.50, 0.30, 0.20], hw: 19.0, hh: 19.0, rate: 6.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_HEIFENG },
+    Kind { hp: 26.0, speed: 66.0, r: 17.0, dmg: 6.0, xp: 2.0, part: P_BLOT, color: [0.22, 0.28, 0.42], hw: 19.0, hh: 19.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN },
+    Kind { hp: 12.0, speed: 104.0, r: 12.0, dmg: 5.0, xp: 2.0, part: P_WISP, color: [0.42, 0.24, 0.46], hw: 22.0, hh: 13.0, rate: 9.0, corpse: false, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU },
+    Kind { hp: 34.0, speed: 48.0, r: 18.0, dmg: 7.0, xp: 2.0, part: P_BLOT, color: [0.38, 0.44, 0.36], hw: 20.0, hh: 20.0, rate: 3.0, corpse: true, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU },
 ];
 
 // Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.
@@ -161,9 +169,12 @@ pub const SC_CAOBANG: usize = 2;
 pub const SC_TANGMEN: usize = 3;
 pub const SC_XUANZHONG: usize = 4;
 pub const SC_QIUSHUI: usize = 5;
-pub const N_SCHOOLS: usize = 6;
+pub const SC_HEIFENG: usize = 6;
+pub const SC_LIUSHANMEN: usize = 7;
+pub const SC_JIUYOU: usize = 8;
+pub const N_SCHOOLS: usize = 9;
 #[rustfmt::skip]
-pub const SCHOOL_NAMES: [&str; N_SCHOOLS] = ["duanyue", "changfeng", "caobang", "tangmen", "xuanzhong", "qiushui"];
+pub const SCHOOL_NAMES: [&str; N_SCHOOLS] = ["duanyue", "changfeng", "caobang", "tangmen", "xuanzhong", "qiushui", "heifeng", "liushanmen", "jiuyou"];
 
 // Routes (套路): what an art turns into from level 3, and their moves in order.
 pub const RT_BENGYUE: usize = 0;
@@ -174,9 +185,13 @@ pub const RT_ERSHIBA: usize = 4;
 pub const RT_CHUANYANG: usize = 5;
 pub const RT_MUGUCHENZHONG: usize = 6;
 pub const RT_ZHUOYU: usize = 7;
-pub const N_ROUTES: usize = 8;
+pub const RT_LULIN: usize = 8;
+pub const RT_SHUIHUO: usize = 9;
+pub const RT_YINHUN: usize = 10;
+pub const RT_SHESOU: usize = 11;
+pub const N_ROUTES: usize = 12;
 #[rustfmt::skip]
-pub const ROUTE_NAMES: [&str; N_ROUTES] = ["bengyue", "jinghong", "poyu", "fanjiang", "ershiba", "chuanyang", "muguchenzhong", "zhuoyu"];
+pub const ROUTE_NAMES: [&str; N_ROUTES] = ["bengyue", "jinghong", "poyu", "fanjiang", "ershiba", "chuanyang", "muguchenzhong", "zhuoyu", "lulin", "shuihuo", "yinhun", "shesou"];
 #[rustfmt::skip]
 pub const ROUTES: [RouteDef; N_ROUTES] = [
     RouteDef { art: A_SCYTHE, school: SC_DUANYUE, beat: 1.0, start: true, first: 0, n: 4, suits: 0x4 },
@@ -187,6 +202,10 @@ pub const ROUTES: [RouteDef; N_ROUTES] = [
     RouteDef { art: A_TALISMAN, school: SC_CHANGFENG, beat: 1.3, start: true, first: 24, n: 4, suits: 0xc0 },
     RouteDef { art: A_PULSE, school: SC_XUANZHONG, beat: 2.2, start: true, first: 28, n: 4, suits: 0x600 },
     RouteDef { art: A_PULSE, school: SC_QIUSHUI, beat: 0.5, start: true, first: 32, n: 5, suits: 0x200 },
+    RouteDef { art: A_SCYTHE, school: SC_HEIFENG, beat: 0.9, start: false, first: 37, n: 3, suits: 0x5 },
+    RouteDef { art: A_BEADS, school: SC_LIUSHANMEN, beat: 1.2, start: false, first: 40, n: 5, suits: 0x10 },
+    RouteDef { art: A_TALISMAN, school: SC_JIUYOU, beat: 0.6, start: false, first: 45, n: 4, suits: 0x100 },
+    RouteDef { art: A_PULSE, school: SC_JIUYOU, beat: 1.6, start: false, first: 49, n: 3, suits: 0x800 },
 ];
 pub const MV_HENGYUN: usize = 0;
 pub const MV_HUISHOU: usize = 1;
@@ -225,9 +244,24 @@ pub const MV_ZHUOMO: usize = 33;
 pub const MV_TASHAN: usize = 34;
 pub const MV_YUSHI: usize = 35;
 pub const MV_NINGWEI: usize = 36;
-pub const N_MOVES: usize = 37;
+pub const MV_MENGHU: usize = 37;
+pub const MV_KAITANG: usize = 38;
+pub const MV_SHEDE: usize = 39;
+pub const MV_QIANYANG: usize = 40;
+pub const MV_YUQIN: usize = 41;
+pub const MV_SHENGDONG: usize = 42;
+pub const MV_DACAO: usize = 43;
+pub const MV_GUANMEN: usize = 44;
+pub const MV_HUANGQUAN: usize = 45;
+pub const MV_GUIMEN: usize = 46;
+pub const MV_YANWANG: usize = 47;
+pub const MV_SHIDIAN: usize = 48;
+pub const MV_GOUHUN: usize = 49;
+pub const MV_POGUAN: usize = 50;
+pub const MV_WANGUI: usize = 51;
+pub const N_MOVES: usize = 52;
 #[rustfmt::skip]
-pub const MOVE_NAMES: [&str; N_MOVES] = ["hengyun", "huishou", "wanren", "wuyue", "yipie", "pianruo", "shuangyan", "hongfei", "xueni", "zhaoying", "shouwei", "fengjuan", "luoye", "bafang", "chaosheng", "jingtao", "nishui", "dajiang", "changhe", "sanxing", "wuxing", "qixing", "xingluo", "zhoutian", "moshi", "sanjian", "shuangdiao", "houyi", "chenzhong", "yuyin", "geshan", "hongzhong", "qiecuo", "zhuomo", "tashan", "yushi", "ningwei"];
+pub const MOVE_NAMES: [&str; N_MOVES] = ["hengyun", "huishou", "wanren", "wuyue", "yipie", "pianruo", "shuangyan", "hongfei", "xueni", "zhaoying", "shouwei", "fengjuan", "luoye", "bafang", "chaosheng", "jingtao", "nishui", "dajiang", "changhe", "sanxing", "wuxing", "qixing", "xingluo", "zhoutian", "moshi", "sanjian", "shuangdiao", "houyi", "chenzhong", "yuyin", "geshan", "hongzhong", "qiecuo", "zhuomo", "tashan", "yushi", "ningwei", "menghu", "kaitang", "shede", "qianyang", "yuqin", "shengdong", "dacao", "guanmen", "huangquan", "guimen", "yanwang", "shidian", "gouhun", "poguan", "wangui"];
 #[rustfmt::skip]
 pub const MOVES: [MoveDef; N_MOVES] = [
     MoveDef { route: 0, shape: MS_ARC, power: 1.3, reach: 1.0, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
@@ -267,6 +301,21 @@ pub const MOVES: [MoveDef; N_MOVES] = [
     MoveDef { route: 7, shape: MS_WAVE, power: 0.5, reach: 0.0, width: 0.0, count: 3, spread: 0.33, delay: 0.0, knockback: 0.3, pierce: 2, speed: 500.0, life: 0.5, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
     MoveDef { route: 7, shape: MS_RING, power: 0.5, reach: 0.43, width: 0.0, count: 2, spread: 0.0, delay: 0.2, knockback: 0.3, pierce: 0, speed: 0.0, life: 0.0, grow: 0.5, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
     MoveDef { route: 7, shape: MS_RING, power: 0.8, reach: 0.43, width: 0.0, count: 5, spread: 0.0, delay: 0.12, knockback: 0.4, pierce: 0, speed: 0.0, life: 0.0, grow: 0.65, offset: 0.0, seek: 0, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 8, shape: MS_ARC, power: 1.1, reach: 1.1, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 8, shape: MS_ARC, power: 1.8, reach: 1.0, width: 0.6, count: 1, spread: 0.0, delay: 0.0, knockback: 1.5, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: true },
+    MoveDef { route: 8, shape: MS_ARC, power: 3.0, reach: 1.3, width: -2.0, count: 2, spread: 0.0, delay: 0.12, knockback: 2.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 9, shape: MS_ARC, power: 1.0, reach: 1.6, width: -2.0, count: 1, spread: 0.0, delay: 0.0, knockback: -1.5, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 9, shape: MS_RING, power: 1.6, reach: 1.2, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 0.3, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 9, shape: MS_ARC, power: 1.4, reach: 1.5, width: -0.15, count: 2, spread: 0.5, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 9, shape: MS_ARC, power: 1.2, reach: 1.5, width: 0.3, count: 3, spread: 0.0, delay: 0.15, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 9, shape: MS_RING, power: 2.4, reach: 2.8, width: 0.0, count: 2, spread: 0.0, delay: 0.4, knockback: -2.0, pierce: 0, speed: 0.0, life: 0.0, grow: -0.55, offset: 0.0, seek: 0, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 10, shape: MS_WAVE, power: 0.5, reach: 0.0, width: 0.0, count: 4, spread: 1.0, delay: 0.0, knockback: 0.1, pierce: 1, speed: 520.0, life: 0.9, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 10, shape: MS_WAVE, power: 0.5, reach: 0.0, width: 0.0, count: 8, spread: 1.0, delay: 0.0, knockback: 0.1, pierce: 1, speed: 520.0, life: 0.9, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 10, shape: MS_WAVE, power: 0.6, reach: 0.0, width: 0.0, count: 6, spread: 0.4, delay: 0.0, knockback: 0.1, pierce: 2, speed: 600.0, life: 1.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 10, shape: MS_WAVE, power: 0.5, reach: 0.0, width: 0.0, count: 32, spread: 1.0, delay: 0.0, knockback: 0.1, pierce: 2, speed: 500.0, life: 1.1, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 11, shape: MS_RING, power: 0.5, reach: 1.25, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: -1.2, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 11, shape: MS_RING, power: 1.5, reach: 1.25, width: 0.0, count: 2, spread: 0.0, delay: 0.3, knockback: -0.6, pierce: 0, speed: 0.0, life: 0.0, grow: -0.6, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 11, shape: MS_RING, power: 3.0, reach: 3.0, width: 0.0, count: 2, spread: 0.0, delay: 0.6, knockback: -2.0, pierce: 0, speed: 0.0, life: 0.0, grow: -0.8, offset: 0.0, seek: 0, split: 0, ultimate: true, stop: true },
 ];
 
 // Magic elements. Id 0 means no element; `ELEMENTS[0]` is that empty entry.
@@ -323,6 +372,7 @@ pub const EV_COMMISSION: f32 = 15.0;
 pub const EV_COMMISSION_DONE: f32 = 16.0;
 pub const EV_COMMISSION_FAILED: f32 = 17.0;
 pub const EV_MOVE: f32 = 18.0;
+pub const EV_STEAL: f32 = 19.0;
 
 // Mission ids, and what each one asks for (seconds for `survive`, enemies for `kills`).
 pub const M_ENDLESS: usize = 0;
@@ -396,15 +446,17 @@ pub const T_ARENA_RADIUS: usize = 48;
 pub const T_COMMISSIONS: usize = 49;
 pub const T_ROUTES: usize = 50;
 pub const T_DECKS: usize = 51;
-pub const N_TUNES: usize = 52;
+pub const T_SCHOOL_SHARE: usize = 52;
+pub const T_STOLEN: usize = 53;
+pub const N_TUNES: usize = 54;
 #[rustfmt::skip]
-pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius", "commissions", "routes", "decks"];
+pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius", "commissions", "routes", "decks", "school_share", "stolen"];
 #[rustfmt::skip]
-pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.04, 0.0];
 #[rustfmt::skip]
-pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 #[rustfmt::skip]
-pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0, 1.0, 1.0, 1.0];
+pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0, 1.0, 1.0, 1.0, 0.25, 16777215.0];
 // The tune that holds each mission's goal; N_TUNES where the goal cannot be changed.
 #[rustfmt::skip]
 pub const MISSION_GOAL_TUNE: [usize; N_MISSIONS] = [N_TUNES, T_SURVIVE_GOAL, T_KILLS_GOAL, T_FORMATION_GOAL, T_ARENA_GOAL, T_RETRIEVAL_GOAL, T_PURSUIT_GOAL, N_TUNES, T_HOLD_GOAL, T_ESCAPE_GOAL, T_BOSS_GOAL, T_VENDETTA_GOAL];
@@ -471,5 +523,7 @@ pub const S_ART_ORDER0: usize = 91;
 pub const S_ROUTES_ON: usize = 95;
 pub const S_UPGRADE0: usize = 96;
 pub const S_ART_KIND0: usize = 112;
+pub const S_ART_QUALITY0: usize = 116;
+pub const S_STOLEN: usize = 120;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];

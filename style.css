@@ -509,6 +509,11 @@ body.low-health::after { opacity: 1; animation: low-pulse 0.9s ease-in-out infin
 .deck-card { flex-basis: 150px; }
 .deck-card .glyph { font-size: 44px; }
 .deck-card[disabled] { opacity: 0.35; filter: grayscale(1); cursor: default; }
+/* Fine steel shines silver; a famous blade (like a fine card) gold. */
+.steel-card::before { box-shadow: inset 0 0 0 3px #8e9aa6, 0 0 10px rgba(142, 154, 166, 0.5); }
+.steel-card .name { color: #5c6874; }
+.chip-steel::before { box-shadow: inset 0 0 0 2px #8e9aa6; }
+.chip-famous::before { box-shadow: inset 0 0 0 2px #c9a23a, 0 0 8px rgba(201, 162, 58, 0.5); }
 /* A fine card (two layers at once) shines gold. */
 .fine-card::before { box-shadow: inset 0 0 0 3px #c9a23a, 0 0 14px rgba(201, 162, 58, 0.55); }
 .fine-card .rank { color: #a7811f; }

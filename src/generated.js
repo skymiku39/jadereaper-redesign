@@ -49,6 +49,10 @@ export const KINDS = [
   { id: 2, name: 'brute', heavy: true },
   { id: 3, name: 'elite', heavy: true },
   { id: 4, name: 'hound', heavy: false },
+  { id: 5, name: 'bandit', heavy: false },
+  { id: 6, name: 'constable', heavy: false },
+  { id: 7, name: 'needler', heavy: false },
+  { id: 8, name: 'puppet', heavy: false },
 ];
 
 /** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and
@@ -88,6 +92,9 @@ export const SCHOOLS = [
   { id: 3, name: 'tangmen' },
   { id: 4, name: 'xuanzhong' },
   { id: 5, name: 'qiushui' },
+  { id: 6, name: 'heifeng' },
+  { id: 7, name: 'liushanmen' },
+  { id: 8, name: 'jiuyou' },
 ];
 
 /** Routes (套路), indexed by id. `art` is the art id that learns it; `moves` its move ids in
@@ -101,6 +108,10 @@ export const ROUTES = [
   { id: 5, name: 'chuanyang', art: 1, school: 1, beat: 1.3, start: true, moves: [24, 25, 26, 27], ultimate: true, suits: [7, 6] },
   { id: 6, name: 'muguchenzhong', art: 3, school: 4, beat: 2.2, start: true, moves: [28, 29, 30, 31], ultimate: true, suits: [9, 10] },
   { id: 7, name: 'zhuoyu', art: 3, school: 5, beat: 0.5, start: true, moves: [32, 33, 34, 35, 36], ultimate: true, suits: [9] },
+  { id: 8, name: 'lulin', art: 0, school: 6, beat: 0.9, start: false, moves: [37, 38, 39], ultimate: true, suits: [2, 0] },
+  { id: 9, name: 'shuihuo', art: 2, school: 7, beat: 1.2, start: false, moves: [40, 41, 42, 43, 44], ultimate: true, suits: [4] },
+  { id: 10, name: 'yinhun', art: 1, school: 8, beat: 0.6, start: false, moves: [45, 46, 47, 48], ultimate: true, suits: [8] },
+  { id: 11, name: 'shesou', art: 3, school: 8, beat: 1.6, start: false, moves: [49, 50, 51], ultimate: true, suits: [11] },
 ];
 
 /** Moves (式), indexed by id. Text is move.<name>.name and .desc. */
@@ -142,6 +153,21 @@ export const MOVES = [
   { id: 34, name: 'tashan', route: 7, ultimate: false, stop: false },
   { id: 35, name: 'yushi', route: 7, ultimate: false, stop: false },
   { id: 36, name: 'ningwei', route: 7, ultimate: true, stop: true },
+  { id: 37, name: 'menghu', route: 8, ultimate: false, stop: false },
+  { id: 38, name: 'kaitang', route: 8, ultimate: false, stop: true },
+  { id: 39, name: 'shede', route: 8, ultimate: true, stop: true },
+  { id: 40, name: 'qianyang', route: 9, ultimate: false, stop: false },
+  { id: 41, name: 'yuqin', route: 9, ultimate: false, stop: false },
+  { id: 42, name: 'shengdong', route: 9, ultimate: false, stop: false },
+  { id: 43, name: 'dacao', route: 9, ultimate: false, stop: false },
+  { id: 44, name: 'guanmen', route: 9, ultimate: true, stop: true },
+  { id: 45, name: 'huangquan', route: 10, ultimate: false, stop: false },
+  { id: 46, name: 'guimen', route: 10, ultimate: false, stop: false },
+  { id: 47, name: 'yanwang', route: 10, ultimate: false, stop: false },
+  { id: 48, name: 'shidian', route: 10, ultimate: true, stop: true },
+  { id: 49, name: 'gouhun', route: 11, ultimate: false, stop: false },
+  { id: 50, name: 'poguan', route: 11, ultimate: false, stop: false },
+  { id: 51, name: 'wangui', route: 11, ultimate: true, stop: true },
 ];
 
 /** Magic elements. Ids start at 1 (0 means no element), so element `id` is ELEMENTS[id - 1].
@@ -184,6 +210,7 @@ export const EVENT = {
   COMMISSION_DONE: 16,
   COMMISSION_FAILED: 17,
   MOVE: 18,
+  STEAL: 19,
 };
 
 /** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).
@@ -274,6 +301,8 @@ export const TUNES = [
   { id: 49, name: 'commissions', mission: 'endless', def: 1, min: 0, max: 1, step: 1 },
   { id: 50, name: 'routes', mission: 'any', def: 1, min: 0, max: 1, step: 1 },
   { id: 51, name: 'decks', mission: 'any', def: 1, min: 0, max: 1, step: 1 },
+  { id: 52, name: 'school_share', mission: 'any', def: 0.04, min: 0.0, max: 0.25, step: 0.01 },
+  { id: 53, name: 'stolen', mission: 'host', def: 0, min: 0, max: 16777215, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */
@@ -341,6 +370,8 @@ export const STATE = {
   ROUTES_ON: 95,
   UPGRADE0: 96,
   ART_KIND0: 112,
+  ART_QUALITY0: 116,
+  STOLEN: 120,
 };
 
 export const INK = [0.17, 0.15, 0.13];

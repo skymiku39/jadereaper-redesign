@@ -29,12 +29,21 @@ pub struct ArtState {
     pub step: u8,
     /// The weapon kind it is, by weapon id plus 1; 0 for none (see `kinds.rs`).
     pub kind: u8,
+    /// Its weapon's quality: plain iron, fine steel or a famous blade (`kinds.rs`).
+    pub quality: u8,
 }
 
 impl ArtState {
     /// Every art as a run starts: waiting out its first delay, with no element.
     pub fn fresh() -> [ArtState; N_ARTS] {
-        core::array::from_fn(|a| ArtState { timer: ARTS[a].first_delay, element: 0, route: 0, step: 0, kind: 0 })
+        core::array::from_fn(|a| ArtState {
+            timer: ARTS[a].first_delay,
+            element: 0,
+            route: 0,
+            step: 0,
+            kind: 0,
+            quality: 0,
+        })
     }
 }
 
@@ -65,7 +74,7 @@ impl Game {
         }
         // With routes on, an art given level 3 or more takes its first route.
         if level >= 3 && self.routes_on() && self.arts[a].route == 0 {
-            if let Some(r) = Self::routes_of(a).next() {
+            if let Some(r) = self.routes_of(a).next() {
                 self.take_route(a, r);
             }
         }

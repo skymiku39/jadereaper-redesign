@@ -47,9 +47,25 @@ impl Game {
         self.tune[T_ROUTES] > 0.5
     }
 
-    /// The routes an art can take now, in id order, at most three.
-    pub(crate) fn routes_of(a: usize) -> impl Iterator<Item = usize> {
-        (0..N_ROUTES).filter(move |&r| ROUTES[r].art == a && ROUTES[r].start).take(3)
+    /// The routes an art can take now, in id order, at most three: the ones
+    /// known from the start and the stolen ones learned so far.
+    pub(crate) fn routes_of(&self, a: usize) -> impl Iterator<Item = usize> {
+        let stolen = self.stolen;
+        (0..N_ROUTES).filter(move |&r| ROUTES[r].art == a && (ROUTES[r].start || stolen & (1 << r) != 0)).take(3)
+    }
+
+    /// A disciple of school `s` fell to the player: every stolen route of that
+    /// school not yet learned is learned now (偷師), and offered from now on.
+    pub(crate) fn steal(&mut self, s: usize) {
+        if !self.routes_on() {
+            return;
+        }
+        for (r, def) in ROUTES.iter().enumerate().take(32) {
+            if def.school == s && !def.start && self.stolen & (1 << r) == 0 {
+                self.stolen |= 1 << r;
+                self.event(EV_STEAL, self.player.x, self.player.y, r as f32);
+            }
+        }
     }
 
     /// The art an upgrade levels, if it is one.
@@ -83,7 +99,7 @@ impl Game {
     pub(crate) fn route_needed(&self, id: usize) -> Option<usize> {
         let a = Self::art_of_upgrade(id)?;
         let waiting = self.routes_on() && self.up[id] == 2 && self.arts[a].route == 0;
-        (waiting && Self::routes_of(a).next().is_some()).then_some(a)
+        (waiting && self.routes_of(a).next().is_some()).then_some(a)
     }
 
     /// Put art `a` on route `r` (an index into `ROUTES`), starting its move order over.
@@ -496,6 +512,7 @@ impl Game {
             mix(art.step as u32);
             mix(art.timer.to_bits());
             mix(art.kind as u32);
+            mix(art.quality as u32);
         }
         mix(self.route_pick as u32);
         mix(self.delayed.len() as u32);

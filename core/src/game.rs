@@ -192,8 +192,14 @@ pub struct Game {
     pub deck_pick: bool,
     /// The deck drawn from last, which the host offers first next time.
     pub last_deck: u8,
-    /// Per card on offer: 1 for a fine card that brings two levels at once.
+    /// Per card on offer: 1 for a fine card that brings two levels at once;
+    /// for a weapon card, its quality.
     pub ranks: [u8; 3],
+    /// Weapon cards drawn in a row without fine steel or better (`kinds.rs`).
+    pub dry: u8,
+    /// The stolen routes learned (偷師), as bits by route id: from earlier runs
+    /// (the `stolen` tune) and this one (`routes.rs`).
+    pub stolen: u32,
     pub pending: u32,
     /// The log of what the player does, and a log being played back.
     pub replay: replay::Replay,
@@ -366,6 +372,8 @@ impl Game {
             deck_pick: false,
             last_deck: 0,
             ranks: [0; 3],
+            dry: 0,
+            stolen: 0,
             pending: 0,
             replay: replay::Replay::default(),
             kills: 0,
@@ -400,6 +408,8 @@ impl Game {
         self.mission = if mission < N_MISSIONS { mission } else { M_ENDLESS };
         self.hold.begin(self.mission == M_HOLD, &self.tune);
         self.running = true;
+        // The stolen routes learned in earlier runs.
+        self.stolen = self.tune[T_STOLEN] as u32;
         // With weapon kinds on, the arts held from the start come in their start kinds.
         for a in 0..N_ARTS {
             if self.art_level(a) > 0 {
@@ -597,9 +607,11 @@ impl Game {
         self.routes_hash(&mut mix);
         if self.inner_on() {
             self.inner.mix(&mut mix);
+            mix(self.stolen);
         }
         if self.decks_on() {
             mix(self.deck_pick as u32);
+            mix(self.dry as u32);
             for r in self.ranks {
                 mix(r as u32);
             }
@@ -1133,6 +1145,10 @@ impl Game {
             if heart {
                 self.drop_gem(e.x + 14.0, e.y, 0.0, true);
             }
+            // A disciple of a school falling teaches its stolen routes.
+            if k.school < N_SCHOOLS {
+                self.steal(k.school);
+            }
             // The second layer of the sleeve: an elite falling brings every jade in.
             if e.kind == K_ELITE && self.layer(U_LURE) >= 2 {
                 self.gather_jade();
@@ -1415,7 +1431,7 @@ impl Game {
             let id = self.choices[i] as usize;
             if id >= kinds::CARD_WEAPON0 {
                 // A weapon kind card: a new art in that kind, or a held art changed to it.
-                self.take_weapon((id - kinds::CARD_WEAPON0).min(N_WEAPONS.saturating_sub(1)));
+                self.take_weapon((id - kinds::CARD_WEAPON0).min(N_WEAPONS.saturating_sub(1)), self.ranks[i]);
             } else {
                 if id >= N_UPGRADES {
                     self.attach = (id - N_UPGRADES + 1).min(N_ELEMENTS) as u8;
@@ -1426,8 +1442,11 @@ impl Game {
                 // the cards become the routes it can take.
                 if let Some(a) = self.route_needed(id) {
                     self.route_pick = a as u8 + 1;
-                    let mut routes = Self::routes_of(a);
-                    self.choices = core::array::from_fn(|_| routes.next().map_or(-1, |r| r as i32));
+                    let mut found = [-1i32; 3];
+                    for (slot, r) in self.routes_of(a).enumerate() {
+                        found[slot] = r as i32;
+                    }
+                    self.choices = found;
                     return;
                 }
                 // A fine card (from the decks) brings two levels at once.
@@ -1827,10 +1846,12 @@ impl Game {
             s[S_ART_ELEMENT0 + a] = art.element as f32;
             s[S_ART_ROUTE0 + a] = art.route as f32;
             s[S_ART_KIND0 + a] = art.kind as f32;
+            s[S_ART_QUALITY0 + a] = art.quality as f32;
         }
         s[S_ROUTE_PICK] = self.route_pick as f32;
         s[S_ROUTES_ON] = (self.tune[T_ROUTES] > 0.5) as u8 as f32;
         s[S_DECK_PICK] = self.deck_pick as u8 as f32;
+        s[S_STOLEN] = self.stolen as f32;
         s[S_LAST_DECK] = self.last_deck as f32;
         for c in 0..3 {
             s[S_CHOICE_RANK0 + c] = self.ranks[c] as f32;
