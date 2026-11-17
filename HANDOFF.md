@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/paired-blows` (cut from `feat/net-slow`)
+### `feat/master-routes` (cut from `feat/paired-blows`)
+
+`feat/paired-blows` was committed as b54dc8c and this branch cut.
+
+- **Built:** a master (an enemy kind with `manual`) no longer uses only its `strike`: it goes through every move of the route that move belongs to, in order, and round again (`foes::foe_move`), so the bandit master opens with 猛虎, the constable master with 牽羊, and each ends on its ultimate, warned of for 1.3 s instead of 0.8. Thrusts are a narrow arc for a foe, or a fan as wide as their spread, or all round. Elites that are not masters use their one move as before.
+- **Checked:** fmt, clippy, tests (282, one new; the elite tests now measure from a master's first move), `./build.sh`, determinism, smoke. The balance tool's bots live a little longer (seek 227 s from 216, circle 115 s from 109), since masters now land their ultimate only every few moves.
+- **Not checked:** nobody has played it; whether the general's twelve-spear ultimate as one ring warning reads well.
+
+### `feat/paired-blows` (cut from `feat/net-slow`, committed b54dc8c)
 
 `feat/net-slow` was committed as 5cfb964 and this branch cut.
 

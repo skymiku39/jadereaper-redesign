@@ -5,7 +5,9 @@
 //!
 //! An enemy kind with a `strike` uses that `[[move]]`: an arc toward the
 //! player or a ring around itself, `reach` times `FOE_REACH` across. A
-//! negative knockback pulls the player in. Only kinds that come alone with a
+//! negative knockback pulls the player in. A master (a kind that drops
+//! manuals) goes through every move of the route its `strike` belongs to, in
+//! order, and warns longer of the ultimate at the end. Only kinds that come alone with a
 //! `school_share` above 0 exist, so with it at 0 nothing here runs.
 
 use super::{Fx, Game};
@@ -35,6 +37,39 @@ pub struct Foe {
     /// Which way the move goes, set when the warning starts.
     pub ax: f32,
     pub ay: f32,
+    /// The move it is winding up or used last.
+    pub mv: u16,
+    /// A master's place in its route: how many moves it has used.
+    pub step: u8,
+}
+
+/// Seconds of warning before a master's ultimate lands.
+const WIND_UP_ULTIMATE: f32 = 1.3;
+
+/// The move a foe of enemy kind `kind` uses as its `step`-th: a master
+/// (a kind that drops manuals) goes through the whole route its `strike`
+/// belongs to, in order, the ultimate last, and round again; any other foe
+/// always uses its `strike`.
+pub(crate) fn foe_move(kind: usize, step: u8) -> usize {
+    let s = KINDS[kind].strike;
+    if !KINDS[kind].manual || s >= N_MOVES {
+        return s;
+    }
+    let r = &ROUTES[MOVES[s].route];
+    r.first + step as usize % r.n.max(1)
+}
+
+/// How a foe's move `m` hits: all round, or the cosine bound of its arc. A
+/// thrust is a narrow arc, or a fan as wide as its `spread`, or all round.
+fn foe_shape(m: usize) -> (bool, f32) {
+    let def = &MOVES[m];
+    match def.shape {
+        MS_RING => (true, -2.0),
+        MS_THRUST if def.spread >= 1.0 => (true, -2.0),
+        MS_THRUST if def.spread > 0.0 => (false, fmath::cos(def.spread * core::f32::consts::PI)),
+        MS_THRUST => (false, 0.9),
+        _ => (def.width < -1.0, def.width),
+    }
 }
 
 impl Game {
@@ -54,7 +89,8 @@ impl Game {
                 && self.foes.len() < MAX_FOES
                 && !self.foes.iter().any(|f| f.id == e.id)
             {
-                self.foes.push(Foe { id: e.id, wind: 0.0, rest: 1.5, ax: 1.0, ay: 0.0 });
+                let mv = foe_move(e.kind as usize, 0) as u16;
+                self.foes.push(Foe { id: e.id, wind: 0.0, rest: 1.5, ax: 1.0, ay: 0.0, mv, step: 0 });
             }
         }
         let (px, py) = (self.player.x, self.player.y);
@@ -62,17 +98,20 @@ impl Game {
             let f = self.foes[n];
             let Some(i) = self.enemies.iter().position(|e| e.id == f.id) else { continue };
             let (ex, ey, kind) = (self.enemies[i].x, self.enemies[i].y, self.enemies[i].kind as usize);
-            let m = KINDS[kind].strike;
-            let reach = MOVES[m].reach.abs() * FOE_REACH;
             if f.wind > 0.0 {
                 let wind = f.wind - dt;
                 self.foes[n].wind = wind.max(0.0);
                 if wind <= 0.0 {
                     self.foes[n].rest = REST;
-                    self.foe_strike(i, m, f.ax, f.ay);
+                    if KINDS[kind].manual {
+                        self.foes[n].step = f.step.wrapping_add(1);
+                    }
+                    self.foe_strike(i, f.mv as usize, f.ax, f.ay);
                 }
                 continue;
             }
+            let m = foe_move(kind, f.step);
+            let reach = MOVES[m].reach.abs() * FOE_REACH;
             let rest = f.rest - dt;
             self.foes[n].rest = rest.max(0.0);
             let (dx, dy) = (px - ex, py - ey);
@@ -80,10 +119,12 @@ impl Game {
             if rest <= 0.0 && d < reach * 1.1 {
                 // Start the warning: the shape of the move on the ground, and its name.
                 let (ax, ay) = (dx / d, dy / d);
-                self.foes[n].wind = WIND_UP;
+                let wind = if MOVES[m].ultimate && KINDS[kind].manual { WIND_UP_ULTIMATE } else { WIND_UP };
+                self.foes[n].wind = wind;
                 self.foes[n].ax = ax;
                 self.foes[n].ay = ay;
-                self.foe_mark(ex, ey, ax, ay, m, reach, 0.35, WIND_UP);
+                self.foes[n].mv = m as u16;
+                self.foe_mark(ex, ey, ax, ay, m, reach, 0.35, wind);
                 self.event(EV_FOE, ex, ey, m as f32);
             }
         }
@@ -92,7 +133,7 @@ impl Game {
     /// Draw a foe's move at (x, y): faint while it warns, solid when it lands.
     #[allow(clippy::too_many_arguments)]
     fn foe_mark(&mut self, x: f32, y: f32, ax: f32, ay: f32, m: usize, reach: f32, alpha: f32, life: f32) {
-        let ring = MOVES[m].shape == MS_RING || MOVES[m].width < -1.0;
+        let (ring, _) = foe_shape(m);
         self.add_fx(Fx {
             x,
             y: y - 6.0,
@@ -121,8 +162,8 @@ impl Game {
         self.foe_mark(ex, ey, ax, ay, m, reach, 0.85, 0.25);
         let (dx, dy) = (self.player.x - ex, self.player.y - ey);
         let d = (dx * dx + dy * dy).sqrt().max(0.001);
-        let ring = def.shape == MS_RING || def.width < -1.0;
-        let inside = d < reach + 14.0 && (ring || d < 30.0 || (dx * ax + dy * ay) / d > def.width);
+        let (ring, width) = foe_shape(m);
+        let inside = d < reach + 14.0 && (ring || d < 30.0 || (dx * ax + dy * ay) / d > width);
         if !inside {
             return;
         }
@@ -161,6 +202,9 @@ impl Game {
             mix(f.id);
             mix(f.wind.to_bits());
             mix(f.rest.to_bits());
+            if f.step > 0 {
+                mix(f.step as u32);
+            }
         }
     }
 }
