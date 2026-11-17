@@ -519,6 +519,8 @@ body.low-health::after { opacity: 1; animation: low-pulse 0.9s ease-in-out infin
 .record-move b.ultimate { color: var(--vermilion); }
 .record-move span { color: var(--ink-soft); }
 .record-move.unknown b { color: rgba(43, 38, 34, 0.35); letter-spacing: 0.1em; }
+/* Give a kept manual to this route. */
+.record-give { margin: 6px 0 2px 10px; font-size: 14px; padding: 4px 12px; }
 /* The decks: five narrower cards; an empty deck is greyed out. */
 .deck-card { flex-basis: 150px; }
 .deck-card .glyph { font-size: 44px; }

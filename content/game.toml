@@ -2501,7 +2501,8 @@ name = "steal"
 id = 20
 name = "foe"
 
-# A manual (秘笈) opened one more move of a stolen route. The value is the route's id.
+# A master dropped a manual (秘笈) of its school, kept for after the run. The
+# value is the school's id.
 [[event]]
 id = 21
 name = "manual"

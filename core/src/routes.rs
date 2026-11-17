@@ -105,18 +105,13 @@ impl Game {
         }
     }
 
-    /// A master of school `s` fell and dropped a manual: each stolen route of
-    /// the school that still has a move shut opens one more.
+    /// A master of school `s` fell and dropped a manual of the school. It is
+    /// kept for after the run, where the player chooses which of the school's
+    /// stolen routes it opens a move of (design 4.5); the host keeps it and
+    /// sets the `manuals` tune of later runs. Nothing opens in this run.
     pub(crate) fn gain_manual(&mut self, s: usize) {
-        if !self.routes_on() {
-            return;
-        }
-        for (r, def) in ROUTES.iter().enumerate() {
-            let Some(slot) = Self::manual_slot(r) else { continue };
-            if def.school == s && self.moves_open(r) < def.n {
-                self.manuals += 1 << (2 * slot);
-                self.event(EV_MANUAL, self.player.x, self.player.y, r as f32);
-            }
+        if self.routes_on() && (0..N_ROUTES).any(|r| ROUTES[r].school == s && Self::manual_slot(r).is_some()) {
+            self.event(EV_MANUAL, self.player.x, self.player.y, s as f32);
         }
     }
 

@@ -223,25 +223,23 @@ fn a_stolen_route_opens_one_more_move_per_manual() {
     g.take_route(a, r);
     assert_eq!(g.upgrade_top(ARTS[a].upgrade) as usize, 2 + 2.min(n), "two moves without manuals");
     let master = (0..N_KINDS).find(|&k| KINDS[k].school == s && KINDS[k].manual).expect("a master");
-    for m in 1..=n.saturating_sub(2) {
-        let i = put(&mut g, 60.0, 0.0);
-        g.enemies[i].kind = master as u8;
-        g.enemies[i].hp = 0.0;
-        g.events.clear();
-        g.reap();
-        assert!(g.events.iter().any(|e| e[0] == EV_MANUAL && e[3] == r as f32));
-        assert_eq!(g.upgrade_top(ARTS[a].upgrade) as usize, 2 + (2 + m).min(n));
-    }
-    // Every move open: another manual adds nothing.
+    // A master drops a manual of its school, kept for after the run: nothing opens now.
+    let i = put(&mut g, 60.0, 0.0);
+    g.enemies[i].kind = master as u8;
+    g.enemies[i].hp = 0.0;
     g.events.clear();
-    g.gain_manual(s);
-    assert!(!g.events.iter().any(|e| e[0] == EV_MANUAL && e[3] == r as f32));
-    assert_eq!(g.upgrade_top(ARTS[a].upgrade) as usize, 2 + n);
-    // A later run keeps them through the `manuals` tune.
-    let mut later = Game::new(2);
-    later.tune[T_MANUALS] = g.manuals as f32;
-    later.start(M_ENDLESS);
-    assert_eq!(later.moves_open(r), n);
+    g.reap();
+    assert!(g.events.iter().any(|e| e[0] == EV_MANUAL && e[3] == s as f32));
+    assert_eq!(g.upgrade_top(ARTS[a].upgrade) as usize, 2 + 2.min(n), "it opens nothing in this run");
+    // Given to this route after the run (by the host, through the `manuals`
+    // tune), each manual opens one more move.
+    let slot = Game::manual_slot(r).unwrap();
+    for m in 1..=n.saturating_sub(2) {
+        let mut later = base();
+        later.tune[T_MANUALS] = (m << (2 * slot)) as f32;
+        later.start(M_ENDLESS);
+        assert_eq!(later.moves_open(r), (2 + m).min(n));
+    }
 }
 
 #[test]

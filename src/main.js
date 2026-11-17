@@ -152,14 +152,14 @@ async function boot() {
     }
   }
 
-  /** A master dropped a manual (秘笈): say which route opened a move, and keep all of them for later runs. */
-  function onManual(id, manuals) {
-    const route = ROUTES[id];
-    if (!route) return;
-    notice = { key: 'manual.notice', vars: { name: t(`route.${route.name}.name`) }, until: clock + 4 };
+  /** A master dropped a manual (秘笈) of its school: say so, and keep it to give to a route in the martial record. */
+  function onManual(id) {
+    const school = SCHOOLS[id];
+    if (!school) return;
+    notice = { key: 'manual.notice', vars: { name: t(`school.${school.name}`) }, until: clock + 4 };
     audio.play('learn');
     if (!replaying) {
-      save.manuals = manuals;
+      save.scrolls[id] = (Number(save.scrolls[id]) || 0) + 1;
       writeSave(save);
     }
   }
@@ -363,7 +363,7 @@ async function boot() {
       case 'quit': toTitle(); break;
       case 'settings': settingsFrom = ui.screen; ui.show('settings'); break;
       case 'back': ui.show(settingsFrom); break;
-      case 'record': ui.record(save); ui.show('record'); break;
+      case 'record': ui.record(save, writeSave); ui.show('record'); break;
       case 'record-back': ui.show('title'); break;
       case 'lang':
         setLang(nextLang(getLang()));
@@ -490,7 +490,7 @@ async function boot() {
           if (type === EVENT.LEVELUP) ui.flashLevel();
           if (type === EVENT.MOVE) onMove(ev[i * 4 + 3]);
           if (type === EVENT.STEAL) onSteal(ev[i * 4 + 3]);
-          if (type === EVENT.MANUAL) onManual(ev[i * 4 + 3], s[STATE.MANUALS]);
+          if (type === EVENT.MANUAL) onManual(ev[i * 4 + 3]);
           if (type === EVENT.ZENITH) onZenith(ev[i * 4 + 3]);
           // A school elite winds up a move: its name in red, so the player knows what is coming.
           if (type === EVENT.FOE && MOVES[ev[i * 4 + 3]]) {

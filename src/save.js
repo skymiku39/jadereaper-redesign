@@ -25,8 +25,11 @@ const DEFAULTS = {
   lang: null, // null: use DEFAULT_LANG from i18n.js
   // The stolen routes learned (偷師), as bits by route id; kept from run to run.
   stolen: 0,
-  // The manuals (秘笈) gained, two bits per route id; kept from run to run.
+  // The manuals (秘笈) given to stolen routes, two bits per stolen route in id
+  // order; kept from run to run.
   manuals: 0,
+  // The manuals dropped by masters and not yet given to a route, per school id.
+  scrolls: {},
   // The ids of the route moves ever used: what the martial record (武學錄) shows.
   learned: [],
   // The heights (極致) ever reached, as "route:element".
@@ -42,11 +45,12 @@ export function loadSave() {
     const plain = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {});
     save.missions = plain(save.missions);
     save.tuning = plain(save.tuning);
+    save.scrolls = plain(save.scrolls);
     save.learned = Array.isArray(save.learned) ? save.learned.filter((id) => Number.isInteger(id)) : [];
     save.zeniths = Array.isArray(save.zeniths) ? save.zeniths.filter((k) => typeof k === 'string') : [];
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {}, tuning: {}, learned: [], zeniths: [] };
+    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, learned: [], zeniths: [] };
   }
 }
 

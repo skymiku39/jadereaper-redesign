@@ -16,8 +16,12 @@ const elementById = (id) => ELEMENTS[id - 1] || null;
  */
 function movesOpen(route, manuals) {
   if (route.start) return route.moves.length;
-  const slot = ROUTES.filter((r) => !r.start && r.id < route.id).length;
-  return Math.min(route.moves.length, 2 + ((manuals >>> (2 * slot)) & 3));
+  return Math.min(route.moves.length, 2 + ((manuals >>> (2 * manualSlot(route))) & 3));
+}
+
+/** Where a stolen route's manuals are kept: its place among the stolen routes, in id order. */
+function manualSlot(route) {
+  return ROUTES.filter((r) => !r.start && r.id < route.id).length;
 }
 
 /** The martial art an upgrade levels, or undefined for a plain stat upgrade. */
@@ -433,9 +437,10 @@ export function createUI({ onAction }) {
   /**
    * The martial record (武學錄): per art, every route with its school and whether it is known,
    * stolen or not yet, its manuals, and its moves: a learned move shows its name and its line,
-   * one not yet learned only the outline of its name.
+   * one not yet learned only the outline of its name. A manual kept from a run can be given
+   * here to a stolen route of its school; `onGive` then keeps the save.
    */
-  function record(save) {
+  function record(save, onGive = () => {}) {
     const learned = new Set(Array.isArray(save.learned) ? save.learned : []);
     const stolen = Number(save.stolen) || 0;
     const manuals = Number(save.manuals) || 0;
@@ -464,6 +469,18 @@ export function createUI({ onAction }) {
         }
         title.append(el('span', 'record-tag', `${status} · ${t('record.count', { n: got, m: route.moves.length })}`));
         box.append(title);
+        // A manual of the route's school, not yet given: give it to this route to open one more move.
+        const spare = Number(save.scrolls?.[route.school]) || 0;
+        if (!route.start && known && spare > 0 && movesOpen(route, manuals) < route.moves.length && manualSlot(route) < 12) {
+          const give = el('button', 'record-give', t('record.give', { n: spare }));
+          give.addEventListener('click', () => {
+            save.manuals = (Number(save.manuals) || 0) + 2 ** (2 * manualSlot(route));
+            save.scrolls[route.school] = spare - 1;
+            onGive(save);
+            record(save, onGive);
+          });
+          box.append(give);
+        }
         for (const id of route.moves) {
           const move = MOVES[id];
           const moveName = t(`move.${move.name}.name`);

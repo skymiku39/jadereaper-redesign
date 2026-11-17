@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/master-routes` (cut from `feat/paired-blows`)
+### `feat/manual-choice` (cut from `feat/master-routes`)
+
+`feat/master-routes` was committed as 12753a9 and this branch cut.
+
+- **Built:** as design 4.5 has it, a manual (秘笈) is now kept for after the run and the player chooses where it goes. A master's fall sends `EV_MANUAL` with its school's id and opens nothing in the run; the host keeps it in `save.scrolls` (per school id) and says so. In the martial record, a stolen route of that school with a move still shut has a button that gives it one manual, which adds to `save.manuals` (the same two bits per stolen route as before, so older saves keep what they had) and so opens one more move from the next run on.
+- **Checked:** fmt, clippy, tests (the manual test now checks that nothing opens in the run and that the tune opens one move per manual), `./build.sh`, fonts, determinism, smoke; in a headless browser, a save with a stolen route and two kept manuals of its school shows one button, and two clicks give both (manuals 0 → 4 → 8 for slot 1, scrolls 2 → 0, the button gone).
+- **Not checked:** nobody has played it. A manual dropped in a run no longer helps that run; whether that feels like a loss is for play to tell.
+
+### `feat/master-routes` (cut from `feat/paired-blows`, committed 12753a9)
 
 `feat/paired-blows` was committed as b54dc8c and this branch cut.
 
