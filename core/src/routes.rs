@@ -129,7 +129,8 @@ impl Game {
         if self.arts[a].timer > 0.0 {
             return;
         }
-        self.arts[a].timer = ROUTES[r].beat * haste * self.beat_factor();
+        self.arts[a].timer = ROUTES[r].beat * haste * self.beat_factor() * self.kind_beat(a);
+        let might = might * self.kind_power(a);
         let (order, len) = self.move_order(a);
         if len == 0 {
             return;
@@ -171,14 +172,16 @@ impl Game {
         match ARTS[a].behaviour {
             B_ARC => {
                 let (ax, ay) = self.player.aim;
-                self.sweep(a, n.damage * might * light, n.reach, n.width, n.knockback * light, ax, ay);
+                let (reach, knock) = (n.reach * self.kind_reach(a), n.knockback * light * self.kind_knock(a));
+                self.sweep(a, n.damage * might * light, reach, n.width, knock, ax, ay);
                 self.event(EV_SLASH, px, py, 0.0);
             }
             B_PROJECTILE => {
                 self.shoot_nearest(a, n, might * light);
             }
             B_NOVA => {
-                self.ring(a, px, py, n.reach, n.damage * might * light, n.knockback * light);
+                let (reach, knock) = (n.reach * self.kind_reach(a), n.knockback * light * self.kind_knock(a));
+                self.ring(a, px, py, reach, n.damage * might * light, knock);
                 self.event(EV_PULSE, px, py, 0.0);
             }
             _ => {}
@@ -249,9 +252,9 @@ impl Game {
         let turn = def.spread * TAU * k as f32;
         let (c, s) = (fmath::cos(turn), fmath::sin(turn));
         let (dx, dy) = (ax * c - ay * s, ax * s + ay * c);
-        let reach = n.reach * def.reach * (1.0 + def.grow * k as f32) * self.melee_reach();
+        let reach = n.reach * def.reach * (1.0 + def.grow * k as f32) * self.melee_reach() * self.kind_reach(a);
         let dmg = n.damage * def.power * might;
-        self.sweep(a, dmg, reach, def.width, n.knockback * def.knockback, dx, dy);
+        self.sweep(a, dmg, reach, def.width, n.knockback * def.knockback * self.kind_knock(a), dx, dy);
     }
 
     /// One sweep around the player towards (ax, ay): everything within `reach`
@@ -387,8 +390,9 @@ impl Game {
         let n = Self::basic_numbers(a);
         let ahead = n.reach * def.offset;
         let (cx, cy) = (self.player.x + ax * ahead, self.player.y + ay * ahead);
-        let radius = n.reach * def.reach * (1.0 + def.grow * k as f32) * self.melee_reach();
-        self.ring(a, cx, cy, radius, n.damage * def.power * might, n.knockback * def.knockback);
+        let radius = n.reach * def.reach * (1.0 + def.grow * k as f32) * self.melee_reach() * self.kind_reach(a);
+        let knock = n.knockback * def.knockback * self.kind_knock(a);
+        self.ring(a, cx, cy, radius, n.damage * def.power * might, knock);
     }
 
     /// Queue a hit of move `m` to land `left` seconds from now.
@@ -427,7 +431,7 @@ impl Game {
     fn mark_strike(&mut self, a: usize, m: usize, x: f32, y: f32, might: f32) {
         let def = &MOVES[m];
         let n = Self::basic_numbers(a);
-        let radius = n.reach * def.reach;
+        let radius = n.reach * def.reach * self.kind_reach(a);
         let dmg = n.damage * def.power * might;
         let element = self.arts[a].element;
         for i in 0..self.enemies.len() {
@@ -484,13 +488,14 @@ impl Game {
 
     /// The words the hash takes from the routes, when any art follows one.
     pub(crate) fn routes_hash(&self, mix: &mut impl FnMut(u32)) {
-        if self.arts.iter().all(|a| a.route == 0) && self.delayed.is_empty() && self.route_pick == 0 {
+        if self.arts.iter().all(|a| a.route == 0 && a.kind == 0) && self.delayed.is_empty() && self.route_pick == 0 {
             return;
         }
         for art in &self.arts {
             mix(art.route as u32);
             mix(art.step as u32);
             mix(art.timer.to_bits());
+            mix(art.kind as u32);
         }
         mix(self.route_pick as u32);
         mix(self.delayed.len() as u32);

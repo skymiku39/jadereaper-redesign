@@ -16,6 +16,7 @@ fn near(a: f32, b: f32) -> bool {
 fn base() -> Game {
     let mut g = Game::new(1);
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.running = true;
     g.arts[A_SCYTHE].timer = 100.0;
     g.arts[A_TALISMAN].timer = 100.0;
@@ -510,6 +511,7 @@ fn passive_and_weapon_ids_and_caps() {
 fn offer_gives_three_distinct_valid_choices() {
     for seed in 1..200u32 {
         let mut g = Game::new(seed);
+        g.tune[T_DECKS] = 0.0;
         g.pending = 1;
         g.offer();
         assert!(g.choosing);
@@ -530,8 +532,10 @@ fn offer_gives_three_distinct_valid_choices() {
 fn offer_never_includes_maxed_upgrades() {
     for seed in 1..100u32 {
         let mut g = Game::new(seed);
+        g.tune[T_DECKS] = 0.0;
         g.tune[T_ELEMENT_CARDS] = 0.0;
         g.tune[T_ROUTES] = 0.0;
+        g.tune[T_DECKS] = 0.0;
         g.up = UPGRADE_MAX;
         // Leave three upgrades one level short.
         for id in [U_PULSE, U_SWIFT, U_MENDING] {
@@ -548,7 +552,9 @@ fn offer_never_includes_maxed_upgrades() {
 #[test]
 fn offer_pads_with_empty_slots_when_few_remain() {
     let mut g = Game::new(5);
+    g.tune[T_DECKS] = 0.0;
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.up = UPGRADE_MAX;
     g.up[U_HASTE] -= 1;
     g.up[U_LURE] -= 1;
@@ -566,6 +572,7 @@ fn offer_pads_with_empty_slots_when_few_remain() {
 #[test]
 fn choose_raises_level_and_closes_the_offer() {
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.pending = 1;
     g.offer();
     let id = g.choices[1] as usize;
@@ -580,6 +587,7 @@ fn choose_raises_level_and_closes_the_offer() {
 #[test]
 fn choose_chains_into_the_next_pending_offer() {
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.pending = 2;
     g.offer();
     g.choose(0);
@@ -593,6 +601,7 @@ fn choose_chains_into_the_next_pending_offer() {
 #[test]
 fn choose_is_ignored_when_not_choosing_or_out_of_range() {
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.choices = [U_MIGHT as i32, -1, -1];
     g.choose(0); // not choosing
     assert_eq!(g.up[U_MIGHT], 0);
@@ -608,6 +617,7 @@ fn choose_on_a_maxed_upgrade_changes_nothing_but_still_consumes_the_pick() {
     // Oddity: a stale choice that is already maxed is not raised, yet the
     // offer is closed and a pending level up is spent.
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.up[U_SWIFT] = UPGRADE_MAX[U_SWIFT];
     g.choosing = true;
     g.pending = 1;
@@ -622,7 +632,9 @@ fn choose_on_a_maxed_upgrade_changes_nothing_but_still_consumes_the_pick() {
 fn vitality_at_full_health_overheals_current_health() {
     // Oddity: hp is raised by 20 without clamping, so it stays equal to max.
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.choosing = true;
     g.pending = 1;
     g.choices = [U_VITALITY as i32, -1, -1];
@@ -634,6 +646,7 @@ fn vitality_at_full_health_overheals_current_health() {
 #[test]
 fn offer_heals_when_everything_is_maxed() {
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.up = UPGRADE_MAX;
     g.player.hp = 10.0;
     g.pending = 2;
@@ -795,6 +808,7 @@ fn whole_run() -> (u32, u32, f32, usize, u64) {
     g.tune[T_ELEMENT_CARDS] = 0.0;
     g.tune[T_COMMISSIONS] = 0.0;
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.set_view(640.0, 360.0);
     g.running = true;
     g.input = (1.0, 0.5);

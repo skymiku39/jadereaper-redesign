@@ -112,7 +112,7 @@ fn undefined_reference_is_rejected() {
 #[test]
 fn overlapping_state_is_rejected() {
     assert_error(&errors_after("name = \"over\"\nindex = 11", "name = \"over\"\nindex = 10"), "overlaps `choice`");
-    assert_error(&errors_after("state_floats = 112", "state_floats = 20"), "ends past state_floats");
+    assert_error(&errors_after("state_floats = 128", "state_floats = 20"), "ends past state_floats");
 }
 
 #[test]
@@ -139,6 +139,19 @@ fn routes_and_moves_are_checked() {
 }
 
 #[test]
+fn weapon_kinds_are_checked() {
+    let c = real();
+    assert!(!c.weapons.is_empty());
+    assert_error(&errors_after("suits = \"dadao\"", "suits = \"spear\""), "suits weapon `spear`, which is not defined");
+    assert_error(&errors_after("suits = \"dadao\"", "suits = \"biao\""), "which is a kind of `talisman`");
+    assert_error(&errors_after("name = \"dandao\"\nart = \"scythe\"", "name = \"dandao\"\nart = \"axe\""), "art `axe`");
+    assert_error(
+        &errors_after("glyph = \"雙\"\nshort = true", "glyph = \"雙\"\nstart = true\nshort = true"),
+        "exactly one weapon kind",
+    );
+}
+
+#[test]
 fn every_route_move_and_school_has_text() {
     let c = real();
     let i18n = read("src/i18n.js");
@@ -154,6 +167,10 @@ fn every_route_move_and_school_has_text() {
     }
     for s in &c.schools {
         let key = format!("'school.{}'", s.name);
+        assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
+    }
+    for w in &c.weapons {
+        let key = format!("'weapon.{}'", w.name);
         assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
     }
 }

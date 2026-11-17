@@ -8,16 +8,25 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/martial-routes` (cut from `docs/martial-routes`, uncommitted)
+### `feat/level-decks` (cut from `feat/martial-routes`, uncommitted)
 
-On 2026-11-17 the user said quota was no longer a limit and to put it into development ("我現在有無限額度。趕快用於開發"). Nothing below is committed; the design documents of `docs/martial-routes` are in the same working tree, also uncommitted.
+After the user said "提交後繼續", `docs/martial-routes` (05df291) and `feat/martial-routes` (a2e42d9) were committed locally (nothing pushed), and this branch was cut.
+
+- **Built:** `core/src/decks.rs` and the `decks` tune (default 1): a level-up asks for a deck (weapons, martial arts, inner arts, magic, fate), then three cards from it; a deck with nothing is greyed out, one open deck skips the question, the last deck is focused next time; inner-art cards are now and then fine (two layers, 20%, 40% from fate). `core/src/kinds.rs`, `[[weapon]]` in the content (12 kinds) and `suits` on routes: an art comes in its start kind; the weapons deck hands out a new art in any kind or another kind for a held art; form tags scale reach, beat, damage and knockback; a route that suits the kind hits 15% harder (人器合一). The deck screen, weapon cards (new or `單刀 → 雙刀`, form tags, the routes it suits), route cards marked when they suit the kind, kind glyphs on the HUD chips. State: `deck_pick` at 16, `deck_open` 17-21, `last_deck` 22, `choice_rank` 23-25, `art_kind` 112 (`state_floats` 128).
+- **Decided here, not by the user:** the deck odds and fine-card chances; fate sometimes ends in an element; a closed deck falls back to the first open one; kinds are on with routes (one tune); paired is simply 20% more damage, and the sickle's hook, the throwing knife's pierce and the needles' count from the design are not built; the mission tests' bots play without decks.
+- **Checked:** fmt and clippy, `cargo test --release` (254, 26 content), `./build.sh`, fonts, `npm run determinism`, `npm run smoke`; the balance tool with `--pick arts` (the circling bot lasts 101 s against 108 s before routes, the seeking bot 182 s against 104 s); a headless browser drew from every deck, saw a fine card and weapon cards of both sorts.
+- **Not checked:** nobody has played it; gamepad on the deck screen; how the five cards fit a narrow screen.
+
+### `feat/martial-routes` (cut from `docs/martial-routes`, committed a2e42d9)
+
+On 2026-11-17 the user said quota was no longer a limit and to put it into development ("我現在有無限額度。趕快用於開發"). Committed as a2e42d9 on 2026-11-17 at the user's word; not pushed.
 
 - **Built:** `[[school]]`, `[[route]]` and `[[move]]` tables in the generator and `content/game.toml` (6 schools, 8 routes, 37 moves: two routes for each of scythe, beads, talisman and pulse, standing in for sabre, staff, hidden weapons and fist); `core/src/routes.rs` (route choice at level 3, the move order, four move shapes, delayed hits, splitting and piercing shots); `core/src/inner.rs` (the passives as three-layer inner arts, and three new ones: `jieli`, `qiguan`, `wanfa`); the `routes` tune (default 1) that turns both on; the route cards, move-order dots on HUD chips, move names brushed over the game, hit-stop and sounds for ultimates, inner-art cards (`src/ui.js`, `src/main.js`, `src/audio.js`, `style.css`); text in both languages. State moved: `upgrade` is now at index 96 (`state_floats` 112).
 - **Decided here, not by the user:** every number; a route's basic move hits more lightly when the route beats faster than the art's own cooldown; beads on a route keep growing with the level under the moves; inner-art layers count as passive levels 2, 4 and 5, so the old numbers stay the base; borrowed force is a splash around the struck enemy rather than a real collision; the staff's moves are sweeps and rings rather than the extending rod of the design; the routes and inner arts share one tune.
 - **Checked:** fmt and clippy on `core` and `tools/gen`, `cargo test --release` (249 with the new route and inner tests, 25 content tests), `./build.sh`, fonts subset and check, `npm run determinism`, `npm run smoke`. The recorded whole run passes with the tune off. The balance tool shows the four bots last about as long with routes as without (`--pick arts`). A headless browser took the scythe to level 3, saw the route cards, took a route, and saw each move's name called out once and the ultimates every time; all four arts at the top level at once; inner-art cards.
 - **Not checked:** nobody has played it. Whether every move reads on screen, and whether the route numbers feel right, was not judged; only a few pictures were looked at. Gamepad and narrow screens on the new cards were not tried. Replay links made before this branch play back wrongly, since their tunes lack `routes`.
 
-### `docs/martial-routes` (cut from `feat/gem-curve`, uncommitted)
+### `docs/martial-routes` (cut from `feat/gem-curve`, committed 05df291)
 
 On 2026-11-17 the user said levelling up felt messy and flat ("我感覺升級很亂，玩起來沒勁"), suggested a draw that guarantees the kind but not the rarity (from RO), and asked how growing stronger should feel. Shown two directions, the user chose to design the martial-art routes first, then said to keep going without stopping and finish as much design as possible, with weapons and martial arts linked and more wuxia ("武器和武學應該要有連動，並且要江湖一點").
 

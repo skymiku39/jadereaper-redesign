@@ -17,7 +17,7 @@
 ink = [0.17, 0.15, 0.13]
 
 # Size of the HUD state buffer in floats.
-state_floats = 112
+state_floats = 128
 
 # How many martial arts the player can hold at once. An art not yet held is
 # not offered once this many are.
@@ -438,6 +438,115 @@ cooldown = 4.2
 reach = [180, 210, 240, 270, 300, 330]
 knockback = 520
 
+# -------------------------------------------------------------- weapons
+# Weapon kinds (兵器種類, docs/design.md 4.8.2): with the `routes` tune on, an
+# art's weapon is one of its kinds, which the weapons deck draws; a held art
+# can change to another kind and keep its level and route. Ids index a table
+# (at most 32). Each art with kinds has exactly one `start` kind, the one it
+# comes in when first taken. The form tags change its numbers (core/src/kinds.rs):
+#   long       reach 15% further, a beat 10% slower
+#   short      reach 10% less, a beat 10% quicker
+#   heavy      10% more damage, 30% more knockback, a beat 10% slower
+#   light      a beat 10% quicker
+#   paired     20% more damage (two blades)
+#   mechanism  nothing yet (for the Tang mechanisms to come)
+# Names are `weapon.<name>` in src/i18n.js.
+
+[[weapon]]
+id = 0
+name = "dandao"
+art = "scythe"
+glyph = "刀"
+short = true
+light = true
+start = true
+
+[[weapon]]
+id = 1
+name = "shuangdao"
+art = "scythe"
+glyph = "雙"
+short = true
+light = true
+paired = true
+
+[[weapon]]
+id = 2
+name = "dadao"
+art = "scythe"
+glyph = "斬"
+long = true
+heavy = true
+
+[[weapon]]
+id = 3
+name = "lian"
+art = "scythe"
+glyph = "鐮"
+short = true
+light = true
+
+[[weapon]]
+id = 4
+name = "qimeigun"
+art = "beads"
+glyph = "棍"
+start = true
+
+[[weapon]]
+id = 5
+name = "changgun"
+art = "beads"
+glyph = "長"
+long = true
+
+[[weapon]]
+id = 6
+name = "biao"
+art = "talisman"
+glyph = "鏢"
+light = true
+start = true
+
+[[weapon]]
+id = 7
+name = "feidao"
+art = "talisman"
+glyph = "飛"
+light = true
+
+[[weapon]]
+id = 8
+name = "zhen"
+art = "talisman"
+glyph = "針"
+light = true
+
+[[weapon]]
+id = 9
+name = "tushou"
+art = "pulse"
+glyph = "拳"
+short = true
+light = true
+start = true
+
+[[weapon]]
+id = 10
+name = "hushou"
+art = "pulse"
+glyph = "護"
+short = true
+heavy = true
+
+[[weapon]]
+id = 11
+name = "zhaotao"
+art = "pulse"
+glyph = "爪"
+short = true
+light = true
+
 # -------------------------------------------------------------- schools
 # Schools (門派): where a route comes from (docs/martial-arts.md). Ids index a
 # table, so they run 0, 1, 2... without gaps. Names are `school.<name>` in
@@ -484,6 +593,7 @@ art = "scythe"
 school = "duanyue"
 beat = 1.0
 start = true
+suits = "dadao"
 
 [[route]]
 id = 1
@@ -492,6 +602,7 @@ art = "scythe"
 school = "changfeng"
 beat = 0.5
 start = true
+suits = "dandao shuangdao"
 
 # The beads stand in for a staff (棍): it keeps circling, and the moves come on top.
 [[route]]
@@ -501,6 +612,7 @@ art = "beads"
 school = "changfeng"
 beat = 1.0
 start = true
+suits = "changgun"
 
 [[route]]
 id = 3
@@ -509,6 +621,7 @@ art = "beads"
 school = "caobang"
 beat = 1.1
 start = true
+suits = "changgun"
 
 # The talisman stands in for hidden weapons (暗器).
 [[route]]
@@ -518,6 +631,7 @@ art = "talisman"
 school = "tangmen"
 beat = 0.95
 start = true
+suits = "biao feidao"
 
 [[route]]
 id = 5
@@ -526,6 +640,7 @@ art = "talisman"
 school = "changfeng"
 beat = 1.3
 start = true
+suits = "feidao biao"
 
 # The pulse stands in for the fist and palm (拳掌).
 [[route]]
@@ -535,6 +650,7 @@ art = "pulse"
 school = "xuanzhong"
 beat = 2.2
 start = true
+suits = "tushou hushou"
 
 [[route]]
 id = 7
@@ -543,6 +659,7 @@ art = "pulse"
 school = "qiushui"
 beat = 0.5
 start = true
+suits = "tushou"
 
 # ---------------------------------------------------------------- moves
 # Moves (式) of the routes above. A route's moves have ids that follow each
@@ -1855,6 +1972,18 @@ min = 0
 max = 1
 step = 1
 
+# The deck-first level-up (core/src/decks.rs, docs/design.md 4.9): 1 on, 0
+# off. On, a level-up first asks which deck to draw from, and the magic deck
+# replaces the element cards of `element_cards`.
+[[tune]]
+id = 51
+name = "decks"
+mission = "any"
+default = 1
+min = 0
+max = 1
+step = 1
+
 # Routes (套路, the [[route]] entries above): 1 on, 0 off. Off, every art
 # grows by its own numbers up to its top level as before routes existed.
 [[tune]]
@@ -1931,8 +2060,36 @@ index = 14
 name = "running"
 index = 15
 
-# Current level of each upgrade. Indices 16 to 25 are free since this moved
-# to the end, where there is room for more upgrades.
+# The decks (core/src/decks.rs): 1 while a level-up asks which deck to draw
+# from (then `jr_choose` takes a deck, 0 weapons, 1 martial arts, 2 inner arts,
+# 3 magic, 4 fate); per deck, 1 when it can be picked; the deck drawn from
+# last; and per card on offer, 1 for a fine one (two levels at once).
+[[state]]
+name = "deck_pick"
+index = 16
+
+[[state]]
+name = "deck_open"
+index = 17
+len = 5
+
+[[state]]
+name = "last_deck"
+index = 22
+
+[[state]]
+name = "choice_rank"
+index = 23
+len = 3
+
+# The weapon kind each martial art is, by weapon id plus 1; 0 for none.
+[[state]]
+name = "art_kind"
+index = 112
+len = "art"
+
+# Current level of each upgrade. It moved here from index 16, where there is
+# room for more upgrades.
 [[state]]
 name = "upgrade"
 index = 96

@@ -122,6 +122,38 @@ pub const ARTS: [ArtDef; N_ARTS] = [
     ] },
 ];
 
+// Weapon kinds (兵器種類): the kinds each art's weapon comes in, with form tags as bits (FORM_*).
+pub const W_DANDAO: usize = 0;
+pub const W_SHUANGDAO: usize = 1;
+pub const W_DADAO: usize = 2;
+pub const W_LIAN: usize = 3;
+pub const W_QIMEIGUN: usize = 4;
+pub const W_CHANGGUN: usize = 5;
+pub const W_BIAO: usize = 6;
+pub const W_FEIDAO: usize = 7;
+pub const W_ZHEN: usize = 8;
+pub const W_TUSHOU: usize = 9;
+pub const W_HUSHOU: usize = 10;
+pub const W_ZHAOTAO: usize = 11;
+pub const N_WEAPONS: usize = 12;
+#[rustfmt::skip]
+pub const WEAPON_NAMES: [&str; N_WEAPONS] = ["dandao", "shuangdao", "dadao", "lian", "qimeigun", "changgun", "biao", "feidao", "zhen", "tushou", "hushou", "zhaotao"];
+#[rustfmt::skip]
+pub const WEAPONS: [WeaponDef; N_WEAPONS] = [
+    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT, start: true },
+    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT | FORM_PAIRED, start: false },
+    WeaponDef { art: A_SCYTHE, forms: FORM_LONG | FORM_HEAVY, start: false },
+    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT, start: false },
+    WeaponDef { art: A_BEADS, forms: 0, start: true },
+    WeaponDef { art: A_BEADS, forms: FORM_LONG, start: false },
+    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: true },
+    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: false },
+    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: false },
+    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: true },
+    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_HEAVY, start: false },
+    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: false },
+];
+
 // Schools (門派).
 pub const SC_DUANYUE: usize = 0;
 pub const SC_CHANGFENG: usize = 1;
@@ -147,14 +179,14 @@ pub const N_ROUTES: usize = 8;
 pub const ROUTE_NAMES: [&str; N_ROUTES] = ["bengyue", "jinghong", "poyu", "fanjiang", "ershiba", "chuanyang", "muguchenzhong", "zhuoyu"];
 #[rustfmt::skip]
 pub const ROUTES: [RouteDef; N_ROUTES] = [
-    RouteDef { art: A_SCYTHE, school: SC_DUANYUE, beat: 1.0, start: true, first: 0, n: 4 },
-    RouteDef { art: A_SCYTHE, school: SC_CHANGFENG, beat: 0.5, start: true, first: 4, n: 6 },
-    RouteDef { art: A_BEADS, school: SC_CHANGFENG, beat: 1.0, start: true, first: 10, n: 4 },
-    RouteDef { art: A_BEADS, school: SC_CAOBANG, beat: 1.1, start: true, first: 14, n: 5 },
-    RouteDef { art: A_TALISMAN, school: SC_TANGMEN, beat: 0.95, start: true, first: 19, n: 5 },
-    RouteDef { art: A_TALISMAN, school: SC_CHANGFENG, beat: 1.3, start: true, first: 24, n: 4 },
-    RouteDef { art: A_PULSE, school: SC_XUANZHONG, beat: 2.2, start: true, first: 28, n: 4 },
-    RouteDef { art: A_PULSE, school: SC_QIUSHUI, beat: 0.5, start: true, first: 32, n: 5 },
+    RouteDef { art: A_SCYTHE, school: SC_DUANYUE, beat: 1.0, start: true, first: 0, n: 4, suits: 0x4 },
+    RouteDef { art: A_SCYTHE, school: SC_CHANGFENG, beat: 0.5, start: true, first: 4, n: 6, suits: 0x3 },
+    RouteDef { art: A_BEADS, school: SC_CHANGFENG, beat: 1.0, start: true, first: 10, n: 4, suits: 0x20 },
+    RouteDef { art: A_BEADS, school: SC_CAOBANG, beat: 1.1, start: true, first: 14, n: 5, suits: 0x20 },
+    RouteDef { art: A_TALISMAN, school: SC_TANGMEN, beat: 0.95, start: true, first: 19, n: 5, suits: 0xc0 },
+    RouteDef { art: A_TALISMAN, school: SC_CHANGFENG, beat: 1.3, start: true, first: 24, n: 4, suits: 0xc0 },
+    RouteDef { art: A_PULSE, school: SC_XUANZHONG, beat: 2.2, start: true, first: 28, n: 4, suits: 0x600 },
+    RouteDef { art: A_PULSE, school: SC_QIUSHUI, beat: 0.5, start: true, first: 32, n: 5, suits: 0x200 },
 ];
 pub const MV_HENGYUN: usize = 0;
 pub const MV_HUISHOU: usize = 1;
@@ -363,21 +395,22 @@ pub const T_AMBUSH: usize = 47;
 pub const T_ARENA_RADIUS: usize = 48;
 pub const T_COMMISSIONS: usize = 49;
 pub const T_ROUTES: usize = 50;
-pub const N_TUNES: usize = 51;
+pub const T_DECKS: usize = 51;
+pub const N_TUNES: usize = 52;
 #[rustfmt::skip]
-pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius", "commissions", "routes"];
+pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius", "commissions", "routes", "decks"];
 #[rustfmt::skip]
-pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0];
+pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
 #[rustfmt::skip]
-pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 #[rustfmt::skip]
-pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0, 1.0, 1.0];
+pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0, 1.0, 1.0, 1.0];
 // The tune that holds each mission's goal; N_TUNES where the goal cannot be changed.
 #[rustfmt::skip]
 pub const MISSION_GOAL_TUNE: [usize; N_MISSIONS] = [N_TUNES, T_SURVIVE_GOAL, T_KILLS_GOAL, T_FORMATION_GOAL, T_ARENA_GOAL, T_RETRIEVAL_GOAL, T_PURSUIT_GOAL, N_TUNES, T_HOLD_GOAL, T_ESCAPE_GOAL, T_BOSS_GOAL, T_VENDETTA_GOAL];
 
 // HUD state buffer: size and the index of each field.
-pub const STATE_FLOATS: usize = 112;
+pub const STATE_FLOATS: usize = 128;
 pub const S_HP: usize = 0;
 pub const S_MAX_HP: usize = 1;
 pub const S_XP: usize = 2;
@@ -392,6 +425,10 @@ pub const S_CAM_X: usize = 12;
 pub const S_CAM_Y: usize = 13;
 pub const S_ENEMIES: usize = 14;
 pub const S_RUNNING: usize = 15;
+pub const S_DECK_PICK: usize = 16;
+pub const S_DECK_OPEN0: usize = 17;
+pub const S_LAST_DECK: usize = 22;
+pub const S_CHOICE_RANK0: usize = 23;
 pub const S_MISSION: usize = 26;
 pub const S_GOAL: usize = 27;
 pub const S_PROGRESS: usize = 28;
@@ -433,5 +470,6 @@ pub const S_ART_STEP0: usize = 87;
 pub const S_ART_ORDER0: usize = 91;
 pub const S_ROUTES_ON: usize = 95;
 pub const S_UPGRADE0: usize = 96;
+pub const S_ART_KIND0: usize = 112;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];

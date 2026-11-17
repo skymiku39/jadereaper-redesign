@@ -478,6 +478,7 @@ fn an_element_card_is_offered_as_the_last_card_at_its_chance() {
     let mut seen = 0;
     for seed in 1..400u32 {
         let mut g = Game::new(seed);
+        g.tune[T_DECKS] = 0.0;
         g.pending = 1;
         g.offer();
         assert!(g.choices[0] < N_UPGRADES as i32 && g.choices[1] < N_UPGRADES as i32);
@@ -495,6 +496,7 @@ fn an_element_card_is_offered_as_the_last_card_at_its_chance() {
         for seed in 1..50u32 {
             let mut g = Game::new(seed);
             g.tune[T_ELEMENT_CARDS] = chance;
+            g.tune[T_DECKS] = 0.0;
             g.pending = 1;
             g.offer();
             assert_eq!(g.choices[2] >= N_UPGRADES as i32, always, "chance {chance}, seed {seed}");
@@ -506,8 +508,10 @@ fn an_element_card_is_offered_as_the_last_card_at_its_chance() {
 fn an_element_card_takes_the_first_empty_slot_when_upgrades_run_short() {
     let mut g = Game::new(3);
     g.tune[T_ELEMENT_CARDS] = 1.0;
+    g.tune[T_DECKS] = 0.0;
     // With routes off every upgrade's top is its own.
     g.tune[T_ROUTES] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.up = UPGRADE_MAX;
     g.up[U_HASTE] -= 1;
     g.pending = 1;
@@ -632,6 +636,7 @@ fn a_run_with_an_element_on_every_art_holds_up() {
         let mut g = Game::new(20 + element as u32);
         g.set_view(640.0, 360.0);
         g.tune[T_ELEMENT_CARDS] = 1.0;
+        g.tune[T_DECKS] = 0.0;
         g.start(M_ENDLESS);
         g.up[U_TALISMAN] = 3;
         g.up[U_BEADS] = 3;

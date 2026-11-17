@@ -54,6 +54,7 @@ fn an_inner_art_has_three_layers_and_the_newest_hide_without_them() {
     for seed in 1..40 {
         let mut g = Game::new(seed);
         g.tune[T_ROUTES] = 0.0;
+        g.tune[T_DECKS] = 0.0;
         g.tune[T_ELEMENT_CARDS] = 0.0;
         g.pending = 1;
         g.offer();

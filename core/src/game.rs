@@ -188,6 +188,12 @@ pub struct Game {
     pub delayed: Vec<Delayed>,
     /// The clocks of the inner arts (心法).
     pub inner: inner::Inner,
+    /// True while a level-up asks which deck to draw from (`decks.rs`).
+    pub deck_pick: bool,
+    /// The deck drawn from last, which the host offers first next time.
+    pub last_deck: u8,
+    /// Per card on offer: 1 for a fine card that brings two levels at once.
+    pub ranks: [u8; 3],
     pub pending: u32,
     /// The log of what the player does, and a log being played back.
     pub replay: replay::Replay,
@@ -357,6 +363,9 @@ impl Game {
             route_pick: 0,
             delayed: Vec::with_capacity(64),
             inner: inner::Inner::default(),
+            deck_pick: false,
+            last_deck: 0,
+            ranks: [0; 3],
             pending: 0,
             replay: replay::Replay::default(),
             kills: 0,
@@ -391,6 +400,12 @@ impl Game {
         self.mission = if mission < N_MISSIONS { mission } else { M_ENDLESS };
         self.hold.begin(self.mission == M_HOLD, &self.tune);
         self.running = true;
+        // With weapon kinds on, the arts held from the start come in their start kinds.
+        for a in 0..N_ARTS {
+            if self.art_level(a) > 0 {
+                self.hold_kind(a);
+            }
+        }
         // A test run can open with an element already on the first held art.
         let element = self.tune[T_START_ELEMENT] as usize;
         if (1..=N_ELEMENTS).contains(&element) {
@@ -582,6 +597,12 @@ impl Game {
         self.routes_hash(&mut mix);
         if self.inner_on() {
             self.inner.mix(&mut mix);
+        }
+        if self.decks_on() {
+            mix(self.deck_pick as u32);
+            for r in self.ranks {
+                mix(r as u32);
+            }
         }
         mix(p.guard.to_bits());
         mix(p.regrow.to_bits());
@@ -1311,6 +1332,15 @@ impl Game {
     // ------------------------------------------------------------ upgrades
 
     fn offer(&mut self) {
+        // With the decks on, the player first picks where to draw from (`decks.rs`).
+        if self.decks_on() {
+            if !self.offer_decks() {
+                // Everything maxed: heal instead.
+                self.player.hp = (self.player.hp + 30.0 * self.pending as f32).min(self.player.max_hp);
+                self.pending = 0;
+            }
+            return;
+        }
         let mut pool = [0usize; N_UPGRADES];
         let mut n = 0;
         // With every slot for a martial art taken, the ones not held are not offered.
@@ -1358,6 +1388,11 @@ impl Game {
             return;
         }
         self.replay_pick(i);
+        if self.deck_pick {
+            // The decks are offered: `i` is the deck, and its cards come next.
+            self.pick_deck(i);
+            return;
+        }
         if self.route_pick > 0 {
             if i >= 3 || self.choices[i] < 0 {
                 return;
@@ -1378,32 +1413,45 @@ impl Game {
                 return;
             }
             let id = self.choices[i] as usize;
-            if id >= N_UPGRADES {
-                self.attach = (id - N_UPGRADES + 1).min(N_ELEMENTS) as u8;
-                self.choices = [-1; 3];
-                return;
-            }
-            // An art at level 2 first takes a route: the choice stays open and
-            // the cards become the routes it can take.
-            if let Some(a) = self.route_needed(id) {
-                self.route_pick = a as u8 + 1;
-                let mut routes = Self::routes_of(a);
-                self.choices = core::array::from_fn(|_| routes.next().map_or(-1, |r| r as i32));
-                return;
-            }
-            if self.up[id] < self.upgrade_top(id) {
-                let before = self.passive_level(id);
-                self.up[id] += 1;
-                // A passive that raises the most health does it once, when picked,
-                // by as many levels as the pick counts for.
-                let gained = self.passive_level(id).saturating_sub(before) as f32;
-                for p in PASSIVES.iter().filter(|p| p.upgrade == id && p.stat == ST_MAX_HP) {
-                    self.player.max_hp += p.amount * gained;
-                    self.player.hp += p.amount * gained;
+            if id >= kinds::CARD_WEAPON0 {
+                // A weapon kind card: a new art in that kind, or a held art changed to it.
+                self.take_weapon((id - kinds::CARD_WEAPON0).min(N_WEAPONS.saturating_sub(1)));
+            } else {
+                if id >= N_UPGRADES {
+                    self.attach = (id - N_UPGRADES + 1).min(N_ELEMENTS) as u8;
+                    self.choices = [-1; 3];
+                    return;
+                }
+                // An art at level 2 first takes a route: the choice stays open and
+                // the cards become the routes it can take.
+                if let Some(a) = self.route_needed(id) {
+                    self.route_pick = a as u8 + 1;
+                    let mut routes = Self::routes_of(a);
+                    self.choices = core::array::from_fn(|_| routes.next().map_or(-1, |r| r as i32));
+                    return;
+                }
+                // A fine card (from the decks) brings two levels at once.
+                for _ in 0..1 + self.ranks[i] as usize {
+                    if self.up[id] < self.upgrade_top(id) {
+                        let before = self.passive_level(id);
+                        self.up[id] += 1;
+                        // A passive that raises the most health does it once, when picked,
+                        // by as many levels as the pick counts for.
+                        let gained = self.passive_level(id).saturating_sub(before) as f32;
+                        for p in PASSIVES.iter().filter(|p| p.upgrade == id && p.stat == ST_MAX_HP) {
+                            self.player.max_hp += p.amount * gained;
+                            self.player.hp += p.amount * gained;
+                        }
+                    }
+                }
+                // A new art comes in its start kind.
+                if let Some(a) = Self::art_of_upgrade(id) {
+                    self.hold_kind(a);
                 }
             }
         }
         self.choices = [-1; 3];
+        self.ranks = [0; 3];
         self.choosing = false;
         self.pending = self.pending.saturating_sub(1);
         if self.pending > 0 {
@@ -1778,9 +1826,18 @@ impl Game {
         for (a, art) in self.arts.iter().enumerate() {
             s[S_ART_ELEMENT0 + a] = art.element as f32;
             s[S_ART_ROUTE0 + a] = art.route as f32;
+            s[S_ART_KIND0 + a] = art.kind as f32;
         }
         s[S_ROUTE_PICK] = self.route_pick as f32;
         s[S_ROUTES_ON] = (self.tune[T_ROUTES] > 0.5) as u8 as f32;
+        s[S_DECK_PICK] = self.deck_pick as u8 as f32;
+        s[S_LAST_DECK] = self.last_deck as f32;
+        for c in 0..3 {
+            s[S_CHOICE_RANK0 + c] = self.ranks[c] as f32;
+        }
+        for d in 0..decks::N_DECKS {
+            self.state[S_DECK_OPEN0 + d] = (self.deck_pick && self.deck_open(d)) as u8 as f32;
+        }
         for a in 0..N_ARTS {
             let (_, len) = self.move_order(a);
             let step = if len > 0 { self.arts[a].step as usize % len } else { 0 };
@@ -1796,10 +1853,14 @@ impl Game {
 pub mod arts;
 #[path = "commission.rs"]
 pub mod commission;
+#[path = "decks.rs"]
+pub mod decks;
 #[path = "elements.rs"]
 pub mod elements;
 #[path = "inner.rs"]
 pub mod inner;
+#[path = "kinds.rs"]
+pub mod kinds;
 #[path = "mission_boss.rs"]
 mod mission_boss;
 #[path = "mission_escort.rs"]
@@ -1828,3 +1889,7 @@ mod route_tests;
 #[cfg(test)]
 #[path = "inner_tests.rs"]
 mod inner_tests;
+
+#[cfg(test)]
+#[path = "deck_tests.rs"]
+mod deck_tests;

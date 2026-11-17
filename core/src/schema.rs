@@ -42,6 +42,23 @@ pub const MS_MARKS: u8 = 2;
 /// Rings of force, like the basic nova, around the player or ahead of him.
 pub const MS_RING: u8 = 3;
 
+/// Form tags of a weapon kind, as bits (docs/design.md 4.8.2). `kinds.rs` says what each does.
+pub const FORM_LONG: u8 = 1;
+pub const FORM_SHORT: u8 = 2;
+pub const FORM_HEAVY: u8 = 4;
+pub const FORM_LIGHT: u8 = 8;
+pub const FORM_PAIRED: u8 = 16;
+pub const FORM_MECHANISM: u8 = 32;
+
+/// A weapon kind (兵器種類): one of the kinds an art's weapon comes in.
+pub struct WeaponDef {
+    pub art: usize,
+    /// `FORM_*` bits.
+    pub forms: u8,
+    /// The kind an art comes in when it is first taken.
+    pub start: bool,
+}
+
 /// A route (套路): what a martial art turns into from level 3. Its moves are
 /// `MOVES[first..first + n]` in order, the last one its ultimate when it is marked so.
 pub struct RouteDef {
@@ -53,6 +70,8 @@ pub struct RouteDef {
     pub start: bool,
     pub first: usize,
     pub n: usize,
+    /// The weapon kinds it suits (人器合一), as bits by weapon id.
+    pub suits: u32,
 }
 
 /// One move (式) of a route. Lengths are shares of the art's basic numbers at

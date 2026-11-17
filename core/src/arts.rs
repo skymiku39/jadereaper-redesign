@@ -27,12 +27,14 @@ pub struct ArtState {
     pub route: u8,
     /// Where it is in its route's move order.
     pub step: u8,
+    /// The weapon kind it is, by weapon id plus 1; 0 for none (see `kinds.rs`).
+    pub kind: u8,
 }
 
 impl ArtState {
     /// Every art as a run starts: waiting out its first delay, with no element.
     pub fn fresh() -> [ArtState; N_ARTS] {
-        core::array::from_fn(|a| ArtState { timer: ARTS[a].first_delay, element: 0, route: 0, step: 0 })
+        core::array::from_fn(|a| ArtState { timer: ARTS[a].first_delay, element: 0, route: 0, step: 0, kind: 0 })
     }
 }
 
@@ -69,6 +71,9 @@ impl Game {
         }
         let top = self.upgrade_top(ARTS[a].upgrade) as u32;
         self.up[ARTS[a].upgrade] = level.min(top) as u8;
+        if level > 0 {
+            self.hold_kind(a);
+        }
         self.arts[a].element = if element as usize <= N_ELEMENTS { element as u8 } else { 0 };
     }
 
@@ -115,19 +120,20 @@ impl Game {
         if self.arts[a].timer > 0.0 {
             return;
         }
-        self.arts[a].timer = n.cooldown * haste;
+        self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
         let element = self.arts[a].element;
         let (px, py) = (self.player.x, self.player.y);
         let (ax, ay) = self.player.aim;
-        let reach = n.reach * self.melee_reach();
-        let dmg = n.damage * might;
+        let reach = n.reach * self.melee_reach() * self.kind_reach(a);
+        let dmg = n.damage * might * self.kind_power(a);
+        let knock = n.knockback * self.kind_knock(a);
         for i in 0..self.enemies.len() {
             let e = &self.enemies[i];
             let (dx, dy) = (e.x - px, e.y - py);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             let r = KINDS[e.kind as usize].r;
             if d < reach + r && (d < 30.0 || (dx * ax + dy * ay) / d > n.width) {
-                self.strike(i, dmg, dx / d * n.knockback, dy / d * n.knockback, element);
+                self.strike(i, dmg, dx / d * knock, dy / d * knock, element);
             }
         }
         self.formation_hit_arc(px, py, ax, ay, reach, n.width, dmg);
@@ -162,8 +168,8 @@ impl Game {
         if self.arts[a].timer > 0.0 {
             return;
         }
-        self.arts[a].timer = n.cooldown * haste;
-        if !self.shoot_nearest(a, n, might) {
+        self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
+        if !self.shoot_nearest(a, n, might * self.kind_power(a)) {
             // Nothing in range: look again soon instead of waiting out the cooldown.
             self.arts[a].timer = 0.15;
         }
@@ -226,7 +232,8 @@ impl Game {
     fn art_orbit(&mut self, a: usize, n: &ArtLevel, might: f32) {
         let element = self.arts[a].element;
         let (px, py) = (self.player.x, self.player.y);
-        let dmg = n.damage * might;
+        let dmg = n.damage * might * self.kind_power(a);
+        let knock = n.knockback * self.kind_knock(a);
         for k in 0..n.count {
             let (bx, by) = self.orbit_pos(a, n, k);
             for i in 0..self.enemies.len() {
@@ -240,7 +247,7 @@ impl Game {
                     let (ox, oy) = (e.x - px, e.y - py);
                     let d = (ox * ox + oy * oy).sqrt().max(0.001);
                     self.enemies[i].bead_cd = n.cooldown;
-                    self.strike(i, dmg, ox / d * n.knockback, oy / d * n.knockback, element);
+                    self.strike(i, dmg, ox / d * knock, oy / d * knock, element);
                 }
             }
             self.formation_hit_bead(bx, by, dmg);
@@ -264,7 +271,7 @@ impl Game {
 
     /// Where bead `k` of an orbit art is now.
     fn orbit_pos(&self, a: usize, n: &ArtLevel, k: usize) -> (f32, f32) {
-        let radius = n.reach;
+        let radius = n.reach * self.kind_reach(a);
         let angle = self.time * ARTS[a].speed + k as f32 * TAU / n.count as f32;
         (self.player.x + fmath::cos(angle) * radius, self.player.y + fmath::sin(angle) * radius * 0.8)
     }
@@ -275,9 +282,10 @@ impl Game {
         if self.arts[a].timer > 0.0 {
             return;
         }
-        self.arts[a].timer = n.cooldown * haste;
+        self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
         let (px, py) = (self.player.x, self.player.y);
-        self.ring(a, px, py, n.reach, n.damage * might, n.knockback);
+        let (reach, power, knock) = (self.kind_reach(a), self.kind_power(a), self.kind_knock(a));
+        self.ring(a, px, py, n.reach * reach, n.damage * might * power, n.knockback * knock);
         self.event(EV_PULSE, px, py, 0.0);
     }
 

@@ -307,6 +307,23 @@ pub struct Art {
     pub levels: Vec<Vec<String>>,
 }
 
+/// The form tags a weapon kind can carry (docs/design.md 4.8.2), in the order of `Weapon::forms`.
+pub const FORMS: [&str; 6] = ["long", "short", "heavy", "light", "paired", "mechanism"];
+
+/// A weapon kind (兵器種類): one of the kinds an art's weapon comes in, with its form tags.
+#[derive(Clone, Debug)]
+pub struct Weapon {
+    pub id: u32,
+    pub name: String,
+    /// The art it is a kind of.
+    pub art: String,
+    pub glyph: String,
+    /// One flag per entry of `FORMS`.
+    pub forms: Vec<bool>,
+    /// The kind an art comes in when it is first taken.
+    pub start: bool,
+}
+
 /// A school (門派): where a route comes from. Its name is `school.<name>` in src/i18n.js.
 #[derive(Clone, Debug)]
 pub struct School {
@@ -327,6 +344,8 @@ pub struct Route {
     pub beat: String,
     /// Known from the start; false for a route that is stolen (偷師).
     pub start: bool,
+    /// The weapon kinds it suits (人器合一), by name.
+    pub suits: Vec<String>,
 }
 
 /// How a move hits. The core has one piece of code per shape.
@@ -432,6 +451,7 @@ pub struct Content {
     pub enemies: Vec<Enemy>,
     pub passives: Vec<Passive>,
     pub arts: Vec<Art>,
+    pub weapons: Vec<Weapon>,
     pub schools: Vec<School>,
     pub routes: Vec<Route>,
     pub moves: Vec<Move>,
@@ -653,9 +673,9 @@ impl<'a> Fields<'a> {
 }
 
 /// Table names the content file may use, also valid as a `len` reference.
-const TABLES: [&str; 14] = [
-    "part", "upgrade", "passive", "enemy", "art", "school", "route", "move", "element", "reaction", "event", "mission",
-    "tune", "state",
+const TABLES: [&str; 15] = [
+    "part", "upgrade", "passive", "enemy", "art", "weapon", "school", "route", "move", "element", "reaction", "event",
+    "mission", "tune", "state",
 ];
 
 /// Parse and check the content file. Returns every problem found.
@@ -678,6 +698,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     // An art with its per-level lists as written: (art, [(values, line) per level key], line).
     type RawLevels = Vec<(Vec<String>, usize)>;
     let mut arts: Vec<(Art, RawLevels, usize)> = Vec::new();
+    let mut weapons = Vec::new();
     let mut schools = Vec::new();
     let mut routes = Vec::new();
     let mut moves = Vec::new();
@@ -793,13 +814,33 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                     schools.push((School { id, name }, t.line));
                 }
             }
+            "weapon" => {
+                let (id, name, art, glyph) = (f.uint("id"), f.name(), f.string("art"), f.string("glyph"));
+                let forms: Option<Vec<bool>> = FORMS.iter().map(|key| f.flag(key)).collect();
+                let start = f.flag("start");
+                if let (Some(id), Some(name), Some(art), Some(glyph), Some(forms), Some(start)) =
+                    (id, name, art, glyph, forms, start)
+                {
+                    if glyph.chars().count() != 1 {
+                        f.errs.push(format!("line {}: weapon `glyph` must be one character", t.line));
+                    }
+                    weapons.push((Weapon { id, name, art, glyph, forms, start }, t.line));
+                }
+            }
             "route" => {
                 let (id, name, art, school) = (f.uint("id"), f.name(), f.string("art"), f.string("school"));
                 let (beat, start) = (f.number("beat"), f.flag("start"));
-                if let (Some(id), Some(name), Some(art), Some(school), Some(beat), Some(start)) =
-                    (id, name, art, school, beat, start)
+                // The kinds it suits, as names apart by spaces; may be left out.
+                let suits = if t.entries.iter().any(|e| e.key == "suits") {
+                    f.string("suits").map(|s| s.split_whitespace().map(str::to_string).collect())
+                } else {
+                    f.used.push("suits");
+                    Some(Vec::new())
+                };
+                if let (Some(id), Some(name), Some(art), Some(school), Some(beat), Some(start), Some(suits)) =
+                    (id, name, art, school, beat, start, suits)
                 {
-                    routes.push((Route { id, name, art, school, beat, start }, t.line));
+                    routes.push((Route { id, name, art, school, beat, start, suits }, t.line));
                 }
             }
             "move" => {
@@ -1109,6 +1150,35 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
             errs.push(format!("line {line}: route `{}` has {} moves, at most 8", r.name, own.len()));
         }
     }
+    // Weapon kinds: each belongs to an art, which comes in exactly one start kind.
+    unique(&mut errs, "weapon", weapons.iter().map(|(w, l): &(Weapon, usize)| (w.id, w.name.as_str(), *l)));
+    ids_run(&mut errs, "weapon", weapons.iter().map(|(w, _)| w.id).collect());
+    if weapons.len() > 32 {
+        errs.push(format!("{} weapon kinds, at most 32", weapons.len()));
+    }
+    for (w, line) in &weapons {
+        if !arts.iter().any(|(a, _, _)| a.name == w.art) {
+            errs.push(format!("line {line}: weapon `{}` is a kind of art `{}`, which is not defined", w.name, w.art));
+        }
+    }
+    for (a, _, line) in &arts {
+        let kinds: Vec<&Weapon> = weapons.iter().map(|(w, _)| w).filter(|w| w.art == a.name).collect();
+        if !kinds.is_empty() && kinds.iter().filter(|w| w.start).count() != 1 {
+            errs.push(format!("line {line}: art `{}` needs exactly one weapon kind with `start = true`", a.name));
+        }
+    }
+    for (r, line) in &routes {
+        for s in &r.suits {
+            match weapons.iter().find(|(w, _)| &w.name == s) {
+                None => errs.push(format!("line {line}: route `{}` suits weapon `{s}`, which is not defined", r.name)),
+                Some((w, _)) if w.art != r.art => errs.push(format!(
+                    "line {line}: route `{}` suits weapon `{s}`, which is a kind of `{}`, not `{}`",
+                    r.name, w.art, r.art
+                )),
+                _ => {}
+            }
+        }
+    }
     for (m, line) in &moves {
         if !routes.iter().any(|(r, _)| r.name == m.route) {
             errs.push(format!("line {line}: move `{}` names route `{}`, which is not defined", m.name, m.route));
@@ -1175,6 +1245,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         "enemy" => enemies.len(),
         "passive" => passives.len(),
         "art" => arts.len(),
+        "weapon" => weapons.len(),
         "school" => schools.len(),
         "route" => routes.len(),
         "move" => moves.len(),
@@ -1243,6 +1314,8 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     enemies.sort_by_key(|e| e.id);
     let mut arts: Vec<Art> = arts.into_iter().map(|(a, _, _)| a).collect();
     arts.sort_by_key(|a| a.id);
+    let mut weapons: Vec<Weapon> = weapons.into_iter().map(|(w, _)| w).collect();
+    weapons.sort_by_key(|w| w.id);
     let mut schools: Vec<School> = schools.into_iter().map(|(s, _)| s).collect();
     schools.sort_by_key(|s| s.id);
     let mut routes: Vec<Route> = routes.into_iter().map(|(r, _)| r).collect();
@@ -1262,6 +1335,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         enemies,
         passives,
         arts,
+        weapons,
         schools,
         routes,
         moves,
@@ -1410,6 +1484,24 @@ pub fn render_rust(c: &Content) -> String {
     }
     o.push_str("];\n");
 
+    o.push_str(
+        "\n// Weapon kinds (兵器種類): the kinds each art's weapon comes in, with form tags as bits (FORM_*).\n",
+    );
+    for w in &c.weapons {
+        writeln!(o, "pub const W_{}: usize = {};", upper(&w.name), w.id).unwrap();
+    }
+    writeln!(o, "pub const N_WEAPONS: usize = {};", c.weapons.len()).unwrap();
+    name_table(&mut o, "WEAPON_NAMES", "N_WEAPONS", c.weapons.iter().map(|w| w.name.as_str()));
+    o.push_str("#[rustfmt::skip]\n");
+    writeln!(o, "pub const WEAPONS: [WeaponDef; N_WEAPONS] = [").unwrap();
+    for w in &c.weapons {
+        let bits: Vec<String> =
+            FORMS.iter().zip(&w.forms).filter(|(_, on)| **on).map(|(f, _)| format!("FORM_{}", upper(f))).collect();
+        let forms = if bits.is_empty() { "0".to_string() } else { bits.join(" | ") };
+        writeln!(o, "    WeaponDef {{ art: A_{}, forms: {forms}, start: {} }},", upper(&w.art), w.start).unwrap();
+    }
+    o.push_str("];\n");
+
     o.push_str("\n// Schools (門派).\n");
     for s in &c.schools {
         writeln!(o, "pub const SC_{}: usize = {};", upper(&s.name), s.id).unwrap();
@@ -1428,9 +1520,14 @@ pub fn render_rust(c: &Content) -> String {
     for r in &c.routes {
         let own: Vec<&Move> = c.moves.iter().filter(|m| m.route == r.name).collect();
         let first = own.first().map_or(0, |m| m.id);
+        let suits: u32 = r
+            .suits
+            .iter()
+            .filter_map(|s| c.weapons.iter().find(|w| &w.name == s))
+            .fold(0, |bits, w| bits | (1 << w.id));
         writeln!(
             o,
-            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {} }},",
+            "    RouteDef {{ art: A_{}, school: SC_{}, beat: {}, start: {}, first: {}, n: {}, suits: {suits:#x} }},",
             upper(&r.art),
             upper(&r.school),
             float_lit(&r.beat),
@@ -1635,6 +1732,25 @@ pub fn render_js(c: &Content) -> String {
     o.push_str("/** How many martial arts the player can hold at once. */\n");
     writeln!(o, "export const MAX_ARTS = {};\n", c.max_arts).unwrap();
 
+    o.push_str("/** Weapon kinds (兵器種類), indexed by id: `art` is the art id it is a kind of, `forms` its\n");
+    o.push_str(" * form tags, `start` the kind an art comes in first. Names are weapon.<name> in src/i18n.js. */\n");
+    o.push_str("export const WEAPONS = [\n");
+    for w in &c.weapons {
+        let art = c.arts.iter().find(|a| a.name == w.art).map_or(0, |a| a.id);
+        let forms: Vec<String> = FORMS.iter().zip(&w.forms).filter(|(_, on)| **on).map(|(f, _)| js_str(f)).collect();
+        writeln!(
+            o,
+            "  {{ id: {}, name: {}, art: {art}, glyph: {}, forms: [{}], start: {} }},",
+            w.id,
+            js_str(&w.name),
+            js_str(&w.glyph),
+            forms.join(", "),
+            w.start
+        )
+        .unwrap();
+    }
+    o.push_str("];\n\n");
+
     o.push_str("/** Schools (門派), indexed by id. Names are in src/i18n.js as school.<name>. */\n");
     o.push_str("export const SCHOOLS = [\n");
     for s in &c.schools {
@@ -1651,14 +1767,17 @@ pub fn render_js(c: &Content) -> String {
         let own: Vec<&Move> = c.moves.iter().filter(|m| m.route == r.name).collect();
         let ids: Vec<String> = own.iter().map(|m| m.id.to_string()).collect();
         let ultimate = own.last().is_some_and(|m| m.ultimate);
+        let suits: Vec<String> =
+            r.suits.iter().filter_map(|s| c.weapons.iter().find(|w| &w.name == s)).map(|w| w.id.to_string()).collect();
         writeln!(
             o,
-            "  {{ id: {}, name: {}, art: {art}, school: {school}, beat: {}, start: {}, moves: [{}], ultimate: {ultimate} }},",
+            "  {{ id: {}, name: {}, art: {art}, school: {school}, beat: {}, start: {}, moves: [{}], ultimate: {ultimate}, suits: [{}] }},",
             r.id,
             js_str(&r.name),
             r.beat,
             r.start,
-            ids.join(", ")
+            ids.join(", "),
+            suits.join(", ")
         )
         .unwrap();
     }

@@ -152,7 +152,8 @@ export async function openGame({ width = 1280, height = 720, lang = 'zh-Hant', t
     for (let i = 0; i < steps; i++) {
       if (await page.locator('#levelup').isVisible()) {
         await page.waitForTimeout(LOCK_MS);
-        await page.locator('#cards .card').first().click();
+        // A greyed-out deck cannot be picked.
+        await page.locator('#cards .card:not([disabled])').first().click();
         continue;
       }
       if ((await page.locator('#over').isVisible()) || (await page.locator('#won').isVisible())) return;

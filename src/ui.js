@@ -1,5 +1,5 @@
 // Paper UI: screens, HUD and menu focus. All DOM work lives here.
-import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, ELEMENTS, SCHOOLS, ROUTES, MOVES } from './data.js';
+import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, WEAPONS, ELEMENTS, SCHOOLS, ROUTES, MOVES } from './data.js';
 import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
 
@@ -142,7 +142,7 @@ export function createUI({ onAction }) {
   function hud({
     hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
     carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait, accept,
-    artElements = [], artRoutes = [], artSteps = [], artOrders = [], routesOn = false,
+    artElements = [], artRoutes = [], artSteps = [], artOrders = [], routesOn = false, artKinds = [],
     guard = 0, guardMax = 0, regrow = 0, commission = null, notice = null,
   }) {
     set('hpFill', 'width', `${Math.max(0, Math.min(100, (hp / maxHp) * 100)).toFixed(1)}%`);
@@ -241,7 +241,7 @@ export function createUI({ onAction }) {
     const marked = mission.id === MISSION_IDS.vendetta;
     const killsText = counted ? `${Math.min(kills, goal)} / ${goal}` : String(kills);
     set('killsText', 'text', marked ? `${progress} / ${goal}` : killsText);
-    const sig = `${getLang()}${routesOn}${upgrades.join(',')}|${artElements.join(',')}|${artRoutes.join(',')}|${artSteps.join(',')}|${artOrders.join(',')}`;
+    const sig = `${getLang()}${routesOn}${artKinds.join(',')}${upgrades.join(',')}|${artElements.join(',')}|${artRoutes.join(',')}|${artSteps.join(',')}|${artOrders.join(',')}`;
     if (cache.chips !== sig) {
       cache.chips = sig;
       $('chips').replaceChildren(...upgrades.flatMap((lvl, id) => {
@@ -250,8 +250,11 @@ export function createUI({ onAction }) {
         chip.className = 'chip';
         const art = artOfUpgrade(id);
         chip.title = !art && routesOn ? t(`inner.${UPGRADES[id].name}.name`) : t(`upgrade.${id}.name`);
+        // An art in a weapon kind shows the kind's mark and name.
+        const kind = art ? WEAPONS[(artKinds[art.id] || 0) - 1] : null;
+        if (kind) chip.title = `${t(`weapon.${kind.name}`)} · ${chip.title}`;
         const glyph = document.createElement('b');
-        glyph.textContent = UPGRADES[id].glyph;
+        glyph.textContent = kind ? kind.glyph : UPGRADES[id].glyph;
         chip.append(glyph, String(lvl));
         // An art that carries an element wears its colour and a small mark of it.
         const element = art ? elementById(artElements[art.id] || 0) : null;
@@ -297,14 +300,25 @@ export function createUI({ onAction }) {
    */
   function levelUp(choices, upgrades, {
     attach = 0, artElements = [], routePick = 0, artRoutes = [], routesOn = false,
+    deckPick = false, deckOpen = [], lastDeck = 0, ranks = [], artKinds = [],
   } = {}) {
     const banner = $('levelBanner');
     const attaching = elementById(attach);
     const picking = ARTS[routePick - 1];
+    if (deckPick) {
+      delete banner.dataset.i18n;
+      setText(banner, t('levelup.deck'));
+      $('cards').replaceChildren(...deckCards(deckOpen));
+      show('levelup');
+      // The deck drawn from last is offered first.
+      const last = document.querySelector(`#cards .card[data-value="${lastDeck}"]:not([disabled])`);
+      if (last) last.focus({ preventScroll: true });
+      return;
+    }
     if (picking) {
       delete banner.dataset.i18n;
       setText(banner, t('levelup.route', { name: t(`upgrade.${picking.upgrade}.name`) }));
-      $('cards').replaceChildren(...routeCards(choices, picking));
+      $('cards').replaceChildren(...routeCards(choices, picking, artKinds[picking.id] || 0));
     } else if (attaching) {
       // The banner names the element, so it is not static text for applyStatic to reset.
       delete banner.dataset.i18n;
@@ -315,13 +329,40 @@ export function createUI({ onAction }) {
     } else {
       banner.dataset.i18n = 'levelup.banner';
       setText(banner, t('levelup.banner'));
-      $('cards').replaceChildren(...offerCards(choices, upgrades, artRoutes, routesOn));
+      $('cards').replaceChildren(...offerCards(choices, upgrades, artRoutes, routesOn, artKinds));
+      // A fine card brings two layers at once: it says so and shines.
+      ranks.forEach((rank, slot) => {
+        const card = document.querySelector(`#cards .card[data-value="${slot}"]`);
+        if (!card || rank !== 1) return;
+        card.classList.add('fine-card');
+        const label = card.querySelector('.rank');
+        if (label) label.textContent = t('levelup.fine');
+      });
     }
     show('levelup');
   }
 
-  /** One card per route the art can take. A card's value is its slot. */
-  function routeCards(choices, art) {
+  /** One card per deck, in deck order; a deck with nothing to draw is greyed out. A card's value is its deck. */
+  function deckCards(deckOpen) {
+    const GLYPHS = ['兵', '武', '心', '法', '緣'];
+    return GLYPHS.map((glyph, d) => {
+      const card = document.createElement('button');
+      card.className = 'card deck-card';
+      card.dataset.action = 'choose';
+      card.dataset.value = String(d);
+      if (!deckOpen[d]) card.disabled = true;
+      cardParts(card, [
+        ['key', String(d + 1)],
+        ['glyph', glyph],
+        ['name', t(`deck.${d}.name`)],
+        ['desc', t(`deck.${d}.desc`)],
+      ]);
+      return card;
+    });
+  }
+
+  /** One card per route the art can take; one that suits the art's weapon kind says so. A card's value is its slot. */
+  function routeCards(choices, art, kind = 0) {
     return choices.flatMap((id, slot) => {
       const route = ROUTES[id];
       if (id < 0 || !route) return [];
@@ -332,12 +373,15 @@ export function createUI({ onAction }) {
       const school = SCHOOLS[route.school];
       const n = route.moves.length - (route.ultimate ? 1 : 0);
       const moves = t(route.ultimate ? 'levelup.movesUltimate' : 'levelup.moves', { n });
+      const suits = route.suits.map((w) => t(`weapon.${WEAPONS[w].name}`)).join('、');
+      const oneness = kind > 0 && route.suits.includes(kind - 1);
+      if (oneness) card.classList.add('fine-card');
       cardParts(card, [
         ['key', String(slot + 1)],
         ['glyph', UPGRADES[art.upgrade].glyph],
         ['name', t(`route.${route.name}.name`)],
-        ['rank', `${school ? t(`school.${school.name}`) : ''} · ${moves}`],
-        ['desc', t(`route.${route.name}.desc`)],
+        ['rank', `${school ? t(`school.${school.name}`) : ''} · ${moves}${oneness ? ` · ${t('levelup.oneness')}` : ''}`],
+        ['desc', `${t(`route.${route.name}.desc`)}${suits ? `\n${t('levelup.suits', { routes: suits })}` : ''}`],
       ]);
       return [card];
     });
@@ -386,13 +430,34 @@ export function createUI({ onAction }) {
   }
 
   /** One card per offered upgrade or element. A card's value is its slot. */
-  function offerCards(choices, upgrades, artRoutes = [], routesOn = false) {
+  function offerCards(choices, upgrades, artRoutes = [], routesOn = false, artKinds = []) {
     return choices.flatMap((id, slot) => {
       if (id < 0) return [];
       const card = document.createElement('button');
       card.className = 'card';
       card.dataset.action = 'choose';
       card.dataset.value = String(slot);
+      // A weapon kind card: a new art in that kind, or a held art changed to it.
+      const weapon = WEAPONS[id - UPGRADES.length - ELEMENTS.length];
+      if (id >= UPGRADES.length + ELEMENTS.length && weapon) {
+        const art = ARTS[weapon.art];
+        const current = WEAPONS[(artKinds[art.id] || 0) - 1];
+        const name = t(`weapon.${weapon.name}`);
+        const rank = upgrades[art.upgrade] > 0 && current
+          ? t('levelup.swap', { from: t(`weapon.${current.name}`), to: name })
+          : t('levelup.newWeapon', { art: t(`upgrade.${art.upgrade}.name`) });
+        const forms = weapon.forms.map((f) => t(`form.${f}`)).join('・');
+        const suits = ROUTES.filter((r) => r.suits.includes(weapon.id)).map((r) => t(`route.${r.name}.name`)).join('、');
+        card.classList.add('route-card');
+        cardParts(card, [
+          ['key', String(slot + 1)],
+          ['glyph', weapon.glyph],
+          ['name', name],
+          ['rank', rank],
+          ['desc', [forms, suits ? t('levelup.suits', { routes: suits }) : ''].filter(Boolean).join('\n')],
+        ]);
+        return [card];
+      }
       if (id >= UPGRADES.length) {
         const element = elementById(id - UPGRADES.length + 1);
         if (!element) return [];

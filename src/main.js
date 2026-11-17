@@ -93,12 +93,17 @@ async function boot() {
   const artRoutes = (s) => Array.from(s.subarray(STATE.ART_ROUTE0, STATE.ART_ROUTE0 + ARTS.length));
   const artSteps = (s) => Array.from(s.subarray(STATE.ART_STEP0, STATE.ART_STEP0 + ARTS.length));
   const artOrders = (s) => Array.from(s.subarray(STATE.ART_ORDER0, STATE.ART_ORDER0 + ARTS.length));
+  // Per art id, the weapon kind it is (weapon id + 1, 0 for none).
+  const artKinds = (s) => Array.from(s.subarray(STATE.ART_KIND0, STATE.ART_KIND0 + ARTS.length));
   /** Show the level-up screen: the offered cards, the routes of an art, or the held arts while an element waits for one. */
   const showLevelUp = (s) => ui.levelUp(
     Array.from(s.subarray(STATE.CHOICE0, STATE.CHOICE0 + 3)), upgradeLevels(s),
     {
       attach: s[STATE.ATTACH], artElements: artElements(s),
       routePick: s[STATE.ROUTE_PICK], artRoutes: artRoutes(s), routesOn: s[STATE.ROUTES_ON] === 1,
+      deckPick: s[STATE.DECK_PICK] === 1, deckOpen: Array.from(s.subarray(STATE.DECK_OPEN0, STATE.DECK_OPEN0 + 5)),
+      lastDeck: s[STATE.LAST_DECK], ranks: Array.from(s.subarray(STATE.CHOICE_RANK0, STATE.CHOICE_RANK0 + 3)),
+      artKinds: artKinds(s),
     },
   );
   /** A route move was used: hit-stop for a heavy one, and its name the first time (an ultimate's every time). */
@@ -421,7 +426,7 @@ async function boot() {
         upgrades: upgradeLevels(s), mission: accepting ? MISSIONS[MISSION_IDS.endless] : mission,
         // What the elements on the arts are doing: the metal guard and wood's slow healing.
         artElements: artElements(s), artRoutes: artRoutes(s), artSteps: artSteps(s), artOrders: artOrders(s),
-        routesOn: s[STATE.ROUTES_ON] === 1,
+        routesOn: s[STATE.ROUTES_ON] === 1, artKinds: artKinds(s),
         guard: s[STATE.GUARD], guardMax: s[STATE.GUARD_MAX], regrow: s[STATE.REGROW],
         accept: accepting ? { held: s[STATE.ACCEPT_HELD], need: s[STATE.ACCEPT_NEED] } : null,
         commission: {

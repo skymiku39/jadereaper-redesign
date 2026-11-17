@@ -370,6 +370,8 @@ mod tests {
 
     fn play(mission: usize, seed: u32, bot: fn(&mut Game, u32), minutes: u32, immortal: bool) -> Game {
         let mut g = Game::new(seed);
+        // The bots pick from the mixed offer, not the decks.
+        g.tune[T_DECKS] = 0.0;
         g.set_view(640.0, 360.0);
         g.start(mission);
         for t in 0..(60 * 60 * minutes) {

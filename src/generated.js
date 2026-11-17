@@ -63,6 +63,23 @@ export const ARTS = [
 /** How many martial arts the player can hold at once. */
 export const MAX_ARTS = 6;
 
+/** Weapon kinds (兵器種類), indexed by id: `art` is the art id it is a kind of, `forms` its
+ * form tags, `start` the kind an art comes in first. Names are weapon.<name> in src/i18n.js. */
+export const WEAPONS = [
+  { id: 0, name: 'dandao', art: 0, glyph: '刀', forms: ['short', 'light'], start: true },
+  { id: 1, name: 'shuangdao', art: 0, glyph: '雙', forms: ['short', 'light', 'paired'], start: false },
+  { id: 2, name: 'dadao', art: 0, glyph: '斬', forms: ['long', 'heavy'], start: false },
+  { id: 3, name: 'lian', art: 0, glyph: '鐮', forms: ['short', 'light'], start: false },
+  { id: 4, name: 'qimeigun', art: 2, glyph: '棍', forms: [], start: true },
+  { id: 5, name: 'changgun', art: 2, glyph: '長', forms: ['long'], start: false },
+  { id: 6, name: 'biao', art: 1, glyph: '鏢', forms: ['light'], start: true },
+  { id: 7, name: 'feidao', art: 1, glyph: '飛', forms: ['light'], start: false },
+  { id: 8, name: 'zhen', art: 1, glyph: '針', forms: ['light'], start: false },
+  { id: 9, name: 'tushou', art: 3, glyph: '拳', forms: ['short', 'light'], start: true },
+  { id: 10, name: 'hushou', art: 3, glyph: '護', forms: ['short', 'heavy'], start: false },
+  { id: 11, name: 'zhaotao', art: 3, glyph: '爪', forms: ['short', 'light'], start: false },
+];
+
 /** Schools (門派), indexed by id. Names are in src/i18n.js as school.<name>. */
 export const SCHOOLS = [
   { id: 0, name: 'duanyue' },
@@ -76,14 +93,14 @@ export const SCHOOLS = [
 /** Routes (套路), indexed by id. `art` is the art id that learns it; `moves` its move ids in
  * order, the last one the ultimate when `ultimate` is set. Text is route.<name>.name and .desc. */
 export const ROUTES = [
-  { id: 0, name: 'bengyue', art: 0, school: 0, beat: 1.0, start: true, moves: [0, 1, 2, 3], ultimate: true },
-  { id: 1, name: 'jinghong', art: 0, school: 1, beat: 0.5, start: true, moves: [4, 5, 6, 7, 8, 9], ultimate: true },
-  { id: 2, name: 'poyu', art: 2, school: 1, beat: 1.0, start: true, moves: [10, 11, 12, 13], ultimate: true },
-  { id: 3, name: 'fanjiang', art: 2, school: 2, beat: 1.1, start: true, moves: [14, 15, 16, 17, 18], ultimate: true },
-  { id: 4, name: 'ershiba', art: 1, school: 3, beat: 0.95, start: true, moves: [19, 20, 21, 22, 23], ultimate: true },
-  { id: 5, name: 'chuanyang', art: 1, school: 1, beat: 1.3, start: true, moves: [24, 25, 26, 27], ultimate: true },
-  { id: 6, name: 'muguchenzhong', art: 3, school: 4, beat: 2.2, start: true, moves: [28, 29, 30, 31], ultimate: true },
-  { id: 7, name: 'zhuoyu', art: 3, school: 5, beat: 0.5, start: true, moves: [32, 33, 34, 35, 36], ultimate: true },
+  { id: 0, name: 'bengyue', art: 0, school: 0, beat: 1.0, start: true, moves: [0, 1, 2, 3], ultimate: true, suits: [2] },
+  { id: 1, name: 'jinghong', art: 0, school: 1, beat: 0.5, start: true, moves: [4, 5, 6, 7, 8, 9], ultimate: true, suits: [0, 1] },
+  { id: 2, name: 'poyu', art: 2, school: 1, beat: 1.0, start: true, moves: [10, 11, 12, 13], ultimate: true, suits: [5] },
+  { id: 3, name: 'fanjiang', art: 2, school: 2, beat: 1.1, start: true, moves: [14, 15, 16, 17, 18], ultimate: true, suits: [5] },
+  { id: 4, name: 'ershiba', art: 1, school: 3, beat: 0.95, start: true, moves: [19, 20, 21, 22, 23], ultimate: true, suits: [6, 7] },
+  { id: 5, name: 'chuanyang', art: 1, school: 1, beat: 1.3, start: true, moves: [24, 25, 26, 27], ultimate: true, suits: [7, 6] },
+  { id: 6, name: 'muguchenzhong', art: 3, school: 4, beat: 2.2, start: true, moves: [28, 29, 30, 31], ultimate: true, suits: [9, 10] },
+  { id: 7, name: 'zhuoyu', art: 3, school: 5, beat: 0.5, start: true, moves: [32, 33, 34, 35, 36], ultimate: true, suits: [9] },
 ];
 
 /** Moves (式), indexed by id. Text is move.<name>.name and .desc. */
@@ -256,10 +273,11 @@ export const TUNES = [
   { id: 48, name: 'arena_radius', mission: 'any', def: 0, min: 0, max: 3000, step: 100 },
   { id: 49, name: 'commissions', mission: 'endless', def: 1, min: 0, max: 1, step: 1 },
   { id: 50, name: 'routes', mission: 'any', def: 1, min: 0, max: 1, step: 1 },
+  { id: 51, name: 'decks', mission: 'any', def: 1, min: 0, max: 1, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */
-export const STATE_FLOATS = 112;
+export const STATE_FLOATS = 128;
 
 /** Indices into the state array. A run of floats has a 0 suffix (CHOICE0). */
 export const STATE = {
@@ -277,6 +295,10 @@ export const STATE = {
   CAM_Y: 13,
   ENEMIES: 14,
   RUNNING: 15,
+  DECK_PICK: 16,
+  DECK_OPEN0: 17,
+  LAST_DECK: 22,
+  CHOICE_RANK0: 23,
   MISSION: 26,
   GOAL: 27,
   PROGRESS: 28,
@@ -318,6 +340,7 @@ export const STATE = {
   ART_ORDER0: 91,
   ROUTES_ON: 95,
   UPGRADE0: 96,
+  ART_KIND0: 112,
 };
 
 export const INK = [0.17, 0.15, 0.13];

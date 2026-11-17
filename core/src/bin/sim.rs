@@ -137,6 +137,20 @@ fn is_art(upgrade: usize) -> bool {
 
 /// Answer the cards on offer.
 fn choose(pick: Pick, g: &mut Game, rng: &mut Rng) {
+    // The decks are offered: arts first draws martial arts (a new art when no held
+    // art can grow), passives draws inner arts, random any deck, first the first.
+    if g.deck_pick {
+        use jadereaper_core::game::decks::*;
+        let order: &[usize] = match pick {
+            Pick::Arts => &[DECK_ARTS, DECK_WEAPONS, DECK_INNER, DECK_MAGIC],
+            Pick::Passives => &[DECK_INNER, DECK_ARTS, DECK_WEAPONS, DECK_MAGIC],
+            Pick::Random => &[(rng.next_u32() as usize) % N_DECKS],
+            Pick::First => &[DECK_WEAPONS],
+        };
+        let deck = order.iter().copied().find(|&d| g.deck_open(d)).unwrap_or(order[0]);
+        g.choose(deck);
+        return;
+    }
     if g.attach > 0 {
         // An element card was taken: put it on the first held art without one, else on the first held.
         let held = |a: &usize| g.up[ARTS[*a].upgrade] > 0;
