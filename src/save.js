@@ -34,6 +34,8 @@ const DEFAULTS = {
   learned: [],
   // The heights (極致) ever reached, as "route:element".
   zeniths: [],
+  // Per inner art (心法) name, the highest layer ever reached.
+  inner: {},
 };
 
 export function loadSave() {
@@ -46,11 +48,12 @@ export function loadSave() {
     save.missions = plain(save.missions);
     save.tuning = plain(save.tuning);
     save.scrolls = plain(save.scrolls);
+    save.inner = plain(save.inner);
     save.learned = Array.isArray(save.learned) ? save.learned.filter((id) => Number.isInteger(id)) : [];
     save.zeniths = Array.isArray(save.zeniths) ? save.zeniths.filter((k) => typeof k === 'string') : [];
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, learned: [], zeniths: [] };
+    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, inner: {}, learned: [], zeniths: [] };
   }
 }
 

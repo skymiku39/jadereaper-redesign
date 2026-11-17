@@ -130,6 +130,23 @@ async function boot() {
     }
   }
 
+  /** A run ended: keep the highest layer each inner art (心法) reached, for the martial record. */
+  function keepInner(s) {
+    if (s[STATE.ROUTES_ON] !== 1) return;
+    const levels = upgradeLevels(s);
+    const inner = save.inner && typeof save.inner === 'object' ? save.inner : {};
+    let changed = false;
+    UPGRADES.forEach((u, id) => {
+      if (ARTS.some((a) => a.upgrade === id) || !(levels[id] > (Number(inner[u.name]) || 0))) return;
+      inner[u.name] = levels[id];
+      changed = true;
+    });
+    if (changed) {
+      save.inner = inner;
+      writeSave(save);
+    }
+  }
+
   /**
    * An ultimate reached its height (極致): its name with the element's mark in gold, and the first
    * time ever for that route and element, a line of the hero remembering the world of magic.
@@ -546,6 +563,7 @@ async function boot() {
       }
       ui.pointers(tags, view);
       const run = { time: s[STATE.TIME], kills: s[STATE.KILLS], level: s[STATE.LEVEL], commissions: s[STATE.COMMISSION_DONE] };
+      if ((s[STATE.WON] || s[STATE.OVER]) && !testRun && !replaying) keepInner(s);
       if (s[STATE.WON]) {
         mode = 'won';
         if (!testRun) recordMission(save, mission.name, true);

@@ -444,6 +444,8 @@ export function createUI({ onAction }) {
     const learned = new Set(Array.isArray(save.learned) ? save.learned : []);
     const stolen = Number(save.stolen) || 0;
     const manuals = Number(save.manuals) || 0;
+    const zeniths = new Set(Array.isArray(save.zeniths) ? save.zeniths : []);
+    const inner = save.inner && typeof save.inner === 'object' ? save.inner : {};
     const el = (tag, cls, text) => {
       const node = document.createElement(tag);
       if (cls) node.className = cls;
@@ -468,6 +470,17 @@ export function createUI({ onAction }) {
           status += ` · ${t('record.manuals', { n: movesOpen(route, manuals), m: route.moves.length })}`;
         }
         title.append(el('span', 'record-tag', `${status} · ${t('record.count', { n: got, m: route.moves.length })}`));
+        // The heights (極致) its ultimate has reached, by the elements' marks.
+        const heights = ELEMENTS.filter((e) => zeniths.has(`${route.id}:${e.id}`));
+        if (heights.length) {
+          const tag = el('span', 'record-tag record-heights', t('record.heights'));
+          for (const e of heights) {
+            const mark = el('b', '', e.glyph);
+            mark.style.color = elementCss(e);
+            tag.append(mark);
+          }
+          title.append(tag);
+        }
         box.append(title);
         // A manual of the route's school, not yet given: give it to this route to open one more move.
         const spare = Number(save.scrolls?.[route.school]) || 0;
@@ -496,7 +509,24 @@ export function createUI({ onAction }) {
       });
       return [head, ...entries];
     });
-    $('recordBody').replaceChildren(...parts);
+    // The inner arts (心法): the layers ever reached, each with its line; the rest only outlined.
+    const innerHead = el('h3', 'record-art', t('record.inner'));
+    const inners = UPGRADES.flatMap((u, id) => {
+      if (artOfUpgrade(id)) return [];
+      const top = Number(inner[u.name]) || 0;
+      const name = t(`inner.${u.name}.name`);
+      const box = el('div', top ? 'record-route' : 'record-route unknown');
+      const title = el('div', 'record-route-title');
+      title.append(el('b', '', top ? `${u.glyph} ${name}` : hidden(name)), el('span', 'record-tag', t('record.layers', { n: top, m: 3 })));
+      box.append(title);
+      for (let layer = 1; layer <= top; layer++) {
+        const row = el('div', 'record-move');
+        row.append(el('b', '', t('levelup.layer', { n: layer })), el('span', '', t(`inner.${u.name}.${layer}`)));
+        box.append(row);
+      }
+      return [box];
+    });
+    $('recordBody').replaceChildren(...parts, innerHead, ...inners);
   }
 
   /**

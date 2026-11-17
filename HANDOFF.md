@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/manual-choice` (cut from `feat/master-routes`)
+### `feat/record-inner` (cut from `feat/manual-choice`)
+
+`feat/manual-choice` was committed as 78d1229 and this branch cut.
+
+- **Built:** the martial record now also shows, per route, the heights (極致) its ultimate has reached, by the elements' marks in their colours; and a section of the nine inner arts (心法) with the highest layer ever reached and the line of each layer, an inner art never taken only outlined. The host keeps the layers in `save.inner` (per inner art name) when a run with routes on ends, won or lost, outside test runs and replays.
+- **Checked:** determinism, smoke; in a headless browser, a save with two inner arts and two heights shows them as above (picture checked).
+- **Not checked:** that a real run's end writes `save.inner` (the console cannot hand out inner arts); nobody has played it.
+
+### `feat/manual-choice` (cut from `feat/master-routes`, committed 78d1229)
 
 `feat/master-routes` was committed as 12753a9 and this branch cut.
 
