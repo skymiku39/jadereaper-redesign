@@ -22,6 +22,8 @@ export const PART_IDS = {
   scrap: 16,
   digit: 17,
   ground_shadow: 18,
+  dao: 19,
+  dadao: 20,
 };
 
 /** Upgrades, indexed by id. `glyph` is the brush mark shown on cards and HUD chips.

@@ -23,6 +23,8 @@ pub const P_RING: f32 = 15.0;
 pub const P_SCRAP: f32 = 16.0;
 pub const P_DIGIT: f32 = 17.0;
 pub const P_GROUND_SHADOW: f32 = 18.0;
+pub const P_DAO: f32 = 19.0;
+pub const P_DADAO: f32 = 20.0;
 
 // Upgrade ids.
 pub const U_SCYTHE: usize = 0;

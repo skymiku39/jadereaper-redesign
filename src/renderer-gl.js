@@ -156,6 +156,20 @@ Shape shape(int part, vec2 p, vec2 h, float seed) {
     float blade = max(max(a, -b), -0.45 - q.x);
     s.d = min(handle, blade) * m;
     s.light = 0.5 * dab(blade);
+  } else if (part == PART_DAO) {
+    float grip = sdSeg(q, vec2(0.0, 1.0), vec2(0.0, 0.6)) - 0.09;
+    float guard = sdBox(q - vec2(0.0, 0.52), vec2(0.3, 0.05));
+    float t = clamp((0.45 - q.y) / 1.4, 0.0, 1.0);
+    float spine = 0.32 * t * t;
+    float blade = max(abs(q.x - spine - 0.05) - (0.2 + 0.08 * t) * (1.0 - t * t * t * 0.9), max(q.y - 0.47, -0.97 - q.y));
+    s.d = min(min(grip, guard), blade) * m;
+    s.light = 0.5 * dab(blade + 0.04);
+  } else if (part == PART_DADAO) {
+    float pole = sdSeg(q, vec2(-0.15, 1.0), vec2(-0.15, -0.3)) - 0.07;
+    float e = length((q - vec2(0.1, -0.5)) / vec2(0.42, 0.48)) - 1.0;
+    float blade = max(e * 0.42, -0.2 - q.x);
+    s.d = min(pole, blade) * m;
+    s.light = 0.5 * dab(blade + 0.03);
   } else if (part == PART_BLOT) {
     float ang = atan(q.y, q.x);
     float r = 0.82 + 0.07 * sin(ang * 5.0 + seed * 40.0) + 0.05 * sin(ang * 3.0 - uQtime * 2.0);

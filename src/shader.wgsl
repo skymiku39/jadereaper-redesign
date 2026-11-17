@@ -46,6 +46,8 @@ const PART_RING: i32 = 15;
 const PART_SCRAP: i32 = 16;
 const PART_DIGIT: i32 = 17;
 const PART_GROUND_SHADOW: i32 = 18;
+const PART_DAO: i32 = 19;
+const PART_DADAO: i32 = 20;
 // END GENERATED
 const PAPER = vec3f(0.965, 0.94, 0.875);
 const PAD = 10.0;        // extra quad size for margin and shadow, world units
@@ -134,6 +136,22 @@ fn shape(part: i32, p: vec2f, h: vec2f, seed: f32) -> Shape {
       let blade = max(max(a, -b), -0.45 - q.x);
       s.d = min(handle, blade) * m;
       s.light = 0.5 * dab(blade);
+    }
+    case PART_DAO { // sabre: grip, guard and a blade curving to its tip
+      let grip = sdSeg(q, vec2f(0.0, 1.0), vec2f(0.0, 0.6)) - 0.09;
+      let guard = sdBox(q - vec2f(0.0, 0.52), vec2f(0.3, 0.05));
+      let t = clamp((0.45 - q.y) / 1.4, 0.0, 1.0);
+      let spine = 0.32 * t * t;
+      let blade = max(abs(q.x - spine - 0.05) - (0.2 + 0.08 * t) * (1.0 - t * t * t * 0.9), max(q.y - 0.47, -0.97 - q.y));
+      s.d = min(min(grip, guard), blade) * m;
+      s.light = 0.5 * dab(blade + 0.04);
+    }
+    case PART_DADAO { // broad blade on a long pole
+      let pole = sdSeg(q, vec2f(-0.15, 1.0), vec2f(-0.15, -0.3)) - 0.07;
+      let e = length((q - vec2f(0.1, -0.5)) / vec2f(0.42, 0.48)) - 1.0;
+      let blade = max(e * 0.42, -0.2 - q.x);
+      s.d = min(pole, blade) * m;
+      s.light = 0.5 * dab(blade + 0.03);
     }
     case PART_BLOT { // ink blot spirit
       let ang = atan2(q.y, q.x);

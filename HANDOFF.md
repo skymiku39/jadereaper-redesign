@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/kind-traits` (cut from `feat/sword-spear`)
+### `feat/hud-weapon` (cut from `feat/kind-traits`)
+
+`feat/kind-traits` was committed as 8481ab1 and this branch cut.
+
+- **Built:** the player draws the weapon the scythe art is in: a sabre (`dao`, new part 19) for 單刀, two of them swung one after the other for 雙刀, a broad blade on a pole (`dadao`, part 20) for 大刀, and the old scythe for 鐮 and with kinds off. Both shapes are in the WebGPU shader and the WebGL2 one. `jr_hold(weapon)` takes a kind card from the console or a tool, like `jr_give`. Only the scythe art is held in the hand; the other arts stay as they were drawn.
+- **Checked:** fmt, clippy, tests, `./build.sh`, fonts, determinism (drawing is not in the state hash), pictures of the four kinds from a headless browser. `npm run smoke` failed once more without its message; five runs after that all passed.
+- **Not checked:** nobody has played it; the pictures are small and the shapes may want work, or images in `assets/parts.json`.
+
+### `feat/kind-traits` (cut from `feat/sword-spear`, committed 8481ab1)
 
 `feat/sword-spear` was committed as 42e2463 and this branch cut.
 

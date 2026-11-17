@@ -1816,10 +1816,15 @@ impl Game {
         self.put(px, py, 20.0, 7.0, 0.0, P_GROUND_SHADOW, 0.0, 0.0, shadow);
 
         let scythe = [0.36, 0.66, 0.52, a];
+        let (part, w, h, two) = self.held_weapon();
         let swinging = attack > 0.0;
         if !swinging {
             // Resting over the shoulder, behind the body.
-            self.put(px - f * 15.0, py - 46.0 + bob, 20.0 * f, 34.0, -f * 0.45 + tilt, P_SCYTHE, flash, 0.21, scythe);
+            let rest = -f * 0.45 + tilt;
+            self.put(px - f * 15.0, py - 46.0 + bob, w * f, h, rest, part, flash, 0.21, scythe);
+            if two {
+                self.put(px - f * 21.0, py - 44.0 + bob, w * f, h, rest - f * 0.3, part, flash, 0.23, scythe);
+            }
         }
         let top_x = px + 26.0 * fmath::sin(tilt);
         self.put(px, py - 26.0 + bob, 20.0 * f, 26.0, tilt, P_PLAYER_BODY, flash, 0.37, [0.20, 0.42, 0.36, a]);
@@ -1838,9 +1843,26 @@ impl Game {
             let t = 1.0 - attack / 0.25;
             let ease = t * t * (3.0 - 2.0 * t);
             let ang = (-1.3 + 2.8 * ease) * f;
-            self.put(px + f * 12.0, py - 42.0 + bob, 20.0 * f, 34.0, ang, P_SCYTHE, flash, 0.21, scythe);
+            self.put(px + f * 12.0, py - 42.0 + bob, w * f, h, ang, part, flash, 0.21, scythe);
+            if two {
+                // The second blade follows a little behind the first.
+                let late = (-1.3 + 2.8 * (ease * 0.8)) * f;
+                self.put(px - f * 4.0, py - 40.0 + bob, w * f, h, late, part, flash, 0.23, scythe);
+            }
         }
         self.draw_guard();
+    }
+
+    /// What the player holds: the part, its half width and height, and
+    /// whether there are two of it. It follows the scythe art's weapon kind;
+    /// without kinds it is the scythe.
+    fn held_weapon(&self) -> (f32, f32, f32, bool) {
+        match self.kind_of(A_SCYTHE) {
+            Some(W_DANDAO) => (P_DAO, 14.0, 30.0, false),
+            Some(W_SHUANGDAO) => (P_DAO, 12.0, 26.0, true),
+            Some(W_DADAO) => (P_DADAO, 24.0, 42.0, false),
+            _ => (P_SCYTHE, 20.0, 34.0, false),
+        }
     }
 
     // --------------------------------------------------------------- state

@@ -183,6 +183,15 @@ pub extern "C" fn jr_give(art: u32, level: u32, element: u32) {
     g().give(art as usize, level, element);
 }
 
+/// Take weapon kind `weapon` (an id from `[[weapon]]`) as if its card were
+/// chosen, plain. For the tools and the browser console, like `jr_give`.
+#[no_mangle]
+pub extern "C" fn jr_hold(weapon: u32) {
+    if (weapon as usize) < generated::N_WEAPONS {
+        g().take_weapon(weapon as usize, 0);
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn jr_instances_ptr() -> *const f32 {
     g().inst.as_ptr() as *const f32

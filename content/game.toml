@@ -106,6 +106,17 @@ name = "digit"
 id = 18
 name = "ground_shadow"
 
+# The sabre the player holds when the scythe art's kind is a sabre (單刀, and
+# twice for 雙刀).
+[[part]]
+id = 19
+name = "dao"
+
+# The broad blade on a pole the player holds for 大刀.
+[[part]]
+id = 20
+name = "dadao"
+
 # ------------------------------------------------------------- upgrades
 # Ids index the upgrade tables, so they run 0, 1, 2... without gaps.
 # `max` is the highest level. `glyph` is the brush mark on cards and HUD
