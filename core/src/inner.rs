@@ -67,6 +67,13 @@ impl Game {
         PASSIVES.iter().any(|p| p.upgrade == id && matches!(p.stat, ST_SPLASH | ST_REACH | ST_ELEMENT))
     }
 
+    /// Whether an upgrade is kept out of the offers in this run: the newest
+    /// inner arts and the second batch of weapons while routes are off.
+    pub(crate) fn upgrade_hidden(&self, id: usize) -> bool {
+        let routes_only = ARTS.iter().any(|art| art.upgrade == id && art.routes_only);
+        !self.inner_on() && (Self::inner_only(id) || routes_only)
+    }
+
     /// Whether an upgrade is a passive, so an inner art while they are on.
     pub(crate) fn is_passive(id: usize) -> bool {
         PASSIVES.iter().any(|p| p.upgrade == id)

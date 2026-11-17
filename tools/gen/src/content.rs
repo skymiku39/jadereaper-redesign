@@ -287,7 +287,7 @@ pub struct Passive {
 }
 
 /// What a martial art does. The core has one function per behaviour.
-pub const BEHAVIOURS: [&str; 4] = ["arc", "projectile", "orbit", "nova"];
+pub const BEHAVIOURS: [&str; 5] = ["arc", "projectile", "orbit", "nova", "thrust"];
 
 /// The numbers of a martial art that can differ per level, in the order of `Art::levels`.
 pub const ART_LEVEL_KEYS: [&str; 7] = ["damage", "cooldown", "count", "reach", "width", "pierce", "knockback"];
@@ -311,6 +311,8 @@ pub struct Art {
     pub range: String,
     /// One list per key of `ART_LEVEL_KEYS`, each with one value per level, as written.
     pub levels: Vec<Vec<String>>,
+    /// Only offered while routes are on.
+    pub routes_only: bool,
 }
 
 /// The form tags a weapon kind can carry (docs/design.md 4.8.2), in the order of `Weapon::forms`.
@@ -359,7 +361,7 @@ pub struct Route {
 }
 
 /// How a move hits. The core has one piece of code per shape.
-pub const MOVE_SHAPES: [&str; 5] = ["arc", "wave", "marks", "ring", "turret"];
+pub const MOVE_SHAPES: [&str; 6] = ["arc", "wave", "marks", "ring", "turret", "thrust"];
 
 /// The optional numbers of a move, in the order of `Move::numbers`. Each defaults to 0.
 pub const MOVE_KEYS: [&str; 14] = [
@@ -821,6 +823,8 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                 let (speed, life, range) =
                     (f.number_or_zero("speed"), f.number_or_zero("life"), f.number_or_zero("range"));
                 let raw: Option<RawLevels> = ART_LEVEL_KEYS.iter().map(|key| f.per_level(key)).collect();
+                // Only offered while routes are on (the second batch of weapons).
+                let routes_only = f.flag("routes_only").unwrap_or(false);
                 if let (
                     Some(id),
                     Some(name),
@@ -845,6 +849,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         life,
                         range,
                         levels: Vec::new(),
+                        routes_only,
                     };
                     arts.push((art, raw, t.line));
                 }
@@ -1530,7 +1535,7 @@ pub fn render_rust(c: &Content) -> String {
     for a in &c.arts {
         writeln!(
             o,
-            "    ArtDef {{ upgrade: U_{}, behaviour: B_{}, part: P_{}, start_level: {}, first_delay: {}, speed: {}, life: {}, range: {}, levels: &[",
+            "    ArtDef {{ upgrade: U_{}, behaviour: B_{}, part: P_{}, start_level: {}, first_delay: {}, speed: {}, life: {}, range: {}, routes_only: {}, levels: &[",
             upper(&a.name),
             upper(&a.behaviour),
             upper(&a.part),
@@ -1538,7 +1543,8 @@ pub fn render_rust(c: &Content) -> String {
             float_lit(&a.first_delay),
             float_lit(&a.speed),
             float_lit(&a.life),
-            float_lit(&a.range)
+            float_lit(&a.range),
+            a.routes_only
         )
         .unwrap();
         let levels = a.levels.first().map_or(0, |l| l.len());

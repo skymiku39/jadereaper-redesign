@@ -41,7 +41,7 @@ impl Game {
     fn offerable(&self, id: usize) -> bool {
         let new_art = self.up[id] == 0 && Self::art_of_upgrade(id).is_some();
         let full = self.arts_held() >= MAX_ARTS;
-        let hidden = !self.inner_on() && Self::inner_only(id);
+        let hidden = self.upgrade_hidden(id);
         self.up[id] < self.upgrade_top(id) && !(full && new_art) && !hidden
     }
 

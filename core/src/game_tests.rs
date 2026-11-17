@@ -493,8 +493,8 @@ fn vitality_raises_max_and_current_health_on_choose() {
 
 #[test]
 fn passive_and_weapon_ids_and_caps() {
-    assert_eq!(N_UPGRADES, 13);
-    assert_eq!(UPGRADE_MAX, [6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 3, 3, 3]);
+    assert_eq!(N_UPGRADES, 15);
+    assert_eq!(UPGRADE_MAX, [6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 3, 3, 3, 6, 6]);
     assert_eq!(
         [
             U_SCYTHE, U_TALISMAN, U_BEADS, U_PULSE, U_VITALITY, U_SWIFT, U_LURE, U_MIGHT, U_HASTE, U_MENDING, U_JIELI,

@@ -1409,7 +1409,7 @@ impl Game {
         for id in 0..N_UPGRADES {
             let new_art = self.up[id] == 0 && ARTS.iter().any(|a| a.upgrade == id);
             // The newest inner arts are only offered while inner arts are on.
-            let hidden = !self.inner_on() && Self::inner_only(id);
+            let hidden = self.upgrade_hidden(id);
             if self.up[id] < self.upgrade_top(id) && !(full && new_art) && !hidden {
                 pool[n] = id;
                 n += 1;

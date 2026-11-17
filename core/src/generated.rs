@@ -38,10 +38,12 @@ pub const U_MENDING: usize = 9;
 pub const U_JIELI: usize = 10;
 pub const U_QIGUAN: usize = 11;
 pub const U_WANFA: usize = 12;
-pub const N_UPGRADES: usize = 13;
+pub const U_SWORD: usize = 13;
+pub const U_SPEAR: usize = 14;
+pub const N_UPGRADES: usize = 15;
 #[rustfmt::skip]
-pub const UPGRADE_NAMES: [&str; N_UPGRADES] = ["scythe", "talisman", "beads", "pulse", "vitality", "swift", "lure", "might", "haste", "mending", "jieli", "qiguan", "wanfa"];
-pub const UPGRADE_MAX: [u8; N_UPGRADES] = [6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 3, 3, 3];
+pub const UPGRADE_NAMES: [&str; N_UPGRADES] = ["scythe", "talisman", "beads", "pulse", "vitality", "swift", "lure", "might", "haste", "mending", "jieli", "qiguan", "wanfa", "sword", "spear"];
+pub const UPGRADE_MAX: [u8; N_UPGRADES] = [6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 3, 3, 3, 6, 6];
 
 // Passive upgrades: the stat each one raises and by how much per level.
 pub const N_PASSIVES: usize = 9;
@@ -75,9 +77,11 @@ pub const K_BANDIT_MASTER: u8 = 12;
 pub const K_CONSTABLE_MASTER: u8 = 13;
 pub const K_SECT_MASTER: u8 = 14;
 pub const K_TANG_DISCIPLE: u8 = 15;
-pub const N_KINDS: usize = 16;
+pub const K_SOLDIER: u8 = 16;
+pub const K_GENERAL: u8 = 17;
+pub const N_KINDS: usize = 18;
 #[rustfmt::skip]
-pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet", "bandit_chief", "constable_chief", "claw_crone", "bandit_master", "constable_master", "sect_master", "tang_disciple"];
+pub const KIND_NAMES: [&str; N_KINDS] = ["blot", "wisp", "brute", "elite", "hound", "bandit", "constable", "needler", "puppet", "bandit_chief", "constable_chief", "claw_crone", "bandit_master", "constable_master", "sect_master", "tang_disciple", "soldier", "general"];
 #[rustfmt::skip]
 pub const KINDS: [Kind; N_KINDS] = [
     Kind { hp: 14.0, speed: 62.0, r: 16.0, dmg: 5.0, xp: 1.0, part: P_BLOT, color: [0.33, 0.31, 0.30], hw: 18.0, hh: 18.0, rate: 5.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: N_TUNES, school: N_SCHOOLS, strike: N_MOVES, manual: false },
@@ -96,6 +100,8 @@ pub const KINDS: [Kind; N_KINDS] = [
     Kind { hp: 1200.0, speed: 50.0, r: 40.0, dmg: 12.0, xp: 40.0, part: P_BRUTE, color: [0.10, 0.14, 0.32], hw: 48.0, hh: 48.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 300.0, share_tune: T_SCHOOL_SHARE, school: SC_LIUSHANMEN, strike: MV_GUANMEN, manual: true },
     Kind { hp: 1000.0, speed: 64.0, r: 30.0, dmg: 12.0, xp: 40.0, part: P_WISP, color: [0.22, 0.30, 0.20], hw: 44.0, hh: 26.0, rate: 5.0, corpse: true, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 360.0, share_tune: T_SCHOOL_SHARE, school: SC_JIUYOU, strike: MV_WANGUI, manual: true },
     Kind { hp: 16.0, speed: 92.0, r: 12.0, dmg: 5.0, xp: 2.0, part: P_WISP, color: [0.30, 0.34, 0.30], hw: 22.0, hh: 13.0, rate: 8.0, corpse: false, heavy: false, hover: true, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_TANGMEN, strike: N_MOVES, manual: false },
+    Kind { hp: 30.0, speed: 60.0, r: 18.0, dmg: 7.0, xp: 2.0, part: P_BLOT, color: [0.40, 0.36, 0.24], hw: 19.0, hh: 19.0, rate: 4.0, corpse: false, heavy: false, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 0.0, share_tune: T_SCHOOL_SHARE, school: SC_BIANJUN, strike: N_MOVES, manual: false },
+    Kind { hp: 1300.0, speed: 50.0, r: 40.0, dmg: 14.0, xp: 40.0, part: P_BRUTE, color: [0.36, 0.30, 0.14], hw: 48.0, hh: 48.0, rate: 2.5, corpse: false, heavy: true, hover: false, from: 0.0, share: 0.0, ramp: 0.0, every: 280.0, share_tune: T_SCHOOL_SHARE, school: SC_BIANJUN, strike: MV_HENGQIANG, manual: true },
 ];
 
 // Martial arts: one behaviour each, with its numbers per level of the upgrade that levels it.
@@ -103,14 +109,16 @@ pub const A_SCYTHE: usize = 0;
 pub const A_TALISMAN: usize = 1;
 pub const A_BEADS: usize = 2;
 pub const A_PULSE: usize = 3;
-pub const N_ARTS: usize = 4;
+pub const A_SWORD: usize = 4;
+pub const A_SPEAR: usize = 5;
+pub const N_ARTS: usize = 6;
 #[rustfmt::skip]
-pub const ART_NAMES: [&str; N_ARTS] = ["scythe", "talisman", "beads", "pulse"];
+pub const ART_NAMES: [&str; N_ARTS] = ["scythe", "talisman", "beads", "pulse", "sword", "spear"];
 /// How many martial arts the player can hold at once.
 pub const MAX_ARTS: usize = 6;
 #[rustfmt::skip]
 pub const ARTS: [ArtDef; N_ARTS] = [
-    ArtDef { upgrade: U_SCYTHE, behaviour: B_ARC, part: P_SLASH, start_level: 1, first_delay: 0.6, speed: 0.0, life: 0.0, range: 0.0, levels: &[
+    ArtDef { upgrade: U_SCYTHE, behaviour: B_ARC, part: P_SLASH, start_level: 1, first_delay: 0.6, speed: 0.0, life: 0.0, range: 0.0, routes_only: false, levels: &[
         ArtLevel { damage: 20.0, cooldown: 0.9, count: 1, reach: 119.0, width: -0.15, pierce: 0, knockback: 240.0 },
         ArtLevel { damage: 26.0, cooldown: 0.9, count: 1, reach: 133.0, width: -0.15, pierce: 0, knockback: 240.0 },
         ArtLevel { damage: 32.0, cooldown: 0.9, count: 1, reach: 147.0, width: -0.15, pierce: 0, knockback: 240.0 },
@@ -118,7 +126,7 @@ pub const ARTS: [ArtDef; N_ARTS] = [
         ArtLevel { damage: 44.0, cooldown: 0.9, count: 2, reach: 175.0, width: -2.0, pierce: 0, knockback: 240.0 },
         ArtLevel { damage: 50.0, cooldown: 0.9, count: 2, reach: 189.0, width: -2.0, pierce: 0, knockback: 240.0 },
     ] },
-    ArtDef { upgrade: U_TALISMAN, behaviour: B_PROJECTILE, part: P_TALISMAN, start_level: 0, first_delay: 0.5, speed: 540.0, life: 1.3, range: 520.0, levels: &[
+    ArtDef { upgrade: U_TALISMAN, behaviour: B_PROJECTILE, part: P_TALISMAN, start_level: 0, first_delay: 0.5, speed: 540.0, life: 1.3, range: 520.0, routes_only: false, levels: &[
         ArtLevel { damage: 12.0, cooldown: 0.95, count: 1, reach: 0.0, width: 0.0, pierce: 1, knockback: 0.3 },
         ArtLevel { damage: 16.0, cooldown: 0.95, count: 2, reach: 0.0, width: 0.0, pierce: 1, knockback: 0.3 },
         ArtLevel { damage: 20.0, cooldown: 0.95, count: 2, reach: 0.0, width: 0.0, pierce: 2, knockback: 0.3 },
@@ -126,7 +134,7 @@ pub const ARTS: [ArtDef; N_ARTS] = [
         ArtLevel { damage: 28.0, cooldown: 0.95, count: 3, reach: 0.0, width: 0.0, pierce: 2, knockback: 0.3 },
         ArtLevel { damage: 32.0, cooldown: 0.95, count: 4, reach: 0.0, width: 0.0, pierce: 3, knockback: 0.3 },
     ] },
-    ArtDef { upgrade: U_BEADS, behaviour: B_ORBIT, part: P_BEAD, start_level: 0, first_delay: 0.0, speed: 2.8, life: 0.0, range: 0.0, levels: &[
+    ArtDef { upgrade: U_BEADS, behaviour: B_ORBIT, part: P_BEAD, start_level: 0, first_delay: 0.0, speed: 2.8, life: 0.0, range: 0.0, routes_only: false, levels: &[
         ArtLevel { damage: 9.0, cooldown: 0.45, count: 2, reach: 84.0, width: 0.0, pierce: 0, knockback: 160.0 },
         ArtLevel { damage: 12.0, cooldown: 0.45, count: 3, reach: 90.0, width: 0.0, pierce: 0, knockback: 160.0 },
         ArtLevel { damage: 15.0, cooldown: 0.45, count: 4, reach: 96.0, width: 0.0, pierce: 0, knockback: 160.0 },
@@ -134,13 +142,29 @@ pub const ARTS: [ArtDef; N_ARTS] = [
         ArtLevel { damage: 21.0, cooldown: 0.45, count: 6, reach: 108.0, width: 0.0, pierce: 0, knockback: 160.0 },
         ArtLevel { damage: 24.0, cooldown: 0.45, count: 7, reach: 114.0, width: 0.0, pierce: 0, knockback: 160.0 },
     ] },
-    ArtDef { upgrade: U_PULSE, behaviour: B_NOVA, part: P_RING, start_level: 0, first_delay: 2.0, speed: 0.0, life: 0.0, range: 0.0, levels: &[
+    ArtDef { upgrade: U_PULSE, behaviour: B_NOVA, part: P_RING, start_level: 0, first_delay: 2.0, speed: 0.0, life: 0.0, range: 0.0, routes_only: false, levels: &[
         ArtLevel { damage: 16.0, cooldown: 4.2, count: 0, reach: 180.0, width: 0.0, pierce: 0, knockback: 520.0 },
         ArtLevel { damage: 22.0, cooldown: 4.2, count: 0, reach: 210.0, width: 0.0, pierce: 0, knockback: 520.0 },
         ArtLevel { damage: 28.0, cooldown: 4.2, count: 0, reach: 240.0, width: 0.0, pierce: 0, knockback: 520.0 },
         ArtLevel { damage: 34.0, cooldown: 4.2, count: 0, reach: 270.0, width: 0.0, pierce: 0, knockback: 520.0 },
         ArtLevel { damage: 40.0, cooldown: 4.2, count: 0, reach: 300.0, width: 0.0, pierce: 0, knockback: 520.0 },
         ArtLevel { damage: 46.0, cooldown: 4.2, count: 0, reach: 330.0, width: 0.0, pierce: 0, knockback: 520.0 },
+    ] },
+    ArtDef { upgrade: U_SWORD, behaviour: B_THRUST, part: P_TALISMAN, start_level: 0, first_delay: 0.4, speed: 0.0, life: 0.0, range: 0.0, routes_only: true, levels: &[
+        ArtLevel { damage: 18.0, cooldown: 0.7, count: 0, reach: 220.0, width: 12.0, pierce: 0, knockback: 180.0 },
+        ArtLevel { damage: 24.0, cooldown: 0.7, count: 0, reach: 250.0, width: 13.0, pierce: 0, knockback: 180.0 },
+        ArtLevel { damage: 30.0, cooldown: 0.7, count: 0, reach: 270.0, width: 14.0, pierce: 0, knockback: 180.0 },
+        ArtLevel { damage: 36.0, cooldown: 0.7, count: 0, reach: 290.0, width: 15.0, pierce: 0, knockback: 180.0 },
+        ArtLevel { damage: 42.0, cooldown: 0.7, count: 0, reach: 310.0, width: 16.0, pierce: 0, knockback: 180.0 },
+        ArtLevel { damage: 48.0, cooldown: 0.7, count: 0, reach: 330.0, width: 17.0, pierce: 0, knockback: 180.0 },
+    ] },
+    ArtDef { upgrade: U_SPEAR, behaviour: B_THRUST, part: P_TALISMAN, start_level: 0, first_delay: 0.6, speed: 0.0, life: 0.0, range: 0.0, routes_only: true, levels: &[
+        ArtLevel { damage: 22.0, cooldown: 1.0, count: 0, reach: 300.0, width: 10.0, pierce: 0, knockback: 260.0 },
+        ArtLevel { damage: 28.0, cooldown: 1.0, count: 0, reach: 330.0, width: 11.0, pierce: 0, knockback: 260.0 },
+        ArtLevel { damage: 34.0, cooldown: 1.0, count: 0, reach: 360.0, width: 12.0, pierce: 0, knockback: 260.0 },
+        ArtLevel { damage: 40.0, cooldown: 1.0, count: 0, reach: 390.0, width: 13.0, pierce: 0, knockback: 260.0 },
+        ArtLevel { damage: 46.0, cooldown: 1.0, count: 0, reach: 420.0, width: 14.0, pierce: 0, knockback: 260.0 },
+        ArtLevel { damage: 52.0, cooldown: 1.0, count: 0, reach: 450.0, width: 15.0, pierce: 0, knockback: 260.0 },
     ] },
 ];
 
@@ -159,9 +183,15 @@ pub const W_HUSHOU: usize = 10;
 pub const W_ZHAOTAO: usize = 11;
 pub const W_XIUJIAN: usize = 12;
 pub const W_JIGUANXIA: usize = 13;
-pub const N_WEAPONS: usize = 14;
+pub const W_CHANGJIAN: usize = 14;
+pub const W_SHUANGJIAN: usize = 15;
+pub const W_RUANJIAN: usize = 16;
+pub const W_CHANGQIANG: usize = 17;
+pub const W_HUAQIANG: usize = 18;
+pub const W_JI: usize = 19;
+pub const N_WEAPONS: usize = 20;
 #[rustfmt::skip]
-pub const WEAPON_NAMES: [&str; N_WEAPONS] = ["dandao", "shuangdao", "dadao", "lian", "qimeigun", "changgun", "biao", "feidao", "zhen", "tushou", "hushou", "zhaotao", "xiujian", "jiguanxia"];
+pub const WEAPON_NAMES: [&str; N_WEAPONS] = ["dandao", "shuangdao", "dadao", "lian", "qimeigun", "changgun", "biao", "feidao", "zhen", "tushou", "hushou", "zhaotao", "xiujian", "jiguanxia", "changjian", "shuangjian", "ruanjian", "changqiang", "huaqiang", "ji"];
 #[rustfmt::skip]
 pub const WEAPONS: [WeaponDef; N_WEAPONS] = [
     WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT, start: true },
@@ -178,6 +208,12 @@ pub const WEAPONS: [WeaponDef; N_WEAPONS] = [
     WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: false },
     WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT | FORM_MECHANISM, start: false },
     WeaponDef { art: A_TALISMAN, forms: FORM_HEAVY | FORM_MECHANISM, start: false },
+    WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: true },
+    WeaponDef { art: A_SWORD, forms: FORM_LIGHT | FORM_PAIRED, start: false },
+    WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: false },
+    WeaponDef { art: A_SPEAR, forms: FORM_LONG, start: true },
+    WeaponDef { art: A_SPEAR, forms: FORM_LIGHT, start: false },
+    WeaponDef { art: A_SPEAR, forms: FORM_LONG | FORM_HEAVY, start: false },
 ];
 
 // Schools (門派).
@@ -190,9 +226,12 @@ pub const SC_QIUSHUI: usize = 5;
 pub const SC_HEIFENG: usize = 6;
 pub const SC_LIUSHANMEN: usize = 7;
 pub const SC_JIUYOU: usize = 8;
-pub const N_SCHOOLS: usize = 9;
+pub const SC_QINGMING: usize = 9;
+pub const SC_BAIMA: usize = 10;
+pub const SC_BIANJUN: usize = 11;
+pub const N_SCHOOLS: usize = 12;
 #[rustfmt::skip]
-pub const SCHOOL_NAMES: [&str; N_SCHOOLS] = ["duanyue", "changfeng", "caobang", "tangmen", "xuanzhong", "qiushui", "heifeng", "liushanmen", "jiuyou"];
+pub const SCHOOL_NAMES: [&str; N_SCHOOLS] = ["duanyue", "changfeng", "caobang", "tangmen", "xuanzhong", "qiushui", "heifeng", "liushanmen", "jiuyou", "qingming", "baima", "bianjun"];
 
 // Routes (套路): what an art turns into from level 3, and their moves in order.
 pub const RT_BENGYUE: usize = 0;
@@ -208,9 +247,15 @@ pub const RT_SHUIHUO: usize = 9;
 pub const RT_YINHUN: usize = 10;
 pub const RT_SHESOU: usize = 11;
 pub const RT_JIUJI: usize = 12;
-pub const N_ROUTES: usize = 13;
+pub const RT_LIUYUN: usize = 13;
+pub const RT_QIUSHUIJIAN: usize = 14;
+pub const RT_XUEHE: usize = 15;
+pub const RT_CHANGBAN: usize = 16;
+pub const RT_YOULONG: usize = 17;
+pub const RT_POJUN: usize = 18;
+pub const N_ROUTES: usize = 19;
 #[rustfmt::skip]
-pub const ROUTE_NAMES: [&str; N_ROUTES] = ["bengyue", "jinghong", "poyu", "fanjiang", "ershiba", "chuanyang", "muguchenzhong", "zhuoyu", "lulin", "shuihuo", "yinhun", "shesou", "jiuji"];
+pub const ROUTE_NAMES: [&str; N_ROUTES] = ["bengyue", "jinghong", "poyu", "fanjiang", "ershiba", "chuanyang", "muguchenzhong", "zhuoyu", "lulin", "shuihuo", "yinhun", "shesou", "jiuji", "liuyun", "qiushuijian", "xuehe", "changban", "youlong", "pojun"];
 #[rustfmt::skip]
 pub const ROUTES: [RouteDef; N_ROUTES] = [
     RouteDef { art: A_SCYTHE, school: SC_DUANYUE, beat: 1.0, start: true, first: 0, n: 4, suits: 0x4, zenith: U_MIGHT, only: 0x0 },
@@ -226,6 +271,12 @@ pub const ROUTES: [RouteDef; N_ROUTES] = [
     RouteDef { art: A_TALISMAN, school: SC_JIUYOU, beat: 0.6, start: false, first: 45, n: 4, suits: 0x100, zenith: U_WANFA, only: 0x0 },
     RouteDef { art: A_PULSE, school: SC_JIUYOU, beat: 1.6, start: false, first: 49, n: 3, suits: 0x800, zenith: U_LURE, only: 0x0 },
     RouteDef { art: A_TALISMAN, school: SC_TANGMEN, beat: 1.5, start: false, first: 52, n: 5, suits: 0x2000, zenith: U_SWIFT, only: 0x3000 },
+    RouteDef { art: A_SWORD, school: SC_QINGMING, beat: 0.55, start: true, first: 57, n: 5, suits: 0x14000, zenith: U_WANFA, only: 0x0 },
+    RouteDef { art: A_SWORD, school: SC_QIUSHUI, beat: 1.4, start: true, first: 62, n: 4, suits: 0x4000, zenith: U_MENDING, only: 0x0 },
+    RouteDef { art: A_SWORD, school: SC_JIUYOU, beat: 0.7, start: false, first: 66, n: 4, suits: 0xc000, zenith: U_VITALITY, only: 0x0 },
+    RouteDef { art: A_SPEAR, school: SC_BAIMA, beat: 0.9, start: true, first: 70, n: 5, suits: 0x60000, zenith: U_SWIFT, only: 0x0 },
+    RouteDef { art: A_SPEAR, school: SC_CAOBANG, beat: 0.6, start: true, first: 75, n: 4, suits: 0x40000, zenith: U_HASTE, only: 0x0 },
+    RouteDef { art: A_SPEAR, school: SC_BIANJUN, beat: 1.2, start: false, first: 79, n: 4, suits: 0xa0000, zenith: U_MIGHT, only: 0x0 },
 ];
 pub const MV_HENGYUN: usize = 0;
 pub const MV_HUISHOU: usize = 1;
@@ -284,9 +335,35 @@ pub const MV_JIUGONG: usize = 53;
 pub const MV_MUNIU: usize = 54;
 pub const MV_WANNU: usize = 55;
 pub const MV_TIANLUO: usize = 56;
-pub const N_MOVES: usize = 57;
+pub const MV_SHANGSHAN: usize = 57;
+pub const MV_ROURUO: usize = 58;
+pub const MV_DAXIANG: usize = 59;
+pub const MV_ZHOUXING: usize = 60;
+pub const MV_DAOFA: usize = 61;
+pub const MV_CHANGTIAN: usize = 62;
+pub const MV_WANGYANG: usize = 63;
+pub const MV_HEBOGUANHAI: usize = 64;
+pub const MV_TIANDI: usize = 65;
+pub const MV_XUEJI: usize = 66;
+pub const MV_SHAREN: usize = 67;
+pub const MV_LIUCHENG: usize = 68;
+pub const MV_DAOXUAN: usize = 69;
+pub const MV_BAIMA: usize = 70;
+pub const MV_HENGQIANG: usize = 71;
+pub const MV_QIJIN: usize = 72;
+pub const MV_DANQI: usize = 73;
+pub const MV_YISHEN: usize = 74;
+pub const MV_BAIWEI: usize = 75;
+pub const MV_TAITOU: usize = 76;
+pub const MV_RUHAI: usize = 77;
+pub const MV_JIAOLONG: usize = 78;
+pub const MV_HUANGSHA: usize = 79;
+pub const MV_WANLI: usize = 80;
+pub const MV_QINGHAI: usize = 81;
+pub const MV_QINSHI: usize = 82;
+pub const N_MOVES: usize = 83;
 #[rustfmt::skip]
-pub const MOVE_NAMES: [&str; N_MOVES] = ["hengyun", "huishou", "wanren", "wuyue", "yipie", "pianruo", "shuangyan", "hongfei", "xueni", "zhaoying", "shouwei", "fengjuan", "luoye", "bafang", "chaosheng", "jingtao", "nishui", "dajiang", "changhe", "sanxing", "wuxing", "qixing", "xingluo", "zhoutian", "moshi", "sanjian", "shuangdiao", "houyi", "chenzhong", "yuyin", "geshan", "hongzhong", "qiecuo", "zhuomo", "tashan", "yushi", "ningwei", "menghu", "kaitang", "shede", "qianyang", "yuqin", "shengdong", "dacao", "guanmen", "huangquan", "guimen", "yanwang", "shidian", "gouhun", "poguan", "wangui", "gongshu", "jiugong", "muniu", "wannu", "tianluo"];
+pub const MOVE_NAMES: [&str; N_MOVES] = ["hengyun", "huishou", "wanren", "wuyue", "yipie", "pianruo", "shuangyan", "hongfei", "xueni", "zhaoying", "shouwei", "fengjuan", "luoye", "bafang", "chaosheng", "jingtao", "nishui", "dajiang", "changhe", "sanxing", "wuxing", "qixing", "xingluo", "zhoutian", "moshi", "sanjian", "shuangdiao", "houyi", "chenzhong", "yuyin", "geshan", "hongzhong", "qiecuo", "zhuomo", "tashan", "yushi", "ningwei", "menghu", "kaitang", "shede", "qianyang", "yuqin", "shengdong", "dacao", "guanmen", "huangquan", "guimen", "yanwang", "shidian", "gouhun", "poguan", "wangui", "gongshu", "jiugong", "muniu", "wannu", "tianluo", "shangshan", "rouruo", "daxiang", "zhouxing", "daofa", "changtian", "wangyang", "heboguanhai", "tiandi", "xueji", "sharen", "liucheng", "daoxuan", "baima", "hengqiang", "qijin", "danqi", "yishen", "baiwei", "taitou", "ruhai", "jiaolong", "huangsha", "wanli", "qinghai", "qinshi"];
 #[rustfmt::skip]
 pub const MOVES: [MoveDef; N_MOVES] = [
     MoveDef { route: 0, shape: MS_ARC, power: 1.3, reach: 1.0, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
@@ -346,6 +423,32 @@ pub const MOVES: [MoveDef; N_MOVES] = [
     MoveDef { route: 12, shape: MS_TURRET, power: 0.45, reach: 0.0, width: 0.0, count: 1, spread: 0.0, delay: 0.5, knockback: 0.0, pierce: 1, speed: 620.0, life: 5.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
     MoveDef { route: 12, shape: MS_TURRET, power: 0.45, reach: 0.0, width: 0.0, count: 1, spread: 0.0, delay: 0.5, knockback: 0.0, pierce: 1, speed: 620.0, life: 4.0, grow: 0.0, offset: 0.0, seek: 0, split: 12, ultimate: false, stop: false },
     MoveDef { route: 12, shape: MS_TURRET, power: 0.4, reach: 0.0, width: 0.0, count: 8, spread: 0.0, delay: 0.35, knockback: 0.0, pierce: 2, speed: 640.0, life: 3.0, grow: 0.0, offset: 1.6, seek: 0, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 13, shape: MS_THRUST, power: 0.7, reach: 1.0, width: 0.0, count: 2, spread: 0.06, delay: 0.0, knockback: 0.6, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 13, shape: MS_THRUST, power: 0.6, reach: 1.0, width: 0.0, count: 2, spread: 0.0, delay: 0.12, knockback: 0.6, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 13, shape: MS_THRUST, power: 0.6, reach: 1.1, width: 0.0, count: 2, spread: 0.0, delay: 0.4, knockback: 0.6, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 13, shape: MS_THRUST, power: 0.5, reach: 0.6, width: 0.0, count: 6, spread: 1.0, delay: 0.0, knockback: 0.8, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 13, shape: MS_THRUST, power: 1.0, reach: 1.2, width: 0.0, count: 8, spread: 1.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 14, shape: MS_THRUST, power: 1.6, reach: 1.8, width: 1.5, count: 1, spread: 0.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 14, shape: MS_RING, power: 1.2, reach: 0.4, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 0.8, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 1.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 14, shape: MS_THRUST, power: 2.5, reach: 2.0, width: 1.4, count: 1, spread: 0.0, delay: 0.0, knockback: 1.5, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: true },
+    MoveDef { route: 14, shape: MS_THRUST, power: 4.0, reach: 5.0, width: 2.2, count: 1, spread: 0.0, delay: 0.0, knockback: 2.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 15, shape: MS_THRUST, power: 0.9, reach: 1.0, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 0.6, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 15, shape: MS_THRUST, power: 0.8, reach: 1.0, width: 0.0, count: 2, spread: 0.0, delay: 0.1, knockback: 0.6, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 15, shape: MS_RING, power: 1.0, reach: 0.6, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 0.6, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 15, shape: MS_THRUST, power: 0.8, reach: 1.2, width: 0.0, count: 10, spread: 0.0, delay: 0.06, knockback: 0.4, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 16, shape: MS_ARC, power: 1.0, reach: 0.8, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 16, shape: MS_ARC, power: 1.2, reach: 1.0, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 2.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 16, shape: MS_THRUST, power: 0.4, reach: 0.8, width: 0.0, count: 7, spread: 1.0, delay: 0.0, knockback: 0.8, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 16, shape: MS_THRUST, power: 0.6, reach: 1.0, width: 0.0, count: 3, spread: 0.5, delay: 0.0, knockback: 0.8, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 16, shape: MS_THRUST, power: 0.5, reach: 1.0, width: 0.0, count: 12, spread: 1.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 0, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 17, shape: MS_THRUST, power: 0.8, reach: 1.0, width: 0.0, count: 3, spread: 0.08, delay: 0.0, knockback: 0.6, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 17, shape: MS_THRUST, power: 0.9, reach: 1.0, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 2.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 17, shape: MS_THRUST, power: 0.7, reach: 1.1, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: -1.5, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 17, shape: MS_THRUST, power: 0.6, reach: 1.2, width: 0.0, count: 6, spread: 0.0, delay: 0.3, knockback: 0.6, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: true, stop: true },
+    MoveDef { route: 18, shape: MS_THRUST, power: 1.0, reach: 1.5, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 18, shape: MS_THRUST, power: 1.0, reach: 1.3, width: 0.0, count: 1, spread: 0.0, delay: 0.0, knockback: 3.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 18, shape: MS_THRUST, power: 0.9, reach: 1.3, width: 0.0, count: 3, spread: 0.05, delay: 0.0, knockback: 1.0, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: false, stop: false },
+    MoveDef { route: 18, shape: MS_THRUST, power: 4.0, reach: 4.0, width: 3.0, count: 1, spread: 0.0, delay: 0.0, knockback: 1.5, pierce: 0, speed: 0.0, life: 0.0, grow: 0.0, offset: 0.0, seek: 1, split: 0, ultimate: true, stop: true },
 ];
 
 // Magic elements. Id 0 means no element; `ELEMENTS[0]` is that empty entry.
@@ -496,7 +599,7 @@ pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0,
 pub const MISSION_GOAL_TUNE: [usize; N_MISSIONS] = [N_TUNES, T_SURVIVE_GOAL, T_KILLS_GOAL, T_FORMATION_GOAL, T_ARENA_GOAL, T_RETRIEVAL_GOAL, T_PURSUIT_GOAL, N_TUNES, T_HOLD_GOAL, T_ESCAPE_GOAL, T_BOSS_GOAL, T_VENDETTA_GOAL];
 
 // HUD state buffer: size and the index of each field.
-pub const STATE_FLOATS: usize = 128;
+pub const STATE_FLOATS: usize = 136;
 pub const S_HP: usize = 0;
 pub const S_MAX_HP: usize = 1;
 pub const S_XP: usize = 2;
@@ -553,12 +656,12 @@ pub const S_COMMISSION_WALKED: usize = 79;
 pub const S_ROUTE_PICK: usize = 80;
 pub const S_ART_ROUTE0: usize = 81;
 pub const S_ART_STEP0: usize = 87;
-pub const S_ART_ORDER0: usize = 91;
 pub const S_ROUTES_ON: usize = 95;
 pub const S_UPGRADE0: usize = 96;
 pub const S_ART_KIND0: usize = 112;
-pub const S_ART_QUALITY0: usize = 116;
 pub const S_STOLEN: usize = 120;
 pub const S_MANUALS: usize = 121;
+pub const S_ART_QUALITY0: usize = 122;
+pub const S_ART_ORDER0: usize = 128;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];

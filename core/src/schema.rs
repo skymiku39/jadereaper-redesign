@@ -6,6 +6,8 @@ pub const B_ARC: u8 = 0;
 pub const B_PROJECTILE: u8 = 1;
 pub const B_ORBIT: u8 = 2;
 pub const B_NOVA: u8 = 3;
+/// A straight line from the player, like a sword or spear thrust.
+pub const B_THRUST: u8 = 4;
 
 /// The numbers of a martial art at one level.
 pub struct ArtLevel {
@@ -28,6 +30,8 @@ pub struct ArtDef {
     pub speed: f32,
     pub life: f32,
     pub range: f32,
+    /// Only offered while routes are on (the second batch of weapons).
+    pub routes_only: bool,
     /// One entry per level, level 1 first.
     pub levels: &'static [ArtLevel],
 }
@@ -43,6 +47,8 @@ pub const MS_MARKS: u8 = 2;
 pub const MS_RING: u8 = 3;
 /// Mechanisms set down that shoot by themselves for a while (`turrets.rs`).
 pub const MS_TURRET: u8 = 4;
+/// Straight thrusts from the player (`routes.rs`).
+pub const MS_THRUST: u8 = 5;
 
 /// Form tags of a weapon kind, as bits (docs/design.md 4.8.2). `kinds.rs` says what each does.
 pub const FORM_LONG: u8 = 1;

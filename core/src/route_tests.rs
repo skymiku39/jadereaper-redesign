@@ -158,7 +158,7 @@ fn a_route_uses_its_moves_in_turn_and_they_land() {
             let before = g.enemies[near].hp + g.enemies[far].hp;
             g.route_beat(a, TICK, 1.0, 1.0);
             // Let waves fly and delayed hits land.
-            for _ in 0..60 {
+            for _ in 0..120 {
                 g.move_shots(TICK);
                 g.tick_delayed(TICK);
                 g.tick_turrets(TICK);
@@ -289,6 +289,35 @@ fn mechanisms_shoot_by_themselves_and_end() {
         g.set_turrets(a, m, 1.0);
     }
     assert_eq!(g.turrets.len(), turrets::MAX_TURRETS);
+}
+
+#[test]
+fn a_thrust_hits_along_its_line_and_not_beside_it() {
+    let a = (0..N_ARTS).find(|&a| ARTS[a].behaviour == B_THRUST).expect("a thrust art");
+    let mut g = base();
+    g.up[ARTS[a].upgrade] = 1;
+    let ahead = put(&mut g, 150.0, 0.0);
+    let beside = put(&mut g, 60.0, 120.0);
+    g.player.aim = (1.0, 0.0);
+    let n = &ARTS[a].levels[0];
+    g.line(a, 0.0, 0.0, 1.0, 0.0, n.reach, n.width, 10.0, 0.0);
+    assert!(g.enemies[ahead].hp < 100_000.0);
+    assert_eq!(g.enemies[beside].hp, 100_000.0);
+}
+
+#[test]
+fn the_second_batch_of_weapons_only_comes_with_routes() {
+    let thrusts: Vec<usize> = (0..N_ARTS).filter(|&a| ARTS[a].routes_only).collect();
+    assert!(!thrusts.is_empty());
+    let mut g = base();
+    g.tune[T_ROUTES] = 0.0;
+    for &a in &thrusts {
+        assert!(g.upgrade_hidden(ARTS[a].upgrade));
+    }
+    g.tune[T_ROUTES] = 1.0;
+    for &a in &thrusts {
+        assert!(!g.upgrade_hidden(ARTS[a].upgrade));
+    }
 }
 
 #[test]

@@ -40,6 +40,8 @@ export const UPGRADES = [
   { name: 'jieli', glyph: '借', max: 3 },
   { name: 'qiguan', glyph: '貫', max: 3 },
   { name: 'wanfa', glyph: '歸', max: 3 },
+  { name: 'sword', glyph: '劍', max: 6 },
+  { name: 'spear', glyph: '槍', max: 6 },
 ];
 
 /** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall. */
@@ -60,6 +62,8 @@ export const KINDS = [
   { id: 13, name: 'constable_master', heavy: true },
   { id: 14, name: 'sect_master', heavy: false },
   { id: 15, name: 'tang_disciple', heavy: false },
+  { id: 16, name: 'soldier', heavy: false },
+  { id: 17, name: 'general', heavy: true },
 ];
 
 /** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and
@@ -69,6 +73,8 @@ export const ARTS = [
   { id: 1, name: 'talisman', upgrade: 1, behaviour: 'projectile' },
   { id: 2, name: 'beads', upgrade: 2, behaviour: 'orbit' },
   { id: 3, name: 'pulse', upgrade: 3, behaviour: 'nova' },
+  { id: 4, name: 'sword', upgrade: 13, behaviour: 'thrust' },
+  { id: 5, name: 'spear', upgrade: 14, behaviour: 'thrust' },
 ];
 
 /** How many martial arts the player can hold at once. */
@@ -91,6 +97,12 @@ export const WEAPONS = [
   { id: 11, name: 'zhaotao', art: 3, glyph: '爪', forms: ['short', 'light'], start: false },
   { id: 12, name: 'xiujian', art: 1, glyph: '袖', forms: ['light', 'mechanism'], start: false },
   { id: 13, name: 'jiguanxia', art: 1, glyph: '匣', forms: ['heavy', 'mechanism'], start: false },
+  { id: 14, name: 'changjian', art: 4, glyph: '劍', forms: ['light'], start: true },
+  { id: 15, name: 'shuangjian', art: 4, glyph: '雙', forms: ['light', 'paired'], start: false },
+  { id: 16, name: 'ruanjian', art: 4, glyph: '軟', forms: ['light'], start: false },
+  { id: 17, name: 'changqiang', art: 5, glyph: '槍', forms: ['long'], start: true },
+  { id: 18, name: 'huaqiang', art: 5, glyph: '花', forms: ['light'], start: false },
+  { id: 19, name: 'ji', art: 5, glyph: '戟', forms: ['long', 'heavy'], start: false },
 ];
 
 /** Schools (門派), indexed by id. Names are in src/i18n.js as school.<name>. */
@@ -104,6 +116,9 @@ export const SCHOOLS = [
   { id: 6, name: 'heifeng' },
   { id: 7, name: 'liushanmen' },
   { id: 8, name: 'jiuyou' },
+  { id: 9, name: 'qingming' },
+  { id: 10, name: 'baima' },
+  { id: 11, name: 'bianjun' },
 ];
 
 /** Routes (套路), indexed by id. `art` is the art id that learns it; `moves` its move ids in
@@ -122,6 +137,12 @@ export const ROUTES = [
   { id: 10, name: 'yinhun', art: 1, school: 8, beat: 0.6, start: false, moves: [45, 46, 47, 48], ultimate: true, suits: [8], zenith: 12, only: [] },
   { id: 11, name: 'shesou', art: 3, school: 8, beat: 1.6, start: false, moves: [49, 50, 51], ultimate: true, suits: [11], zenith: 6, only: [] },
   { id: 12, name: 'jiuji', art: 1, school: 3, beat: 1.5, start: false, moves: [52, 53, 54, 55, 56], ultimate: true, suits: [13], zenith: 5, only: [12, 13] },
+  { id: 13, name: 'liuyun', art: 4, school: 9, beat: 0.55, start: true, moves: [57, 58, 59, 60, 61], ultimate: true, suits: [14, 16], zenith: 12, only: [] },
+  { id: 14, name: 'qiushuijian', art: 4, school: 5, beat: 1.4, start: true, moves: [62, 63, 64, 65], ultimate: true, suits: [14], zenith: 9, only: [] },
+  { id: 15, name: 'xuehe', art: 4, school: 8, beat: 0.7, start: false, moves: [66, 67, 68, 69], ultimate: true, suits: [14, 15], zenith: 4, only: [] },
+  { id: 16, name: 'changban', art: 5, school: 10, beat: 0.9, start: true, moves: [70, 71, 72, 73, 74], ultimate: true, suits: [17, 18], zenith: 5, only: [] },
+  { id: 17, name: 'youlong', art: 5, school: 2, beat: 0.6, start: true, moves: [75, 76, 77, 78], ultimate: true, suits: [18], zenith: 8, only: [] },
+  { id: 18, name: 'pojun', art: 5, school: 11, beat: 1.2, start: false, moves: [79, 80, 81, 82], ultimate: true, suits: [17, 19], zenith: 7, only: [] },
 ];
 
 /** Moves (式), indexed by id. Text is move.<name>.name and .desc. */
@@ -183,6 +204,32 @@ export const MOVES = [
   { id: 54, name: 'muniu', route: 12, ultimate: false, stop: false },
   { id: 55, name: 'wannu', route: 12, ultimate: false, stop: false },
   { id: 56, name: 'tianluo', route: 12, ultimate: true, stop: true },
+  { id: 57, name: 'shangshan', route: 13, ultimate: false, stop: false },
+  { id: 58, name: 'rouruo', route: 13, ultimate: false, stop: false },
+  { id: 59, name: 'daxiang', route: 13, ultimate: false, stop: false },
+  { id: 60, name: 'zhouxing', route: 13, ultimate: false, stop: false },
+  { id: 61, name: 'daofa', route: 13, ultimate: true, stop: true },
+  { id: 62, name: 'changtian', route: 14, ultimate: false, stop: false },
+  { id: 63, name: 'wangyang', route: 14, ultimate: false, stop: false },
+  { id: 64, name: 'heboguanhai', route: 14, ultimate: false, stop: true },
+  { id: 65, name: 'tiandi', route: 14, ultimate: true, stop: true },
+  { id: 66, name: 'xueji', route: 15, ultimate: false, stop: false },
+  { id: 67, name: 'sharen', route: 15, ultimate: false, stop: false },
+  { id: 68, name: 'liucheng', route: 15, ultimate: false, stop: false },
+  { id: 69, name: 'daoxuan', route: 15, ultimate: true, stop: true },
+  { id: 70, name: 'baima', route: 16, ultimate: false, stop: false },
+  { id: 71, name: 'hengqiang', route: 16, ultimate: false, stop: false },
+  { id: 72, name: 'qijin', route: 16, ultimate: false, stop: false },
+  { id: 73, name: 'danqi', route: 16, ultimate: false, stop: false },
+  { id: 74, name: 'yishen', route: 16, ultimate: true, stop: true },
+  { id: 75, name: 'baiwei', route: 17, ultimate: false, stop: false },
+  { id: 76, name: 'taitou', route: 17, ultimate: false, stop: false },
+  { id: 77, name: 'ruhai', route: 17, ultimate: false, stop: false },
+  { id: 78, name: 'jiaolong', route: 17, ultimate: true, stop: true },
+  { id: 79, name: 'huangsha', route: 18, ultimate: false, stop: false },
+  { id: 80, name: 'wanli', route: 18, ultimate: false, stop: false },
+  { id: 81, name: 'qinghai', route: 18, ultimate: false, stop: false },
+  { id: 82, name: 'qinshi', route: 18, ultimate: true, stop: true },
 ];
 
 /** Magic elements. Ids start at 1 (0 means no element), so element `id` is ELEMENTS[id - 1].
@@ -325,7 +372,7 @@ export const TUNES = [
 ];
 
 /** Size of the state array written by the core, in floats. */
-export const STATE_FLOATS = 128;
+export const STATE_FLOATS = 136;
 
 /** Indices into the state array. A run of floats has a 0 suffix (CHOICE0). */
 export const STATE = {
@@ -385,13 +432,13 @@ export const STATE = {
   ROUTE_PICK: 80,
   ART_ROUTE0: 81,
   ART_STEP0: 87,
-  ART_ORDER0: 91,
   ROUTES_ON: 95,
   UPGRADE0: 96,
   ART_KIND0: 112,
-  ART_QUALITY0: 116,
   STOLEN: 120,
   MANUALS: 121,
+  ART_QUALITY0: 122,
+  ART_ORDER0: 128,
 };
 
 export const INK = [0.17, 0.15, 0.13];

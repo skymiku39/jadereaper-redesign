@@ -118,6 +118,7 @@ impl Game {
                 B_ARC => self.art_arc(a, n, dt, might, haste),
                 B_PROJECTILE => self.art_projectile(a, n, dt, might, haste),
                 B_ORBIT => self.art_orbit(a, n, might),
+                B_THRUST => self.art_thrust(a, n, dt, might, haste),
                 _ => self.art_nova(a, n, dt, might, haste),
             }
         }
@@ -169,6 +170,90 @@ impl Game {
             });
         }
         self.event(EV_SLASH, px, py, 0.0);
+    }
+
+    /// A thrust at the nearest enemy within reach, or along the aim.
+    fn art_thrust(&mut self, a: usize, n: &ArtLevel, dt: f32, might: f32, haste: f32) {
+        self.arts[a].timer -= dt;
+        if self.arts[a].timer > 0.0 {
+            return;
+        }
+        self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
+        let reach = n.reach * self.melee_reach() * self.kind_reach(a);
+        let (dx, dy) = self.thrust_aim(reach * 1.2);
+        let (px, py) = (self.player.x, self.player.y);
+        let (dmg, knock) = (n.damage * might * self.kind_power(a), n.knockback * self.kind_knock(a));
+        self.line(a, px, py, dx, dy, reach, n.width, dmg, knock);
+        self.event(EV_SLASH, px, py, 0.0);
+    }
+
+    /// Where a thrust goes: at the nearest enemy within `reach`, else along the aim.
+    pub(crate) fn thrust_aim(&self, reach: f32) -> (f32, f32) {
+        let (px, py) = (self.player.x, self.player.y);
+        let mut best: Option<(f32, f32, f32)> = None;
+        for e in &self.enemies {
+            let (dx, dy) = (e.x - px, e.y - py);
+            let d2 = dx * dx + dy * dy;
+            if d2 < reach * reach && best.is_none_or(|(b, _, _)| d2 < b) {
+                best = Some((d2, dx, dy));
+            }
+        }
+        match best {
+            Some((d2, dx, dy)) => {
+                let d = d2.sqrt().max(0.001);
+                (dx / d, dy / d)
+            }
+            None => self.player.aim,
+        }
+    }
+
+    /// A straight line of art `a` from (x, y) along (dx, dy): everything within
+    /// `width` of it, up to `reach` away, is hit and pushed along it.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn line(
+        &mut self,
+        a: usize,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
+        reach: f32,
+        width: f32,
+        dmg: f32,
+        knock: f32,
+    ) {
+        let element = self.arts[a].element;
+        for i in 0..self.enemies.len() {
+            let e = &self.enemies[i];
+            let (ex, ey) = (e.x - x, e.y - y);
+            let along = ex * dx + ey * dy;
+            let side = (ex * dy - ey * dx).abs();
+            let r = KINDS[e.kind as usize].r;
+            if along > -r && along < reach + r && side < width + r {
+                self.strike(i, dmg, dx * knock, dy * knock, element);
+            }
+        }
+        self.formation_hit_arc(x, y, dx, dy, reach, 0.95, dmg);
+        self.player.attack = 0.2;
+        let color = self.art_color(a, JADE, 0.9);
+        // A long thin streak along the thrust.
+        self.add_fx(Fx {
+            x: x + dx * reach * 0.5,
+            y: y + dy * reach * 0.5 - 24.0,
+            vx: 0.0,
+            vy: 0.0,
+            life: 0.16,
+            max: 0.16,
+            part: P_TALISMAN,
+            hw: width.max(6.0),
+            hh: reach * 0.5,
+            rot: fmath::atan2(dy, dx) + TAU * 0.25,
+            vr: 0.0,
+            grow: 0.0,
+            color,
+            seed: 0.4,
+            top: true,
+        });
     }
 
     /// Shots that fly at the nearest enemies.

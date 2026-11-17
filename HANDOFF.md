@@ -8,7 +8,15 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### `feat/tang-mechanisms` (cut from `feat/zenith`, uncommitted)
+### `feat/sword-spear` (cut from `feat/tang-mechanisms`)
+
+After "提交後繼續", `feat/tang-mechanisms` was committed as 6d89d34 and this branch cut. Then the user said they cannot play for now and to keep going without stopping ("我現在沒有條件試玩，都直接幫我繼續，不要停止"); read here as leave to keep committing each finished branch locally, as the user had said each time before, and to go on. Nothing is pushed.
+
+- **Built:** the second batch of weapons, the sword and the spear: a `thrust` behaviour (a straight line at the nearest enemy within reach, else along the aim, `width` wide each side; `Game::line`), `routes_only` on `[[art]]` so they are only offered with routes on (`Game::upgrade_hidden`), six kinds (長劍, 雙劍, 軟劍, 長槍, 花槍, 戟), three schools (青冥觀, 白馬莊, 邊軍), six routes (行雲流水劍, 秋水劍, 血河劍 stolen from the sect, 長坂槍, 游龍槍, 破軍槍 stolen from the army) with 26 moves of a new `thrust` shape and the older ones, the army's `soldier` and its `general` (a master with 長坂橫槍 who drops the army's manuals). Manuals are now kept two bits per stolen route in the order of the stolen routes (`Game::manual_slot`), not by route id, so twelve stolen routes fit; manuals saved before this branch point at the wrong routes. State: `art_quality` moved to 122, `art_order` to 128, `state_floats` 136.
+- **Checked:** fmt, clippy, `cargo test --release` (272, with thrust and hiding tests), `./build.sh`, fonts, determinism, smoke; a headless browser gave the sword and spear their first routes and saw their moves called out and the thrust streaks.
+- **Not checked:** nobody has played it; the balance of the two new arts.
+
+### `feat/tang-mechanisms` (cut from `feat/zenith`, committed 6d89d34)
 
 After "提交後繼續", `feat/zenith` was committed as d19f479 (not pushed) and this branch cut. The user had asked for the Tang clan's hidden weapons or mechanisms ("唐門暗器也要安排上，或者是機關").
 

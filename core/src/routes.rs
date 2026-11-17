@@ -75,12 +75,23 @@ impl Game {
         }
     }
 
+    /// Where stolen route `r`'s manuals are kept: its place among the stolen
+    /// routes in id order (two bits each, twelve at most); none for a route
+    /// known from the start.
+    pub fn manual_slot(r: usize) -> Option<usize> {
+        if ROUTES[r].start {
+            return None;
+        }
+        let slot = (0..r).filter(|&q| !ROUTES[q].start).count();
+        (slot < 12).then_some(slot)
+    }
+
     /// How many manuals (秘笈) route `r` has: moves opened beyond the second, 0 to 3.
     pub(crate) fn manuals_of(&self, r: usize) -> usize {
-        if r >= 12 {
-            return 0;
+        match Self::manual_slot(r) {
+            Some(slot) => ((self.manuals >> (2 * slot)) & 3) as usize,
+            None => 0,
         }
-        ((self.manuals >> (2 * r)) & 3) as usize
     }
 
     /// How many of route `r`'s moves can be learned: all of a route known from
@@ -100,9 +111,10 @@ impl Game {
         if !self.routes_on() {
             return;
         }
-        for (r, def) in ROUTES.iter().enumerate().take(12) {
-            if def.school == s && !def.start && self.moves_open(r) < def.n {
-                self.manuals += 1 << (2 * r);
+        for (r, def) in ROUTES.iter().enumerate() {
+            let Some(slot) = Self::manual_slot(r) else { continue };
+            if def.school == s && self.moves_open(r) < def.n {
+                self.manuals += 1 << (2 * slot);
                 self.event(EV_MANUAL, self.player.x, self.player.y, r as f32);
             }
         }
@@ -256,6 +268,13 @@ impl Game {
             B_PROJECTILE => {
                 self.shoot_nearest(a, n, might * light);
             }
+            B_THRUST => {
+                let reach = n.reach * self.melee_reach() * self.kind_reach(a);
+                let (dx, dy) = self.thrust_aim(reach * 1.2);
+                let knock = n.knockback * light * self.kind_knock(a);
+                self.line(a, px, py, dx, dy, reach, n.width, n.damage * might * light, knock);
+                self.event(EV_SLASH, px, py, 0.0);
+            }
             B_NOVA => {
                 let (reach, knock) = (n.reach * self.kind_reach(a), n.knockback * light * self.kind_knock(a));
                 self.ring(a, px, py, reach, n.damage * might * light, knock);
@@ -299,6 +318,19 @@ impl Game {
             MS_TURRET => {
                 self.set_turrets(a, m, might);
                 self.event(EV_SHOOT, px, py, 0.0);
+            }
+            MS_THRUST => {
+                // A seeking thrust goes at the nearest enemy; a fan or a ring turns from there.
+                let reach = Self::basic_numbers(a).reach * def.reach.max(0.1);
+                let (ax, ay) = if def.seek > 0 { self.thrust_aim(reach * 1.2) } else { (ax, ay) };
+                for k in 0..def.count.clamp(1, 16) {
+                    if def.delay > 0.0 && k > 0 {
+                        self.delay_hit(a, m, k, def.delay * k as f32, px, py, ax, ay);
+                    } else {
+                        self.thrust_of(a, m, k, ax, ay, might);
+                    }
+                }
+                self.event(EV_SLASH, px, py, 0.0);
             }
             MS_RING => {
                 self.ring_of(a, m, 0, ax, ay, might);
@@ -469,6 +501,29 @@ impl Game {
         }
     }
 
+    /// Thrust `k` of a thrust move from where the player stands now: turned by
+    /// its place in the fan (or evenly round for a `spread` of 1), each later
+    /// one reaching `grow` further; `width` above 0 widens it by that share.
+    fn thrust_of(&mut self, a: usize, m: usize, k: usize, ax: f32, ay: f32, might: f32) {
+        let def = &MOVES[m];
+        let n = Self::basic_numbers(a);
+        let count = def.count.clamp(1, 16);
+        let turn = if count == 1 || def.delay > 0.0 {
+            0.0
+        } else if def.spread >= 1.0 {
+            k as f32 / count as f32 * TAU
+        } else {
+            (k as f32 / (count - 1) as f32 - 0.5) * def.spread * TAU
+        };
+        let (c, s) = (fmath::cos(turn), fmath::sin(turn));
+        let (dx, dy) = (ax * c - ay * s, ax * s + ay * c);
+        let reach = n.reach * def.reach * (1.0 + def.grow * k as f32) * self.melee_reach() * self.kind_reach(a);
+        let width = n.width * if def.width > 0.0 { def.width } else { 1.0 };
+        let knock = n.knockback * def.knockback * self.kind_knock(a);
+        let (px, py) = (self.player.x, self.player.y);
+        self.line(a, px, py, dx, dy, reach, width, n.damage * def.power * might, knock);
+    }
+
     /// Ring `k` of a ring move: centred `offset` ahead along (ax, ay) from where
     /// the player stands now, each later ring reaching `grow` further.
     fn ring_of(&mut self, a: usize, m: usize, k: usize, ax: f32, ay: f32, might: f32) {
@@ -510,6 +565,7 @@ impl Game {
                 MS_ARC => self.arc_sweep(a, m, k, d.ax, d.ay, might),
                 MS_WAVE => self.wave(a, m, k, d.ax, d.ay, might),
                 MS_RING => self.ring_of(a, m, k, d.ax, d.ay, might),
+                MS_THRUST => self.thrust_of(a, m, k, d.ax, d.ay, might),
                 _ => self.mark_strike(a, m, d.x, d.y, might),
             }
             self.zenith = 0;

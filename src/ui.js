@@ -10,6 +10,16 @@ const SCREENS = ['title', 'setup', 'settings', 'record', 'levelup', 'pause', 'ov
 const elementCss = (element) => `rgb(${element.color.map((c) => Math.round(c * 255)).join(', ')})`;
 /** The element with this id, or null for 0 (no element). Ids start at 1. */
 const elementById = (id) => ELEMENTS[id - 1] || null;
+/**
+ * How far a route can be learned: all its moves when it is known from the start; a stolen one
+ * two, and one more per manual. Manuals are kept two bits per stolen route, in id order.
+ */
+function movesOpen(route, manuals) {
+  if (route.start) return route.moves.length;
+  const slot = ROUTES.filter((r) => !r.start && r.id < route.id).length;
+  return Math.min(route.moves.length, 2 + ((manuals >>> (2 * slot)) & 3));
+}
+
 /** The martial art an upgrade levels, or undefined for a plain stat upgrade. */
 const artOfUpgrade = (upgradeId) => ARTS.find((art) => art.upgrade === upgradeId);
 
@@ -381,7 +391,7 @@ export function createUI({ onAction }) {
       const oneness = kind > 0 && route.suits.includes(kind - 1);
       if (oneness) card.classList.add('fine-card');
       // A stolen route opens two moves, and one more per manual (秘笈).
-      const open = route.start ? route.moves.length : Math.min(route.moves.length, 2 + ((manuals >>> (2 * route.id)) & 3));
+      const open = movesOpen(route, manuals);
       const shut = open < route.moves.length ? `\n${t('levelup.shut', { n: open })}` : '';
       cardParts(card, [
         ['key', String(slot + 1)],
@@ -450,8 +460,7 @@ export function createUI({ onAction }) {
         const got = route.moves.filter((m) => learned.has(m)).length;
         let status = route.start ? t('record.native') : known ? t('record.stolen') : t('record.notYet');
         if (!route.start && known) {
-          const open = Math.min(route.moves.length, 2 + ((manuals >>> (2 * route.id)) & 3));
-          status += ` · ${t('record.manuals', { n: open, m: route.moves.length })}`;
+          status += ` · ${t('record.manuals', { n: movesOpen(route, manuals), m: route.moves.length })}`;
         }
         title.append(el('span', 'record-tag', `${status} · ${t('record.count', { n: got, m: route.moves.length })}`));
         box.append(title);
