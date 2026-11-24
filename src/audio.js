@@ -213,6 +213,23 @@ export function createAudio() {
       noise({ dur: 0.05, type: 'highpass', f0: 3000, f1: 1500, gain: 0.3 });
       tone({ dur: 0.5, type: 'triangle', f0: 98, f1: 110, gain: 0.18, delay: 0.04 });
     },
+    // Played by the host when a route move is used: a short pluck that climbs the scale
+    // with the move's place in its move order (`place` 1 for the first move).
+    move: (place = 1) => {
+      const f = PENTATONIC[Math.min(PENTATONIC.length - 1, Math.max(0, place - 1))];
+      tone({ dur: 0.14, type: 'triangle', f0: f, f1: f * 0.98, gain: 0.11 });
+    },
+    // Played by the host when a famous blade (名器) is dealt: the card turns over to a bright chime.
+    famous: () => {
+      noise({ dur: 0.2, type: 'highpass', f0: 6000, f1: 3000, gain: 0.12 });
+      [4, 6, 7].forEach((n, i) => tone({ dur: 0.7, type: 'triangle', f0: PENTATONIC[n], gain: 0.2, delay: 0.25 + i * 0.06 }));
+      tone({ dur: 1.2, f0: PENTATONIC[7] * 2, gain: 0.05, delay: 0.3 });
+    },
+    // Played by the host when a learned move is stamped in the middle of the screen.
+    seal: () => {
+      tone({ dur: 0.12, f0: 140, f1: 60, gain: 0.45 });
+      noise({ dur: 0.14, type: 'lowpass', f0: 1200, f1: 200, gain: 0.35 });
+    },
     // Played by the host when a route move is learned.
     learn: () => {
       [0, 2, 4].forEach((n, i) => tone({ dur: 0.22, type: 'triangle', f0: PENTATONIC[n], gain: 0.2, delay: i * 0.07 }));
@@ -225,14 +242,15 @@ export function createAudio() {
   };
 
   // Minimum gap between repeats of the same sound, in seconds.
-  const GAP = { [EVENT.HIT]: 0.045, [EVENT.KILL]: 0.06, [EVENT.PICKUP]: 0.05, [EVENT.REACT]: 0.08 };
+  const GAP = { [EVENT.HIT]: 0.045, [EVENT.KILL]: 0.06, [EVENT.PICKUP]: 0.05, [EVENT.REACT]: 0.08, move: 0 };
 
-  function play(id) {
+  /** Play a sound by its id; `arg` goes to the sounds that take one (a move's place). */
+  function play(id, arg) {
     if (!ctx || muted || ctx.state !== 'running' || !SOUNDS[id]) return;
     const now = ctx.currentTime;
     if (now - (lastPlayed[id] ?? -1) < (GAP[id] ?? 0.02)) return;
     lastPlayed[id] = now;
-    SOUNDS[id]();
+    SOUNDS[id](arg);
   }
 
   return {

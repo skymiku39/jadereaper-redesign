@@ -66,6 +66,9 @@
     <div id="pointerTags" aria-hidden="true"></div>
   </div>
 
+  <!-- A move just learned, stamped in the middle of the screen for a moment (docs/design.md 4.10). Built by ui.js. -->
+  <div class="seal" id="seal" hidden aria-live="polite"></div>
+
   <section class="screen" id="title" hidden>
     <div class="sheet title-sheet">
       <div class="stamp" aria-hidden="true">玉<br>鐮</div>
@@ -140,6 +143,7 @@
         <button data-action="music" id="musicBtn">Music: on</button>
         <button data-action="numbers" id="numbersBtn">Damage numbers: on</button>
         <button data-action="motion" id="motionBtn">Shake and hit-stop: on</button>
+        <button data-action="callouts" id="calloutsBtn">Move names: on</button>
         <button data-action="quality" id="qualityBtn">Quality: high</button>
         <button data-action="clear-save" data-i18n="settings.erase">Erase records</button>
         <button data-action="back" data-i18n="settings.back">Back</button>

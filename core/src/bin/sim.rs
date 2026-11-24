@@ -9,7 +9,10 @@
 //!   --bot <name>          still, circle, kite, seek, or all (default all)
 //!                         seek heads for whatever the mission's edge markers
 //!                         point at (its goal) while keeping clear of enemies
-//!   --pick <name>         first, random, arts, passives, or all (default all)
+//!   --pick <name>         first, random, arts, passives, one, or all (default
+//!                         all); one trains only the art held at the start:
+//!                         its levels and route, the inner art its height
+//!                         needs and one element on it (docs/design.md 4.11)
 //!   --element <name>      none, an element's name, or each (default none):
 //!                         every martial art the bot holds carries that
 //!                         element, and no element cards are offered
@@ -18,7 +21,10 @@
 //!
 //! Each row is one bot, one way of picking cards and one element. Columns:
 //! how many of the runs were won and how many ended in death, the mean time
-//! played, level reached, kills, kills per minute and health lost per minute.
+//! played, level reached, kills, kills per minute and health lost per minute,
+//! then how many runs reached a height (極致) and the mean minutes to the first
+//! one in those runs (design 4.11 aims at 12 to 18 with `--pick one`; give
+//! `--seconds` room for it).
 //! `--element each` prints a row for no element and one per element, which is
 //! how the numbers in `[[element]]` are compared.
 
@@ -40,12 +46,19 @@ enum Pick {
     Random,
     Arts,
     Passives,
+    /// Only the art held at the start, and what its height needs.
+    One,
 }
 
 const BOTS: [(&str, Bot); 4] =
     [("still", Bot::Still), ("circle", Bot::Circle), ("kite", Bot::Kite), ("seek", Bot::Seek)];
-const PICKS: [(&str, Pick); 4] =
-    [("first", Pick::First), ("random", Pick::Random), ("arts", Pick::Arts), ("passives", Pick::Passives)];
+const PICKS: [(&str, Pick); 5] = [
+    ("first", Pick::First),
+    ("random", Pick::Random),
+    ("arts", Pick::Arts),
+    ("passives", Pick::Passives),
+    ("one", Pick::One),
+];
 
 #[derive(Clone)]
 struct Setup {
@@ -66,6 +79,8 @@ struct Outcome {
     level: f32,
     kills: f32,
     hurt: f32,
+    /// Seconds into the run of the first height (極致); none if it never came.
+    zenith: Option<f32>,
 }
 
 /// Away from the enemies close by, each weighing more the nearer it is, and
@@ -135,8 +150,47 @@ fn is_art(upgrade: usize) -> bool {
     ARTS.iter().any(|a| a.upgrade == upgrade)
 }
 
-/// Answer the cards on offer.
-fn choose(pick: Pick, g: &mut Game, rng: &mut Rng) {
+/// The inner art the route of art `a` needs for its height, once it has a route.
+fn height_inner(g: &Game, a: usize) -> Option<usize> {
+    let r = (g.arts[a].route as usize).checked_sub(1)?;
+    Some(ROUTES[r].zenith).filter(|&z| z < N_UPGRADES)
+}
+
+/// The deck the one-art bot draws from: its art while it grows, then the inner
+/// art of its height, then an element for it, then anything open.
+fn one_deck(g: &Game, a: usize) -> usize {
+    use jadereaper_core::game::decks::*;
+    let inner = height_inner(g, a).is_some_and(|z| g.up[z] == 0);
+    let bare = g.arts[a].element == 0;
+    let order = [
+        (DECK_ARTS, true),
+        (DECK_INNER, inner),
+        (DECK_MAGIC, bare),
+        (DECK_INNER, true),
+        (DECK_FATE, true),
+        (DECK_WEAPONS, true),
+    ];
+    order.iter().find(|(d, want)| *want && g.deck_open(*d)).map_or(DECK_ARTS, |(d, _)| *d)
+}
+
+/// The one-art bot's card: its art, the inner art of its height, an element, else the first.
+fn one_card(g: &Game, a: usize, offered: &[usize]) -> Option<usize> {
+    let card = |c: usize| g.choices[c] as usize;
+    let inner = height_inner(g, a);
+    offered
+        .iter()
+        .copied()
+        .find(|&c| card(c) == ARTS[a].upgrade)
+        .or_else(|| offered.iter().copied().find(|&c| Some(card(c)) == inner))
+        .or_else(|| {
+            let element = |c: &usize| (N_UPGRADES..N_UPGRADES + N_ELEMENTS).contains(&card(*c));
+            offered.iter().copied().find(|c| g.arts[a].element == 0 && element(c))
+        })
+        .or(offered.first().copied())
+}
+
+/// Answer the cards on offer. `one` is the art the one-art bot trains.
+fn choose(pick: Pick, g: &mut Game, rng: &mut Rng, one: usize) {
     // The decks are offered: arts first draws martial arts (a new art when no held
     // art can grow), passives draws inner arts, random any deck, first the first.
     if g.deck_pick {
@@ -146,9 +200,14 @@ fn choose(pick: Pick, g: &mut Game, rng: &mut Rng) {
             Pick::Passives => &[DECK_INNER, DECK_ARTS, DECK_WEAPONS, DECK_MAGIC],
             Pick::Random => &[(rng.next_u32() as usize) % N_DECKS],
             Pick::First => &[DECK_WEAPONS],
+            Pick::One => &[one_deck(g, one)],
         };
         let deck = order.iter().copied().find(|&d| g.deck_open(d)).unwrap_or(order[0]);
         g.choose(deck);
+        return;
+    }
+    if g.attach > 0 && pick == Pick::One {
+        g.choose(one);
         return;
     }
     if g.attach > 0 {
@@ -166,6 +225,9 @@ fn choose(pick: Pick, g: &mut Game, rng: &mut Rng) {
         Pick::Random => Some(offered[rng.next_u32() as usize % offered.len().max(1)]),
         Pick::Arts => offered.iter().copied().find(|&c| upgrade(c) < N_UPGRADES && is_art(upgrade(c))),
         Pick::Passives => offered.iter().copied().find(|&c| upgrade(c) < N_UPGRADES && !is_art(upgrade(c))),
+        // A route is picked as the first one offered.
+        Pick::One if g.route_pick > 0 || offered.is_empty() => offered.first().copied(),
+        Pick::One => one_card(g, one, &offered),
     };
     g.choose(want.or(offered.first().copied()).unwrap_or(0));
 }
@@ -178,6 +240,9 @@ fn run(setup: &Setup, seed: u32) -> Outcome {
     let mut hurt = 0.0;
     let ticks = (setup.seconds / TICK) as u32;
     let mut target = None;
+    // The art held at the start: the one the one-art bot trains.
+    let one = (0..N_ARTS).find(|&a| g.up[ARTS[a].upgrade] > 0).unwrap_or(0);
+    let mut zenith = None;
     for tick in 0..ticks {
         // The seeking bot looks at the mission's markers now and then; they are made when the game is drawn.
         if setup.bot == Bot::Seek && tick % 15 == 0 {
@@ -195,19 +260,31 @@ fn run(setup: &Setup, seed: u32) -> Outcome {
         }
         g.input = steer(setup.bot, &g, tick, target);
         let before = g.player.hp;
+        g.events.clear();
         g.tick();
         hurt += (before - g.player.hp).max(0.0);
+        if zenith.is_none() && g.events.iter().any(|e| e[0] == EV_ZENITH) {
+            zenith = Some(g.time);
+        }
         // Several levels can come at once, and an element card asks twice.
         let mut asked = 0;
         while g.choosing && asked < 16 {
-            choose(setup.pick, &mut g, &mut rng);
+            choose(setup.pick, &mut g, &mut rng, one);
             asked += 1;
         }
         if g.over || g.won {
             break;
         }
     }
-    Outcome { won: g.won, died: g.over, time: g.time, level: g.player.level as f32, kills: g.kills as f32, hurt }
+    Outcome {
+        won: g.won,
+        died: g.over,
+        time: g.time,
+        level: g.player.level as f32,
+        kills: g.kills as f32,
+        hurt,
+        zenith,
+    }
 }
 
 /// Play every seed, spread over the machine's cores.
@@ -301,7 +378,7 @@ fn main() {
     }
 
     if csv {
-        println!("mission,bot,pick,element,runs,won,died,seconds,level,kills,kills_per_min,hurt_per_min");
+        println!("mission,bot,pick,element,runs,won,died,seconds,level,kills,kills_per_min,hurt_per_min,zenith_runs,zenith_minutes");
     }
     for &mission in &missions {
         print_mission(mission, &bots, &picks, &elements, seeds, seconds, tune, csv, fixed);
@@ -327,8 +404,19 @@ fn print_mission(
             if fixed { " · no element cards" } else { "" }
         );
         println!(
-            "{:<7} {:<9} {:<10} {:>5} {:>5} {:>8} {:>6} {:>7} {:>9} {:>9}",
-            "bot", "pick", "element", "won", "died", "seconds", "level", "kills", "kills/min", "hurt/min"
+            "{:<7} {:<9} {:<10} {:>5} {:>5} {:>8} {:>6} {:>7} {:>9} {:>9} {:>6} {:>8}",
+            "bot",
+            "pick",
+            "element",
+            "won",
+            "died",
+            "seconds",
+            "level",
+            "kills",
+            "kills/min",
+            "hurt/min",
+            "zenith",
+            "zen min"
         );
     }
     for &bot in bots {
@@ -347,9 +435,13 @@ fn print_mission(
                 let bot_name = BOTS.iter().find(|(_, b)| *b == bot).unwrap().0;
                 let pick_name = PICKS.iter().find(|(_, p)| *p == pick).unwrap().0;
                 let element_name = ELEMENT_NAMES[element as usize];
+                // The first height: in how many runs, and the mean minutes to it in those.
+                let heights: Vec<f32> = runs.iter().filter_map(|o| o.zenith).collect();
+                let zen_runs = heights.len();
+                let zen_min = if zen_runs > 0 { heights.iter().sum::<f32>() / zen_runs as f32 / 60.0 } else { 0.0 };
                 if csv {
                     println!(
-                        "{},{bot_name},{pick_name},{element_name},{},{won},{died},{:.1},{:.2},{:.1},{:.1},{:.1}",
+                        "{},{bot_name},{pick_name},{element_name},{},{won},{died},{:.1},{:.2},{:.1},{:.1},{:.1},{zen_runs},{zen_min:.2}",
                         MISSION_NAMES[mission],
                         runs.len(),
                         mean(|o| o.time),
@@ -360,7 +452,7 @@ fn print_mission(
                     );
                 } else {
                     println!(
-                        "{bot_name:<7} {pick_name:<9} {element_name:<10} {won:>5} {died:>5} {:>8.1} {:>6.1} {:>7.0} {:>9.1} {:>9.1}",
+                        "{bot_name:<7} {pick_name:<9} {element_name:<10} {won:>5} {died:>5} {:>8.1} {:>6.1} {:>7.0} {:>9.1} {:>9.1} {zen_runs:>6} {zen_min:>8.1}",
                         mean(|o| o.time),
                         mean(|o| o.level),
                         mean(|o| o.kills),

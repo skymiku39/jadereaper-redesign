@@ -22,7 +22,8 @@ async function boot() {
   audio.setMuted(save.muted);
   audio.setMusic(save.music);
 
-  // 'title' | 'playing' | 'levelup' | 'paused' | 'over' | 'won'
+  // 'title' | 'playing' | 'levelup' | 'seal' | 'paused' | 'over' | 'won'
+  // ('seal': a move just learned is stamped over the game, which stands still.)
   let mode = 'title';
   // The mission of the current or last run; "again" and "restart" replay it.
   let mission = MISSIONS[MISSION_IDS.endless];
@@ -43,6 +44,11 @@ async function boot() {
   let calledOut = new Set();
   // The ultimate just called out at its height, so its plain call-out is not written over it.
   let zenithMove = -1;
+  // While a learned move is stamped (mode 'seal'): when it goes, and when a key may first skip it.
+  let sealUntil = 0;
+  let sealSkip = 0;
+  // The art levels and routes before the last card was chosen, to tell which moves it taught.
+  let beforeChoice = null;
 
   const ui = createUI({ onAction });
 
@@ -101,7 +107,7 @@ async function boot() {
   // Per art id, the weapon kind it is (weapon id + 1, 0 for none).
   const artKinds = (s) => Array.from(s.subarray(STATE.ART_KIND0, STATE.ART_KIND0 + ARTS.length));
   /** Show the level-up screen: the offered cards, the routes of an art, or the held arts while an element waits for one. */
-  const showLevelUp = (s) => ui.levelUp(
+  const showLevelUp = (s) => dealt(ui.levelUp(
     Array.from(s.subarray(STATE.CHOICE0, STATE.CHOICE0 + 3)), upgradeLevels(s),
     {
       attach: s[STATE.ATTACH], artElements: artElements(s),
@@ -110,7 +116,9 @@ async function boot() {
       lastDeck: s[STATE.LAST_DECK], ranks: Array.from(s.subarray(STATE.CHOICE_RANK0, STATE.CHOICE_RANK0 + 3)),
       artKinds: artKinds(s), manuals: s[STATE.MANUALS],
     },
-  );
+  ));
+  /** A famous blade (名器) was dealt: its card turns over to a chime of its own. */
+  const dealt = (famous) => { if (famous) audio.play('famous'); };
   /**
    * A stolen route was learned (偷師): say so, and keep it for later runs. A replay
    * plays with what was known then and changes nothing.
@@ -182,31 +190,89 @@ async function boot() {
     }
   }
 
-  /** A route move was used: hit-stop for a heavy one, and its name the first time (an ultimate's every time). */
+  /**
+   * A route move was used: hit-stop for a heavy one, a note that climbs with its place in the
+   * move order (an ultimate gets the drum), and its name the first time (an ultimate's every
+   * time) unless the call-outs are switched off.
+   */
   function onMove(id) {
     const move = MOVES[id];
     if (!move) return;
     if (save.motion && move.stop) hitstop = Math.max(hitstop, move.ultimate ? 0.09 : 0.05);
     if (move.ultimate) audio.play('ultimate');
+    // The basic blow opens the order, so the route's first move is its second note.
+    else audio.play('move', (ROUTES[move.route]?.moves.indexOf(id) ?? 0) + 2);
     const first = !calledOut.has(id);
-    // A move used for the first time ever goes into the martial record (武學錄).
-    if (first && !replaying) {
-      const learned = Array.isArray(save.learned) ? save.learned : [];
-      if (!learned.includes(id)) {
-        save.learned = [...learned, id];
-        writeSave(save);
-      }
-    }
+    calledOut.add(id);
     // An ultimate at its height was already called out in gold.
     if (zenithMove === id) {
       zenithMove = -1;
-      calledOut.add(id);
       return;
     }
-    if (move.ultimate || first) {
-      calledOut.add(id);
+    if ((move.ultimate || first) && save.callouts !== false) {
       ui.callout(t(`move.${move.name}.name`), move.ultimate ? (first ? 'big' : 'ultimate') : '');
     }
+  }
+
+  /** How many moves of its route an art knows at `level` (`Game::move_order`): none below 3. */
+  const movesKnown = (route, level) => (route ? Math.max(0, Math.min(level - 2, route.moves.length)) : 0);
+
+  /**
+   * The route moves the card just chosen taught: per art, the moves known now and not
+   * before. Each goes into the martial record (武學錄) with its line the first time ever.
+   */
+  function movesLearned(s) {
+    if (!beforeChoice) return [];
+    const levels = upgradeLevels(s);
+    const routes = artRoutes(s);
+    const learned = [];
+    for (const art of ARTS) {
+      const route = ROUTES[(routes[art.id] || 0) - 1];
+      if (!route) continue;
+      const was = beforeChoice.routes[art.id] === routes[art.id] ? movesKnown(route, beforeChoice.levels[art.upgrade]) : 0;
+      learned.push(...route.moves.slice(was, movesKnown(route, levels[art.upgrade])));
+    }
+    beforeChoice = null;
+    if (learned.length && !replaying) {
+      const known = Array.isArray(save.learned) ? save.learned : [];
+      const fresh = learned.filter((id) => !known.includes(id));
+      if (fresh.length) {
+        save.learned = [...known, ...fresh];
+        writeSave(save);
+      }
+    }
+    return learned;
+  }
+
+  /** Stamp the moves just learned in the middle of the screen for about 0.6 s; a key skips it. */
+  function startSeal(ids) {
+    mode = 'seal';
+    ui.show(null);
+    ui.seal(ids.map((id) => t(`move.${MOVES[id].name}.name`)));
+    audio.play('seal');
+    sealUntil = performance.now() + 650;
+    // A key still held from picking the card should not skip the stamp at once.
+    sealSkip = performance.now() + 150;
+  }
+
+  /** The stamp is done: back to the fight, or to the next level-up when several came at once. */
+  function endSeal() {
+    if (mode !== 'seal') return;
+    ui.hideSeal();
+    const s = readState();
+    if (s[STATE.CHOOSING]) {
+      mode = 'levelup';
+      showLevelUp(s);
+    } else {
+      mode = 'playing';
+    }
+  }
+
+  /** Skip the stamp of a learned move, if one is up and it has been up long enough. */
+  function skipSeal() {
+    if (mode !== 'seal' || performance.now() < sealSkip) return false;
+    endSeal();
+    return true;
   }
 
   function toTitle() {
@@ -335,6 +401,8 @@ async function boot() {
   }
 
   function setPaused(paused) {
+    // Leaving the window while a learned move is stamped ends the stamp, then pauses.
+    if (paused && mode === 'seal') endSeal();
     if (paused && mode === 'playing') {
       mode = 'paused';
       input.release();
@@ -407,6 +475,7 @@ async function boot() {
       case 'mute': audio.setMuted(!audio.muted); saveSettings(); break;
       case 'numbers': save.numbers = !save.numbers; saveSettings(); break;
       case 'motion': save.motion = !save.motion; saveSettings(); break;
+      case 'callouts': save.callouts = save.callouts === false; saveSettings(); break;
       case 'music': save.music = nextMusic(save.music); audio.setMusic(save.music); saveSettings(); break;
       case 'quality': save.quality = !save.quality; saveSettings(); break;
       case 'vol-up': audio.setVolume(audio.volume + 0.1); saveSettings(); audio.play('confirm'); break;
@@ -417,6 +486,8 @@ async function boot() {
         break;
       case 'choose':
         if (mode === 'levelup') {
+          const s = readState();
+          beforeChoice = { levels: upgradeLevels(s), routes: artRoutes(s) };
           core.jr_choose(Number(value));
           afterChoice();
         }
@@ -434,6 +505,12 @@ async function boot() {
     }
     core.jr_update(0);
     const s = readState();
+    // A move just learned is stamped first (design 4.10).
+    const learned = movesLearned(s);
+    if (learned.length) {
+      startSeal(learned);
+      return;
+    }
     if (s[STATE.CHOOSING]) {
       showLevelUp(s);
     } else {
@@ -452,6 +529,12 @@ async function boot() {
 
   function onKey(key) {
     audio.unlock();
+    if (mode === 'seal') {
+      // Pause ends the stamp at once and pauses; any other key skips it once it has been up a moment.
+      if (key.pause) setPaused(true);
+      else skipSeal();
+      return;
+    }
     if (key.pause) {
       if (mode === 'playing') setPaused(true);
       else back();
@@ -466,7 +549,7 @@ async function boot() {
     }
   }
 
-  window.addEventListener('pointerdown', () => audio.unlock());
+  window.addEventListener('pointerdown', () => { audio.unlock(); skipSeal(); });
   window.addEventListener('blur', () => setPaused(true));
   document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
@@ -494,10 +577,15 @@ async function boot() {
       if (pad.nav && ui.navigate(pad.nav[0], pad.nav[1])) audio.play('ui');
       if (pad.confirm && !ui.locked) { audio.unlock(); ui.confirm(); }
     }
+    if (mode === 'seal' && (pad.confirm || now >= sealUntil)) {
+      if (now >= sealUntil) endSeal();
+      else skipSeal();
+    }
 
-    // Paused freezes everything. Other menus keep the paper puppets moving.
+    // Paused freezes everything, and so does the stamp of a learned move.
+    // Other menus keep the paper puppets moving.
     // Hit-stop holds the game still for a moment, puppets and all.
-    let step = mode === 'paused' ? 0 : dt;
+    let step = mode === 'paused' || mode === 'seal' ? 0 : dt;
     if (step > 0 && hitstop > 0) {
       const held = Math.min(hitstop, step);
       hitstop -= held;
@@ -613,7 +701,7 @@ async function boot() {
     }
 
     // The music steps back while a menu is open, and while nothing is being played.
-    audio.duck(mode !== 'playing');
+    audio.duck(mode !== 'playing' && mode !== 'seal');
     if (mode !== 'playing') ui.lowHealth(false);
     renderer.draw(core.memory.buffer, core.jr_instances_ptr(), core.jr_instance_count(), s[STATE.CAM_X], s[STATE.CAM_Y], clock);
     requestAnimationFrame(frame);
