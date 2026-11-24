@@ -43,6 +43,9 @@ pub struct Delayed {
     pub might: f32,
     /// The element of the ultimate at its height it belongs to; 0 for none (`zenith.rs`).
     pub zen: u8,
+    /// Whether it belongs to the last move of a route's order thrown with the
+    /// mountain lifter's third layer (`inner.rs`).
+    pub heave: bool,
 }
 
 impl Game {
@@ -216,9 +219,15 @@ impl Game {
         self.arts[a].step = ((step + 1) % len) as u8;
         self.striking = a as u8 + 1;
         // The last move of the order closes it: the mountain lifter makes it
-        // land harder, and piercing qi sends a blade after it.
+        // land harder (and at its third layer throw back further, with a
+        // hit-stop), and piercing qi sends a blade after it.
         let last = step + 1 == len && len > 1;
         let might = if last { might * self.finisher() } else { might };
+        let heave = last && order[step] != BASIC && self.heaves();
+        self.inner.heave = heave;
+        if heave {
+            self.event(EV_HEAVE, self.player.x, self.player.y, order[step] as f32);
+        }
         match order[step] {
             BASIC => self.basic_move(a, might),
             m => {
@@ -226,7 +235,7 @@ impl Game {
                 let zen = if MOVES[m as usize].ultimate { self.zenith_of(a) } else { None };
                 if let Some(element) = zen {
                     self.zenith = element;
-                    self.reach_height(m as usize, element);
+                    self.reach_height(a, m as usize, element);
                 }
                 self.use_move(a, m as usize, might * self.height_power());
                 self.zenith = 0;
@@ -238,6 +247,7 @@ impl Game {
         if last {
             self.qi_blade(a, Self::basic_numbers(a).damage * might);
         }
+        self.inner.heave = false;
         self.striking = 0;
     }
 
@@ -288,7 +298,7 @@ impl Game {
     }
 
     /// The art's numbers at level 2, which its moves are measured against.
-    fn basic_numbers(a: usize) -> &'static ArtLevel {
+    pub(crate) fn basic_numbers(a: usize) -> &'static ArtLevel {
         let levels = ARTS[a].levels;
         &levels[1.min(levels.len() - 1)]
     }
@@ -510,7 +520,7 @@ impl Game {
             pierce: def.pierce.max(1) + self.kind_pierce(a),
             last: 0,
             art: a as u8,
-            push: def.knockback,
+            push: def.knockback * self.heave_knock(),
             split: def.split.min(8) as u8,
             grow: def.grow,
             size: def.power.sqrt().clamp(0.7, 2.5),
@@ -590,8 +600,20 @@ impl Game {
     #[allow(clippy::too_many_arguments)]
     fn delay_hit(&mut self, a: usize, m: usize, k: usize, left: f32, x: f32, y: f32, ax: f32, ay: f32) {
         if self.delayed.len() < MAX_DELAYED {
-            let (might, zen) = (self.cast_might, self.zenith);
-            self.delayed.push(Delayed { left, art: a as u8, mv: m as u16, k: k as u8, x, y, ax, ay, might, zen });
+            let (might, zen, heave) = (self.cast_might, self.zenith, self.inner.heave);
+            self.delayed.push(Delayed {
+                left,
+                art: a as u8,
+                mv: m as u16,
+                k: k as u8,
+                x,
+                y,
+                ax,
+                ay,
+                might,
+                zen,
+                heave,
+            });
         }
     }
 
@@ -611,6 +633,7 @@ impl Game {
             let (a, m, k, might) = (d.art as usize, d.mv as usize, d.k as usize, d.might);
             // A hit of an ultimate at its height lands at its height too.
             self.zenith = d.zen;
+            self.inner.heave = d.heave;
             self.striking = d.art + 1;
             match MOVES[m].shape {
                 MS_ARC => self.arc_sweep(a, m, k, d.ax, d.ay, might),
@@ -620,6 +643,7 @@ impl Game {
                 _ => self.mark_strike(a, m, d.x, d.y, might),
             }
             self.zenith = 0;
+            self.inner.heave = false;
             self.striking = 0;
         }
     }

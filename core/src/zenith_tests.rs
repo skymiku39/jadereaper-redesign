@@ -121,3 +121,35 @@ fn earth_holds_and_holy_fells_corpses() {
     ultimate(&mut g);
     assert!(g.enemies[e].hp <= 0.0);
 }
+
+#[test]
+fn holy_leaves_a_sigil_that_fells_corpses_and_hurts_the_rest_more() {
+    let (mut g, _) = whole(E_HOLY, true);
+    let corpse = (0..N_KINDS).find(|&k| KINDS[k].corpse && KINDS[k].every <= 0.0).unwrap() as u8;
+    let alone = (0..N_KINDS).find(|&k| KINDS[k].corpse && KINDS[k].every > 0.0).unwrap() as u8;
+    let far = put(&mut g, corpse, 5000.0);
+    let elite = put(&mut g, alone, 60.0);
+    let brute = put(&mut g, K_BRUTE, 70.0);
+    let away = put(&mut g, K_BRUTE, 5200.0);
+    ultimate(&mut g);
+    let s = g.inner.sigil.expect("a sigil stands");
+    assert!(s.r >= 60.0);
+    assert!(g.enemies[far].hp > 0.0, "outside the sigil nothing falls");
+    assert!(g.enemies[elite].hp > 0.0, "one that comes alone does not fall");
+    assert!(g.sigil_power(brute) > 1.0);
+    assert_eq!(g.sigil_power(away), 1.0);
+    // A corpse that walks in falls too, while the sigil stands.
+    let late = put(&mut g, corpse, 40.0);
+    g.tick_sigil(TICK);
+    assert!(g.enemies[late].hp <= 0.0);
+    for _ in 0..(ELEMENTS[E_HOLY as usize].time / TICK) as u32 + 2 {
+        g.tick_sigil(TICK);
+    }
+    assert!(g.inner.sigil.is_none(), "it fades");
+    assert_eq!(g.sigil_power(brute), 1.0);
+    // Another element leaves no sigil.
+    let (mut g, _) = whole(E_FIRE, true);
+    put(&mut g, K_BRUTE, 60.0);
+    ultimate(&mut g);
+    assert!(g.inner.sigil.is_none());
+}

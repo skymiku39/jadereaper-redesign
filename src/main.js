@@ -36,6 +36,10 @@ async function boot() {
   let settingsFrom = 'title';
   // Seconds the game stands still after a heavy blow (hit-stop).
   let hitstop = 0;
+  // Seconds of real time left of the slow motion after an ultimate reaches its height (design 4.10).
+  // Like hit-stop it only feeds the core less time; the steps and what they do stay the same.
+  let slowmo = 0;
+  const SLOWMO_SHARE = 0.3;
   // Seconds until the next heartbeat while health is low.
   let heartbeat = 0;
   // A line the HUD shows for a few seconds, such as a commission's outcome: { key, until }.
@@ -166,6 +170,7 @@ async function boot() {
     const element = ELEMENTS[Math.floor(value / 256) - 1];
     if (!move || !element) return;
     zenithMove = move.id;
+    if (save.motion) slowmo = Math.max(slowmo, 0.5);
     ui.callout(`${element.glyph}・${t(`move.${move.name}.name`)}`, 'zenith');
     const key = `${move.route}:${element.id}`;
     const seen = Array.isArray(save.zeniths) ? save.zeniths : [];
@@ -591,6 +596,10 @@ async function boot() {
       hitstop -= held;
       step -= held;
     }
+    if (step > 0 && slowmo > 0) {
+      slowmo = Math.max(0, slowmo - step);
+      step *= SLOWMO_SHARE;
+    }
     clock += step;
     core.jr_input(mode === 'playing' ? pad.mx : 0, mode === 'playing' ? pad.my : 0);
     core.jr_update(step);
@@ -606,6 +615,8 @@ async function boot() {
           // A heavy enemy falling, or two elements reacting, stops the game for a beat.
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) hitstop = Math.max(hitstop, 0.07);
           if (save.motion && type === EVENT.REACT) hitstop = Math.max(hitstop, 0.04);
+          // The last move of a route with the mountain lifter's third layer lands with a hit-stop.
+          if (save.motion && type === EVENT.HEAVE) hitstop = Math.max(hitstop, 0.07);
           // The gamepad shakes with the blows the player takes and the heavy ones he lands.
           if (save.motion && type === EVENT.HURT) input.rumble(140, 0.7);
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) input.rumble(80, 0.35);

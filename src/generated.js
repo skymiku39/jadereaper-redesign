@@ -278,6 +278,7 @@ export const EVENT = {
   FOE: 20,
   MANUAL: 21,
   ZENITH: 22,
+  HEAVE: 23,
 };
 
 /** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).

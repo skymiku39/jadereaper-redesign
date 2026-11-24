@@ -809,6 +809,8 @@ impl Game {
         self.tick_net(dt);
         self.land_splash();
         self.tick_tags(dt);
+        self.tick_aftershocks(dt);
+        self.tick_sigil(dt);
         self.reap();
         self.move_gems(dt);
         self.move_fx(dt);
@@ -1587,6 +1589,7 @@ impl Game {
             self.escape_draw();
         }
         self.vendetta_draw_ground();
+        self.draw_sigil();
 
         // Ground-level effects and pickups.
         for i in 0..self.fx.len() {

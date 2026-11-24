@@ -43,12 +43,35 @@ impl Tags {
 
 /// The most enemies one chain or relay can reach.
 const MOST_JUMPS: usize = 8;
+/// The most aftershocks of reactions that wait at once.
+const MAX_AFTERSHOCKS: usize = 32;
+/// The share of a reaction's damage its aftershock (餘波) does.
+const AFTERSHOCK_SHARE: f32 = 0.5;
+/// Seconds after a reaction that its aftershock lands.
+const AFTERSHOCK_DELAY: f32 = 0.5;
+
+/// What a reaction leaves behind with the third layer of the art of all
+/// methods (萬法歸一功): a second, weaker blow on the same place a moment later.
+/// Its damage is plain, so it sets off no reaction of its own.
+#[derive(Clone, Copy)]
+pub struct Aftershock {
+    /// Seconds until it lands.
+    pub left: f32,
+    pub x: f32,
+    pub y: f32,
+    pub reach: f32,
+    pub dmg: f32,
+    pub color: [f32; 3],
+}
 
 impl Game {
     /// Land a hit of a martial art on enemy `i`, with the effect of the
     /// element the art carries (an `E_*` id; 0 for none).
     pub(crate) fn strike(&mut self, i: usize, dmg: f32, kx: f32, ky: f32, element: u8) {
         self.inner.since_strike = 0.0;
+        // The last move of a route throws back further with the mountain lifter's third layer.
+        let heave = self.heave_knock();
+        let (kx, ky) = (kx * heave, ky * heave);
         // An opening (破綻) left by a needle makes this blow land harder, and is spent.
         let dmg = if self.enemies[i].tags.opening {
             self.enemies[i].tags.opening = false;
@@ -56,6 +79,8 @@ impl Game {
         } else {
             dmg
         };
+        // Inside the sigil of a holy height, every blow lands harder (`zenith.rs`).
+        let dmg = dmg * self.sigil_power(i);
         // A route that leaves openings leaves one with this hit, for the next.
         if self.striking_opens() {
             self.enemies[i].tags.opening = true;
@@ -167,6 +192,7 @@ impl Game {
                     let amount = self.enemies[i].tags.amount[surge] * r.power * self.reaction_boost();
                     self.enemies[i].tags.end(a);
                     self.enemies[i].tags.end(b);
+                    self.leave_aftershock(x, y, r.reach, amount, r.color);
                     let (targets, n) = self.nearest(i, r.reach, r.count);
                     self.hurt_enemy_as(i, amount, 0.0, 0.0, r.color);
                     self.pop(x, y, 40.0, r.color);
@@ -180,6 +206,7 @@ impl Game {
                     self.enemies[i].tags.end(a);
                     self.enemies[i].tags.end(b);
                     let amount = dmg * r.power * self.reaction_boost();
+                    self.leave_aftershock(x, y, r.reach, amount, r.color);
                     for j in 0..self.enemies.len() {
                         let e = &self.enemies[j];
                         let (dx, dy) = (e.x - x, e.y - y);
@@ -195,6 +222,42 @@ impl Game {
             }
             self.event(EV_REACT, x, y, id as f32);
             return;
+        }
+    }
+
+    /// A reaction at (x, y) that did `amount` leaves its aftershock there, with
+    /// the third layer of the art of all methods.
+    fn leave_aftershock(&mut self, x: f32, y: f32, reach: f32, amount: f32, color: [f32; 3]) {
+        if !self.aftershocks() || self.inner.aftershocks.len() >= MAX_AFTERSHOCKS {
+            return;
+        }
+        let dmg = amount * AFTERSHOCK_SHARE;
+        self.inner.aftershocks.push(Aftershock { left: AFTERSHOCK_DELAY, x, y, reach, dmg, color });
+    }
+
+    /// Count the aftershocks of reactions down and land the ones that are due,
+    /// on every living enemy within their reach.
+    pub(crate) fn tick_aftershocks(&mut self, dt: f32) {
+        if self.inner.aftershocks.is_empty() {
+            return;
+        }
+        let mut k = 0;
+        while k < self.inner.aftershocks.len() {
+            self.inner.aftershocks[k].left -= dt;
+            if self.inner.aftershocks[k].left > 0.0 {
+                k += 1;
+                continue;
+            }
+            let a = self.inner.aftershocks.remove(k);
+            for j in 0..self.enemies.len() {
+                let e = &self.enemies[j];
+                let (dx, dy) = (e.x - a.x, e.y - a.y);
+                let reach = a.reach + KINDS[e.kind as usize].r;
+                if e.hp > 0.0 && dx * dx + dy * dy < reach * reach {
+                    self.hurt_enemy_as(j, a.dmg, 0.0, 0.0, a.color);
+                }
+            }
+            self.pop(a.x, a.y, a.reach, a.color);
         }
     }
 
