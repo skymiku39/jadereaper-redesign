@@ -763,7 +763,17 @@ knockback = 260
 # sweep hits, `pierce` lets shots pass one enemy more, `swarm` throws twice the
 # shots at half the damage, `tip` sweeps round the tip of a thrust, `bend`
 # whips on from the tip of a thrust to the nearest enemy there.
-# Names are `weapon.<name>` in src/i18n.js.
+# `famous` is what the kind's famous blade (名器, docs/martial-arts.md) does of
+# its own while the art's weapon is famous: `reach` sweeps 10% further with a
+# jade blade light (玉鐮), `stop` the first move of each round of the route
+# stops the game for a beat (斷雲), `knock` throws enemies 30% further back
+# (烏金棍), `speed` shots fly 25% faster (柳葉飛刀), `turret` one more mechanism
+# is set down and may stand (the Tang box), `guard` every move adds 1 guard
+# without the metal element (玄鐵護手). Left out, a famous blade of the kind is
+# only its quality and needs no buying; a named one only comes once it is
+# bought at the weapon shop (the `famous_owned` tune).
+# Names are `weapon.<name>` in src/i18n.js; a famous blade's are
+# `famous.<name>.name` and `famous.<name>.desc`.
 
 [[weapon]]
 id = 0
@@ -790,6 +800,7 @@ art = "scythe"
 glyph = "斬"
 long = true
 heavy = true
+famous = "stop"
 
 [[weapon]]
 id = 3
@@ -799,6 +810,7 @@ glyph = "鐮"
 short = true
 light = true
 trait = "hook"
+famous = "reach"
 
 [[weapon]]
 id = 4
@@ -813,6 +825,7 @@ name = "changgun"
 art = "beads"
 glyph = "長"
 long = true
+famous = "knock"
 
 [[weapon]]
 id = 6
@@ -829,6 +842,7 @@ art = "talisman"
 glyph = "飛"
 light = true
 trait = "pierce"
+famous = "speed"
 
 [[weapon]]
 id = 8
@@ -854,6 +868,7 @@ art = "pulse"
 glyph = "護"
 short = true
 heavy = true
+famous = "guard"
 
 [[weapon]]
 id = 11
@@ -880,6 +895,7 @@ art = "talisman"
 glyph = "匣"
 heavy = true
 mechanism = true
+famous = "turret"
 
 [[weapon]]
 id = 14
@@ -2520,6 +2536,12 @@ name = "zenith"
 id = 23
 name = "heave"
 
+# A famous blade asks the host for a moment of hit-stop (斷雲, the first move of
+# each round). The value is the art's id.
+[[event]]
+id = 24
+name = "stop"
+
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...
 # without gaps. `goal` is what the mission asks for, in its own unit; 0 means
@@ -3182,6 +3204,19 @@ step = 1
 [[tune]]
 id = 56
 name = "inner_owned"
+mission = "host"
+default = 16777215
+min = 0
+max = 16777215
+step = 1
+
+# The famous blades (名器) bought at the weapon shop, as bits by weapon id. A
+# weapon card of a kind with a named famous blade (`famous` on [[weapon]]) not
+# bought is at most fine steel; a kind without one comes famous as before,
+# without buying. Set by the host; the default has every one.
+[[tune]]
+id = 57
+name = "famous_owned"
 mission = "host"
 default = 16777215
 min = 0

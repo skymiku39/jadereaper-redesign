@@ -77,7 +77,23 @@ pub struct WeaponDef {
     pub start: bool,
     /// What it does of its own, a `WT_*`.
     pub trait_: u8,
+    /// What its famous blade (名器) does of its own, an `FM_*`.
+    pub famous: u8,
 }
+
+/// What a kind's famous blade does of its own (`kinds.rs`), only while the
+/// art's weapon is famous: nothing more than its quality; its sweeps reach
+/// 10% further with a jade blade light; the first move of each round of its
+/// route stops the game for a beat; it throws enemies 30% further back; its
+/// shots fly 25% faster; one more mechanism is set down and may stand; every
+/// move adds 1 guard (罡氣).
+pub const FM_NONE: u8 = 0;
+pub const FM_REACH: u8 = 1;
+pub const FM_STOP: u8 = 2;
+pub const FM_KNOCK: u8 = 3;
+pub const FM_SPEED: u8 = 4;
+pub const FM_TURRET: u8 = 5;
+pub const FM_GUARD: u8 = 6;
 
 /// A route's rule of its own (`routes.rs`): nothing; harder the more enemies
 /// stand near; its hits leave an opening the next blow exploits; each kill

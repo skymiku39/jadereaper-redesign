@@ -44,6 +44,8 @@ const DEFAULTS = {
   // The weapon kinds and inner arts bought, by name.
   kindsBought: [],
   innerBought: [],
+  // The famous blades (名器) bought, by the name of their weapon kind.
+  famousBought: [],
 };
 
 export function loadSave() {
@@ -60,11 +62,12 @@ export function loadSave() {
     const names = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
     save.kindsBought = names(save.kindsBought);
     save.innerBought = names(save.innerBought);
+    save.famousBought = names(save.famousBought);
     save.learned = Array.isArray(save.learned) ? save.learned.filter((id) => Number.isInteger(id)) : [];
     save.zeniths = Array.isArray(save.zeniths) ? save.zeniths.filter((k) => typeof k === 'string') : [];
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, inner: {}, kindsBought: [], innerBought: [], learned: [], zeniths: [] };
+    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, inner: {}, kindsBought: [], innerBought: [], famousBought: [], learned: [], zeniths: [] };
   }
 }
 

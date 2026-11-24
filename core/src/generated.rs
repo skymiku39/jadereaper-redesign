@@ -196,26 +196,26 @@ pub const N_WEAPONS: usize = 20;
 pub const WEAPON_NAMES: [&str; N_WEAPONS] = ["dandao", "shuangdao", "dadao", "lian", "qimeigun", "changgun", "biao", "feidao", "zhen", "tushou", "hushou", "zhaotao", "xiujian", "jiguanxia", "changjian", "shuangjian", "ruanjian", "changqiang", "huaqiang", "ji"];
 #[rustfmt::skip]
 pub const WEAPONS: [WeaponDef; N_WEAPONS] = [
-    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT, start: true, trait_: WT_NONE },
-    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT | FORM_PAIRED, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_SCYTHE, forms: FORM_LONG | FORM_HEAVY, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT, start: false, trait_: WT_HOOK },
-    WeaponDef { art: A_BEADS, forms: 0, start: true, trait_: WT_NONE },
-    WeaponDef { art: A_BEADS, forms: FORM_LONG, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: true, trait_: WT_NONE },
-    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: false, trait_: WT_PIERCE },
-    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: false, trait_: WT_SWARM },
-    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: true, trait_: WT_NONE },
-    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_HEAVY, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT | FORM_MECHANISM, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_TALISMAN, forms: FORM_HEAVY | FORM_MECHANISM, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: true, trait_: WT_NONE },
-    WeaponDef { art: A_SWORD, forms: FORM_LIGHT | FORM_PAIRED, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: false, trait_: WT_BEND },
-    WeaponDef { art: A_SPEAR, forms: FORM_LONG, start: true, trait_: WT_NONE },
-    WeaponDef { art: A_SPEAR, forms: FORM_LIGHT, start: false, trait_: WT_NONE },
-    WeaponDef { art: A_SPEAR, forms: FORM_LONG | FORM_HEAVY, start: false, trait_: WT_TIP },
+    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT, start: true, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT | FORM_PAIRED, start: false, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_SCYTHE, forms: FORM_LONG | FORM_HEAVY, start: false, trait_: WT_NONE, famous: FM_STOP },
+    WeaponDef { art: A_SCYTHE, forms: FORM_SHORT | FORM_LIGHT, start: false, trait_: WT_HOOK, famous: FM_REACH },
+    WeaponDef { art: A_BEADS, forms: 0, start: true, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_BEADS, forms: FORM_LONG, start: false, trait_: WT_NONE, famous: FM_KNOCK },
+    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: true, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: false, trait_: WT_PIERCE, famous: FM_SPEED },
+    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT, start: false, trait_: WT_SWARM, famous: FM_NONE },
+    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: true, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_HEAVY, start: false, trait_: WT_NONE, famous: FM_GUARD },
+    WeaponDef { art: A_PULSE, forms: FORM_SHORT | FORM_LIGHT, start: false, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_TALISMAN, forms: FORM_LIGHT | FORM_MECHANISM, start: false, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_TALISMAN, forms: FORM_HEAVY | FORM_MECHANISM, start: false, trait_: WT_NONE, famous: FM_TURRET },
+    WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: true, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_SWORD, forms: FORM_LIGHT | FORM_PAIRED, start: false, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_SWORD, forms: FORM_LIGHT, start: false, trait_: WT_BEND, famous: FM_NONE },
+    WeaponDef { art: A_SPEAR, forms: FORM_LONG, start: true, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_SPEAR, forms: FORM_LIGHT, start: false, trait_: WT_NONE, famous: FM_NONE },
+    WeaponDef { art: A_SPEAR, forms: FORM_LONG | FORM_HEAVY, start: false, trait_: WT_TIP, famous: FM_NONE },
 ];
 
 // Schools (門派).
@@ -512,6 +512,7 @@ pub const EV_FOE: f32 = 20.0;
 pub const EV_MANUAL: f32 = 21.0;
 pub const EV_ZENITH: f32 = 22.0;
 pub const EV_HEAVE: f32 = 23.0;
+pub const EV_STOP: f32 = 24.0;
 
 // Mission ids, and what each one asks for (seconds for `survive`, enemies for `kills`).
 pub const M_ENDLESS: usize = 0;
@@ -590,15 +591,16 @@ pub const T_STOLEN: usize = 53;
 pub const T_MANUALS: usize = 54;
 pub const T_KINDS_OWNED: usize = 55;
 pub const T_INNER_OWNED: usize = 56;
-pub const N_TUNES: usize = 57;
+pub const T_FAMOUS_OWNED: usize = 57;
+pub const N_TUNES: usize = 58;
 #[rustfmt::skip]
-pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius", "commissions", "routes", "decks", "school_share", "stolen", "manuals", "kinds_owned", "inner_owned"];
+pub const TUNE_NAMES: [&str; N_TUNES] = ["spawn_rate", "enemy_speed", "enemy_hp", "survive_goal", "kills_goal", "formation_goal", "formation_node_hp", "formation_dist_min", "formation_dist_max", "formation_spawn_count", "arena_goal", "arena_size", "arena_hp_per_wave", "retrieval_goal", "retrieval_dist_min", "retrieval_dist_max", "retrieval_slow", "pursuit_goal", "pursuit_leg_len", "pursuit_speed", "pursuit_start_dist", "pursuit_pack", "escort_leg_len", "escort_speed", "escort_hp", "escort_follow", "hold_goal", "hold_radius", "hold_point_hp", "hold_share", "escape_goal", "escape_ring_count", "escape_ahead_rate", "escape_brute_share", "boss_goal", "boss_warmup", "boss_walk_speed", "boss_spawn_scale", "vendetta_goal", "vendetta_dist_min", "vendetta_dist_max", "vendetta_group_hp", "accept_dist", "accept_time", "element_cards", "start_element", "chasers", "ambush", "arena_radius", "commissions", "routes", "decks", "school_share", "stolen", "manuals", "kinds_owned", "inner_owned", "famous_owned"];
 #[rustfmt::skip]
-pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.04, 0.0, 0.0, 16777215.0, 16777215.0];
+pub const TUNE_DEFAULT: [f32; N_TUNES] = [1.0, 1.0, 1.0, 300.0, 1500.0, 5.0, 2000.0, 1300.0, 2000.0, 3.0, 10.0, 1.0, 0.1, 3.0, 5000.0, 8000.0, 0.12, 3000.0, 3600.0, 170.0, 800.0, 8.0, 3000.0, 70.0, 360.0, 240.0, 300.0, 160.0, 800.0, 3.0, 18000.0, 36.0, 20.0, 0.25, 12000.0, 90.0, 85.0, 0.4, 6.0, 16000.0, 20000.0, 240.0, 600.0, 3.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.04, 0.0, 0.0, 16777215.0, 16777215.0, 16777215.0];
 #[rustfmt::skip]
-pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+pub const TUNE_MIN: [f32; N_TUNES] = [0.0, 0.5, 0.25, 30.0, 100.0, 1.0, 250.0, 300.0, 300.0, 0.0, 1.0, 0.25, 0.0, 1.0, 500.0, 500.0, 0.0, 500.0, 1200.0, 100.0, 300.0, 0.0, 500.0, 30.0, 60.0, 100.0, 30.0, 60.0, 100.0, 1.0, 2000.0, 0.0, 0.0, 0.0, 2000.0, 0.0, 40.0, 0.0, 1.0, 2000.0, 2000.0, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 #[rustfmt::skip]
-pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0, 1.0, 1.0, 1.0, 0.25, 16777215.0, 16777215.0, 16777215.0, 16777215.0];
+pub const TUNE_MAX: [f32; N_TUNES] = [4.0, 4.0, 4.0, 900.0, 5000.0, 8.0, 6000.0, 6000.0, 6000.0, 8.0, 10.0, 3.0, 0.5, 6.0, 12000.0, 12000.0, 0.3, 12000.0, 9600.0, 220.0, 2000.0, 24.0, 5000.0, 160.0, 1200.0, 500.0, 600.0, 400.0, 3000.0, 6.0, 30000.0, 120.0, 80.0, 0.5, 30000.0, 180.0, 160.0, 1.0, 12.0, 30000.0, 30000.0, 1200.0, 3000.0, 10.0, 1.0, 7.0, 0.6, 1.0, 3000.0, 1.0, 1.0, 1.0, 0.25, 16777215.0, 16777215.0, 16777215.0, 16777215.0, 16777215.0];
 // The tune that holds each mission's goal; N_TUNES where the goal cannot be changed.
 #[rustfmt::skip]
 pub const MISSION_GOAL_TUNE: [usize; N_MISSIONS] = [N_TUNES, T_SURVIVE_GOAL, T_KILLS_GOAL, T_FORMATION_GOAL, T_ARENA_GOAL, T_RETRIEVAL_GOAL, T_PURSUIT_GOAL, N_TUNES, T_HOLD_GOAL, T_ESCAPE_GOAL, T_BOSS_GOAL, T_VENDETTA_GOAL];

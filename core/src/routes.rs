@@ -248,6 +248,8 @@ impl Game {
             self.qi_blade(a, Self::basic_numbers(a).damage * might);
         }
         self.inner.heave = false;
+
+        self.famous_move(a, step == 0);
         self.striking = 0;
     }
 
@@ -472,6 +474,7 @@ impl Game {
                 top: true,
             });
         }
+        self.jade_light(a, px, py - 24.0, reach, rot);
     }
 
     /// The way to the nearest enemy, if there is one.
@@ -510,11 +513,12 @@ impl Game {
         };
         let angle = fmath::atan2(ay, ax) + off;
         let (dx, dy) = (fmath::cos(angle), fmath::sin(angle));
+        let speed = def.speed * self.kind_speed(a);
         self.shots.push(Shot {
             x: px,
             y: py,
-            vx: dx * def.speed,
-            vy: dy * def.speed,
+            vx: dx * speed,
+            vy: dy * speed,
             life: def.life,
             dmg: n.damage * def.power * might,
             pierce: def.pierce.max(1) + self.kind_pierce(a),

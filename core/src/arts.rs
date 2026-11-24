@@ -178,6 +178,8 @@ impl Game {
                 top: true,
             });
         }
+        self.jade_light(a, px, py - 24.0, reach, rot);
+        self.famous_move(a, false);
         self.event(EV_SLASH, px, py, 0.0);
     }
 
@@ -194,6 +196,7 @@ impl Game {
         let knock = n.knockback * self.kind_knock(a);
         let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, dx, dy);
         self.line(a, px, py, dx, dy, reach, n.width, dmg, knock);
+        self.famous_move(a, false);
         self.event(EV_SLASH, px, py, 0.0);
     }
 
@@ -324,7 +327,9 @@ impl Game {
             return;
         }
         self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
-        if !self.shoot_nearest(a, n, might * self.kind_power(a)) {
+        if self.shoot_nearest(a, n, might * self.kind_power(a)) {
+            self.famous_move(a, false);
+        } else {
             // Nothing in range: look again soon instead of waiting out the cooldown.
             self.arts[a].timer = 0.15;
         }
@@ -341,6 +346,7 @@ impl Game {
         let count = if swarm { (n.count * 2).min(MOST) } else { n.count.min(MOST) };
         let might = if swarm { might * 0.5 } else { might };
         let extra = self.kind_pierce(a);
+        let speed = def.speed * self.kind_speed(a);
         let mut best = [(f32::MAX, 0usize); MOST];
         for (i, e) in self.enemies.iter().enumerate() {
             let d = (e.x - px) * (e.x - px) + (e.y - py) * (e.y - py);
@@ -365,8 +371,8 @@ impl Game {
             self.shots.push(Shot {
                 x: px,
                 y: py,
-                vx: dx / d * def.speed,
-                vy: dy / d * def.speed,
+                vx: dx / d * speed,
+                vy: dy / d * speed,
                 life: def.life,
                 dmg: n.damage * might,
                 pierce: n.pierce + extra,
@@ -445,6 +451,7 @@ impl Game {
         let (px, py) = (self.player.x, self.player.y);
         let (reach, power, knock) = (self.kind_reach(a), self.kind_power(a), self.kind_knock(a));
         self.ring(a, px, py, n.reach * reach, n.damage * might * power, n.knockback * knock);
+        self.famous_move(a, false);
         self.event(EV_PULSE, px, py, 0.0);
     }
 
