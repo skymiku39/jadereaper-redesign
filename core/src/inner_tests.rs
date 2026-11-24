@@ -101,6 +101,23 @@ fn crossing_on_a_reed_strides_and_dodges() {
 }
 
 #[test]
+fn crossing_on_a_reed_leaves_a_snow_trail_while_it_strides() {
+    let trail = |layer: u8| {
+        let mut g = base();
+        g.up[U_SWIFT] = layer;
+        g.player.moving = true;
+        g.inner.moving_for = 2.5;
+        let before = g.fx.len();
+        for _ in 0..30 {
+            g.inner_tick(TICK);
+        }
+        g.fx.len() - before
+    };
+    assert_eq!(trail(1), 0, "no trail at the first layer");
+    assert!(trail(2) >= 3, "prints behind him at the second");
+}
+
+#[test]
 fn breathing_heals_faster_unhurt_and_saves_once_a_minute() {
     let mut g = base();
     g.up[U_MENDING] = 2;
@@ -150,6 +167,92 @@ fn borrowed_force_passes_to_the_enemies_nearby() {
 }
 
 #[test]
+fn borrowed_force_pushes_from_the_second_layer_and_passes_on_at_the_third() {
+    // `next` is within reach of `near` but not of the enemy struck.
+    let setup = |layer: u8| {
+        let mut g = base();
+        g.up[U_JIELI] = layer;
+        let struck = put(&mut g, 100.0, 0.0);
+        let near = put(&mut g, 130.0, 0.0);
+        let next = put(&mut g, 180.0, 0.0);
+        g.strike(struck, 100.0, 300.0, 0.0, 0);
+        g.land_splash();
+        (g, struck, near, next)
+    };
+    let (g, _, near, _) = setup(1);
+    assert!(g.enemies[near].hp < 1000.0);
+    assert_eq!(g.enemies[near].kx, 0.0, "the first layer pushes nothing");
+    let (mut g, _, near, next) = setup(2);
+    assert!(g.enemies[near].kx > 0.0, "pushed away from the enemy thrown into it");
+    g.land_splash();
+    assert_eq!(g.enemies[next].hp, 1000.0, "the second layer passes it on no further");
+    let (mut g, struck, near, next) = setup(3);
+    assert_eq!(g.enemies[next].hp, 1000.0, "the blow passed on waits for the next step");
+    let passed = 1000.0 - g.enemies[near].hp;
+    g.land_splash();
+    assert!(near_eq(1000.0 - g.enemies[next].hp, passed), "{} against {passed}", 1000.0 - g.enemies[next].hp);
+    assert_eq!(g.enemies[struck].hp, 900.0, "it does not come back to the enemy it came from");
+    // Once only.
+    let before = g.enemies[near].hp;
+    g.land_splash();
+    assert!(g.inner.splash.is_empty());
+    assert_eq!(g.enemies[near].hp, before);
+}
+
+fn near_eq(a: f32, b: f32) -> bool {
+    (a - b).abs() < 0.01
+}
+
+#[test]
+fn the_mountain_lifter_throws_the_last_move_further_at_its_third_layer() {
+    let thrown = |layer: u8| {
+        let mut g = base();
+        g.up[U_MIGHT] = layer;
+        g.give(A_SCYTHE, 99, 0);
+        let (_, len) = g.move_order(A_SCYTHE);
+        let e = put(&mut g, 60.0, 0.0);
+        g.arts[A_SCYTHE].step = (len - 1) as u8;
+        g.arts[A_SCYTHE].timer = 0.0;
+        g.player.aim = (1.0, 0.0);
+        g.route_beat(A_SCYTHE, TICK, 1.0, 1.0);
+        let heaved = g.events.iter().any(|ev| ev[0] == EV_HEAVE);
+        (g.enemies[e].kx, 1000.0 - g.enemies[e].hp, heaved, g.inner.heave)
+    };
+    let (kx2, dmg2, heaved2, _) = thrown(2);
+    let (kx3, dmg3, heaved3, left_on) = thrown(3);
+    assert!(kx2 > 0.0);
+    assert!(near_eq(kx3, kx2 * 1.5), "{kx3} against {kx2}");
+    assert!(!heaved2 && heaved3, "a hit-stop only at the third layer");
+    assert!(!left_on, "only while the last move lands");
+    // The third layer keeps the second's 30% and adds no more to the last move.
+    assert!(near_eq(dmg3, dmg2), "{dmg3} against {dmg2}");
+}
+
+#[test]
+fn the_art_of_all_methods_leaves_an_aftershock_at_its_third_layer() {
+    let dealt = |layer: u8| {
+        let mut g = base();
+        g.up[U_WANFA] = layer;
+        let e = put(&mut g, 400.0, 0.0);
+        g.strike(e, 20.0, 0.0, 0.0, E_FIRE);
+        g.strike(e, 20.0, 0.0, 0.0, E_LIGHTNING);
+        let at_once = 1000.0 - g.enemies[e].hp;
+        let waiting = g.inner.aftershocks.len();
+        for _ in 0..60 {
+            g.tick_aftershocks(TICK);
+        }
+        (at_once, 1000.0 - g.enemies[e].hp, waiting)
+    };
+    let (once2, after2, waiting2) = dealt(2);
+    let (once3, after3, waiting3) = dealt(3);
+    assert_eq!(waiting2, 0);
+    assert_eq!(after2, once2, "no aftershock at the second layer");
+    assert_eq!(once3, once2, "the third layer adds nothing at once");
+    assert_eq!(waiting3, 1);
+    assert!(after3 > once3, "the aftershock lands a moment later");
+}
+
+#[test]
 fn the_art_of_all_methods_strengthens_element_hits() {
     let mut g = base();
     let plain = put(&mut g, 100.0, 0.0);
@@ -188,6 +291,7 @@ fn a_run_with_every_inner_art_is_the_same_twice() {
         }
         g.give(A_SCYTHE, 99, 1);
         g.give(A_PULSE, 99, 4);
+        g.give(A_TALISMAN, 99, E_HOLY as u32);
         for t in 0..1800 {
             if t % 40 == 0 {
                 g.input = ((t as f32 * 0.37).sin(), (t as f32 * 0.21).cos());

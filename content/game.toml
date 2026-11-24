@@ -262,11 +262,13 @@ amount = 0.4
 # is written above, once; the second and third change a rule. These three
 # exist only then:
 #   splash   a share of a blow, per layer, passes to the enemies within reach
-#            of one that a hit throws back (四兩撥千斤)
+#            of one that a hit throws back; from layer 2 they are pushed
+#            away, and at layer 3 each passes it on once more (四兩撥千斤)
 #   reach    melee moves reach this much further; from layer 2 the last move
 #            of a melee route also sends a blade of qi (氣貫長虹)
 #   element  hits that carry an element land this much harder; from layer 2
-#            reactions too (萬法歸一功)
+#            reactions too, and at layer 3 a reaction leaves an aftershock
+#            of half its damage (萬法歸一功)
 
 [[passive]]
 name = "jieli"
@@ -2511,6 +2513,12 @@ name = "manual"
 [[event]]
 id = 22
 name = "zenith"
+
+# The last move of a route's order landed with the third layer of the
+# mountain lifter (拔山訣), for a hit-stop. The value is the move's id.
+[[event]]
+id = 23
+name = "heave"
 
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...

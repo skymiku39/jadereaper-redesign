@@ -511,6 +511,7 @@ pub const EV_STEAL: f32 = 19.0;
 pub const EV_FOE: f32 = 20.0;
 pub const EV_MANUAL: f32 = 21.0;
 pub const EV_ZENITH: f32 = 22.0;
+pub const EV_HEAVE: f32 = 23.0;
 
 // Mission ids, and what each one asks for (seconds for `survive`, enemies for `kills`).
 pub const M_ENDLESS: usize = 0;
