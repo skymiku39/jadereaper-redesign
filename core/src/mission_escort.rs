@@ -336,6 +336,8 @@ mod tests {
 
     fn escort_game(seed: u32) -> Game {
         let mut game = Game::new(seed);
+        // The bots pick from the mixed offer, not the decks.
+        game.tune[T_DECKS] = 0.0;
         game.start(M_ESCORT);
         game
     }

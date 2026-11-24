@@ -15,7 +15,32 @@ const DEFAULTS = {
   tuning: {},
   volume: 0.6,
   muted: false,
+  // Damage numbers, and camera shake with hit-stop.
+  numbers: true,
+  motion: true,
+  // Music level: 1 full, 0.5 soft, 0 off.
+  music: 1,
+  // Full drawing quality; off for slow devices.
+  quality: true,
   lang: null, // null: use DEFAULT_LANG from i18n.js
+  // The stolen routes learned (偷師), as bits by route id; kept from run to run.
+  stolen: 0,
+  // The manuals (秘笈) given to stolen routes, two bits per stolen route in id
+  // order; kept from run to run.
+  manuals: 0,
+  // The manuals dropped by masters and not yet given to a route, per school id.
+  scrolls: {},
+  // The ids of the route moves ever used: what the martial record (武學錄) shows.
+  learned: [],
+  // The heights (極致) ever reached, as "route:element".
+  zeniths: [],
+  // Per inner art (心法) name, the highest layer ever reached.
+  inner: {},
+  // Silver (銀兩), earned by runs and spent at the weapon shop (src/shop.js).
+  silver: 0,
+  // The weapon kinds and inner arts bought, by name.
+  kindsBought: [],
+  innerBought: [],
 };
 
 export function loadSave() {
@@ -27,9 +52,16 @@ export function loadSave() {
     const plain = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {});
     save.missions = plain(save.missions);
     save.tuning = plain(save.tuning);
+    save.scrolls = plain(save.scrolls);
+    save.inner = plain(save.inner);
+    const names = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+    save.kindsBought = names(save.kindsBought);
+    save.innerBought = names(save.innerBought);
+    save.learned = Array.isArray(save.learned) ? save.learned.filter((id) => Number.isInteger(id)) : [];
+    save.zeniths = Array.isArray(save.zeniths) ? save.zeniths.filter((k) => typeof k === 'string') : [];
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {}, tuning: {} };
+    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, inner: {}, kindsBought: [], innerBought: [], learned: [], zeniths: [] };
   }
 }
 

@@ -7,8 +7,8 @@ const MAX_INSTANCES = 4096;
 const WORLD_HEIGHT = 640; // world units across the shorter screen side
 const STOP_MOTION_FPS = 8;
 
-/** Load optional part images listed in assets/parts.json and pack them into one atlas canvas. */
-async function loadPartImages() {
+/** Load optional part images listed in assets/parts.json and pack them into one atlas canvas. Shared with renderer-gl.js. */
+export async function loadPartImages() {
   const rects = new Float32Array(32 * 4);
   let manifest = {};
   try {
@@ -144,10 +144,15 @@ export async function createRenderer(canvas) {
   });
 
   const view = { w: 1280, h: 720, px: 1 };
+  // Full quality, or the cheaper look for slow devices (see `setQuality`).
+  let quality = 1;
 
   /** Match the canvas to its CSS size. Returns the visible area in world units. */
   function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Fewer pixels on small screens, which are mostly phones, and fewer still at low quality.
+    const small = Math.min(window.innerWidth, window.innerHeight) < 600;
+    const cap = quality ? (small ? 1.5 : 2) : 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, cap);
     const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
     if (canvas.width !== w || canvas.height !== h) {
@@ -167,7 +172,7 @@ export async function createRenderer(canvas) {
    * @param {number} count number of instances
    */
   function draw(memory, ptr, count, camX, camY, time) {
-    globals.set([view.w, view.h, camX, camY, canvas.width, canvas.height, time, Math.floor(time * STOP_MOTION_FPS), view.px]);
+    globals.set([view.w, view.h, camX, camY, canvas.width, canvas.height, time, Math.floor(time * STOP_MOTION_FPS), view.px, quality]);
     device.queue.writeBuffer(globalsBuf, 0, globals);
     const n = Math.min(count, MAX_INSTANCES);
     if (n > 0) device.queue.writeBuffer(instBuf, 0, memory, ptr, n * INSTANCE_BYTES);
@@ -193,5 +198,10 @@ export async function createRenderer(canvas) {
     device.queue.submit([encoder.finish()]);
   }
 
-  return { resize, draw, device };
+  /** Full quality (true), or no line boil, grain or drop shadows and one pixel per CSS pixel (false). */
+  function setQuality(full) {
+    quality = full ? 1 : 0;
+  }
+
+  return { resize, draw, setQuality, device, kind: 'webgpu' };
 }

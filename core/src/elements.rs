@@ -24,6 +24,8 @@ pub struct Tags {
     pub amount: [f32; N_ELEMENTS + 1],
     /// Seconds before the element's effect can take hold of this enemy again.
     pub rest: [f32; N_ELEMENTS + 1],
+    /// An opening (破綻) left by a route's needle: the next blow lands 30% harder.
+    pub opening: bool,
 }
 
 impl Tags {
@@ -46,13 +48,27 @@ impl Game {
     /// Land a hit of a martial art on enemy `i`, with the effect of the
     /// element the art carries (an `E_*` id; 0 for none).
     pub(crate) fn strike(&mut self, i: usize, dmg: f32, kx: f32, ky: f32, element: u8) {
+        self.inner.since_strike = 0.0;
+        // An opening (破綻) left by a needle makes this blow land harder, and is spent.
+        let dmg = if self.enemies[i].tags.opening {
+            self.enemies[i].tags.opening = false;
+            dmg * 1.3
+        } else {
+            dmg
+        };
+        // A route that leaves openings leaves one with this hit, for the next.
+        if self.striking_opens() {
+            self.enemies[i].tags.opening = true;
+        }
         if element == 0 || element as usize > N_ELEMENTS {
+            self.borrow_force(i, dmg, kx, ky);
             self.hurt_enemy(i, dmg, kx, ky);
             return;
         }
         let k = element as usize;
         let el = &ELEMENTS[k];
-        let (mut dmg, mut kx, mut ky) = (dmg, kx, ky);
+        let (mut dmg, mut kx, mut ky) = (dmg * self.element_boost(), kx, ky);
+        self.borrow_force(i, dmg, kx, ky);
         let mut rooting = false;
         match el.effect {
             EF_BANE => {
@@ -106,7 +122,7 @@ impl Game {
                 self.enemies[i].tags.left[k] = el.time;
                 let (targets, n) = self.nearest(i, el.reach, el.count);
                 for &j in targets.iter().take(n) {
-                    self.hurt_enemy(j, dmg * el.power, 0.0, 0.0);
+                    self.hurt_enemy_as(j, dmg * el.power, 0.0, 0.0, el.color);
                     self.enemies[j].tags.left[k] = el.time;
                     let (x, y) = (self.enemies[j].x, self.enemies[j].y);
                     self.pop(x, y, 26.0, el.color);
@@ -121,6 +137,10 @@ impl Game {
         }
         if el.tags {
             self.react(i, element, dmg);
+        }
+        // A hit of an ultimate at its height does what its element does at its height (`zenith.rs`).
+        if self.zenith > 0 {
+            self.height_hit(i, dmg);
         }
     }
 
@@ -144,14 +164,14 @@ impl Game {
                 RK_RELAY => {
                     // The surge that was waiting goes off now, here and on the enemies nearby.
                     let surge = if ELEMENTS[a].effect == EF_SURGE { a } else { b };
-                    let amount = self.enemies[i].tags.amount[surge] * r.power;
+                    let amount = self.enemies[i].tags.amount[surge] * r.power * self.reaction_boost();
                     self.enemies[i].tags.end(a);
                     self.enemies[i].tags.end(b);
                     let (targets, n) = self.nearest(i, r.reach, r.count);
-                    self.hurt_enemy(i, amount, 0.0, 0.0);
+                    self.hurt_enemy_as(i, amount, 0.0, 0.0, r.color);
                     self.pop(x, y, 40.0, r.color);
                     for &j in targets.iter().take(n) {
-                        self.hurt_enemy(j, amount, 0.0, 0.0);
+                        self.hurt_enemy_as(j, amount, 0.0, 0.0, r.color);
                         let (jx, jy) = (self.enemies[j].x, self.enemies[j].y);
                         self.pop(jx, jy, 40.0, r.color);
                     }
@@ -159,14 +179,14 @@ impl Game {
                 _ => {
                     self.enemies[i].tags.end(a);
                     self.enemies[i].tags.end(b);
-                    let amount = dmg * r.power;
+                    let amount = dmg * r.power * self.reaction_boost();
                     for j in 0..self.enemies.len() {
                         let e = &self.enemies[j];
                         let (dx, dy) = (e.x - x, e.y - y);
                         let reach = r.reach + KINDS[e.kind as usize].r;
                         if e.hp > 0.0 && dx * dx + dy * dy < reach * reach {
                             let d = (dx * dx + dy * dy).sqrt().max(0.001);
-                            self.hurt_enemy(j, amount, dx / d * 120.0, dy / d * 120.0);
+                            self.hurt_enemy_as(j, amount, dx / d * 120.0, dy / d * 120.0, r.color);
                         }
                     }
                     self.pop(x, y, r.reach, r.color);
@@ -180,7 +200,7 @@ impl Game {
 
     /// The living enemies nearest to enemy `i` within `reach`, nearest first,
     /// `count` at most. Returns their indices and how many there are.
-    fn nearest(&self, i: usize, reach: f32, count: usize) -> ([usize; MOST_JUMPS], usize) {
+    pub(crate) fn nearest(&self, i: usize, reach: f32, count: usize) -> ([usize; MOST_JUMPS], usize) {
         let count = count.min(MOST_JUMPS);
         let (x, y) = (self.enemies[i].x, self.enemies[i].y);
         let mut best = [(f32::MAX, 0usize); MOST_JUMPS];
@@ -235,11 +255,11 @@ impl Game {
                         // rate, the last one as it runs out.
                         let rate = el.rate.max(TICK);
                         if (before / rate).ceil() != (after / rate).ceil() {
-                            self.hurt_enemy(i, amount * rate, 0.0, 0.0);
+                            self.hurt_enemy_as(i, amount * rate, 0.0, 0.0, el.color);
                         }
                     }
                     EF_SURGE if after <= 0.0 => {
-                        self.hurt_enemy(i, amount, 0.0, 0.0);
+                        self.hurt_enemy_as(i, amount, 0.0, 0.0, el.color);
                         let (x, y) = (self.enemies[i].x, self.enemies[i].y);
                         self.pop(x, y, 34.0, el.color);
                     }
@@ -264,13 +284,15 @@ impl Game {
         }
     }
 
-    /// Let the player's guard take a blow first. Returns the damage left for his health.
+    /// Let the player's guard take its share of a blow. Returns the damage left for his health.
     pub(crate) fn guard_against(&mut self, dmg: f32) -> f32 {
         let p = &mut self.player;
         if p.guard <= 0.0 {
             return dmg;
         }
-        let taken = dmg.min(p.guard);
+        // The guard only ever takes part of a blow, so it softens hits without making him untouchable.
+        let share = ELEMENTS[p.guard_element as usize].minor.clamp(0.0, 1.0);
+        let taken = (dmg * share).min(p.guard);
         p.guard -= taken;
         dmg - taken
     }

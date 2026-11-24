@@ -15,6 +15,10 @@ use core::f32::consts::TAU;
 const JADE: [f32; 3] = [0.25, 0.62, 0.48];
 const PAPER_GOLD: [f32; 3] = [0.89, 0.77, 0.38];
 const BEAD_GREEN: [f32; 3] = [0.30, 0.66, 0.50];
+/// A soft sword's bend (the `bend` trait): how far it reaches on from the tip,
+/// as a share of the thrust, and how hard it lands.
+const BEND_REACH: f32 = 0.6;
+const BEND_POWER: f32 = 0.6;
 
 /// What a run keeps per martial art, held or not.
 #[derive(Clone, Copy)]
@@ -23,12 +27,27 @@ pub struct ArtState {
     pub timer: f32,
     /// The element it carries, an `E_*` id; 0 for none.
     pub element: u8,
+    /// The route it follows, by route id plus 1; 0 for none (see `routes.rs`).
+    pub route: u8,
+    /// Where it is in its route's move order.
+    pub step: u8,
+    /// The weapon kind it is, by weapon id plus 1; 0 for none (see `kinds.rs`).
+    pub kind: u8,
+    /// Its weapon's quality: plain iron, fine steel or a famous blade (`kinds.rs`).
+    pub quality: u8,
 }
 
 impl ArtState {
     /// Every art as a run starts: waiting out its first delay, with no element.
     pub fn fresh() -> [ArtState; N_ARTS] {
-        core::array::from_fn(|a| ArtState { timer: ARTS[a].first_delay, element: 0 })
+        core::array::from_fn(|a| ArtState {
+            timer: ARTS[a].first_delay,
+            element: 0,
+            route: 0,
+            step: 0,
+            kind: 0,
+            quality: 0,
+        })
     }
 }
 
@@ -39,12 +58,36 @@ impl Game {
     }
 
     /// The art's numbers at its current level, or none when it is not held.
+    /// An art on a route keeps its level-2 numbers, since its route's moves
+    /// grow instead; circling beads (a staff) still grow with the level, since
+    /// they keep circling under the moves.
     fn art_numbers(&self, a: usize) -> Option<&'static ArtLevel> {
         let levels = ARTS[a].levels;
         match self.art_level(a) {
             0 => None,
+            l if self.arts[a].route > 0 && ARTS[a].behaviour != B_ORBIT => levels.get(l.min(2).min(levels.len()) - 1),
             l => levels.get(l.min(levels.len()) - 1),
         }
+    }
+
+    /// Set a martial art's level and element, each kept inside what exists.
+    /// An unknown art changes nothing. Not part of play: see `jr_give`.
+    pub fn give(&mut self, a: usize, level: u32, element: u32) {
+        if a >= N_ARTS {
+            return;
+        }
+        // With routes on, an art given level 3 or more takes its first route.
+        if level >= 3 && self.routes_on() && self.arts[a].route == 0 {
+            if let Some(r) = self.routes_of(a).next() {
+                self.take_route(a, r);
+            }
+        }
+        let top = self.upgrade_top(ARTS[a].upgrade) as u32;
+        self.up[ARTS[a].upgrade] = level.min(top) as u8;
+        if level > 0 {
+            self.hold_kind(a);
+        }
+        self.arts[a].element = if element as usize <= N_ELEMENTS { element as u8 } else { 0 };
     }
 
     /// How many martial arts are held.
@@ -53,7 +96,7 @@ impl Game {
     }
 
     /// The art's colour: its element's when it carries one, else `plain`.
-    fn art_color(&self, a: usize, plain: [f32; 3], alpha: f32) -> [f32; 4] {
+    pub(crate) fn art_color(&self, a: usize, plain: [f32; 3], alpha: f32) -> [f32; 4] {
         let c = match self.arts[a].element {
             0 => plain,
             e => ELEMENTS[e as usize].color,
@@ -63,14 +106,23 @@ impl Game {
 
     /// Use every held art that is ready, in id order.
     pub(crate) fn weapons(&mut self, dt: f32) {
-        let might = 1.0 + 0.12 * self.lvl(U_MIGHT);
-        let haste = fmath::powu(0.92, self.up[U_HASTE] as u32);
+        let might = self.stat(ST_DAMAGE);
+        let haste = self.stat(ST_COOLDOWN);
         for (a, def) in ARTS.iter().enumerate() {
             let Some(n) = self.art_numbers(a) else { continue };
+            if self.arts[a].route > 0 && self.art_level(a) >= 3 {
+                // Circling beads (a staff) keep circling; the moves come on top.
+                if def.behaviour == B_ORBIT {
+                    self.art_orbit(a, n, might);
+                }
+                self.route_beat(a, dt, might, haste);
+                continue;
+            }
             match def.behaviour {
                 B_ARC => self.art_arc(a, n, dt, might, haste),
                 B_PROJECTILE => self.art_projectile(a, n, dt, might, haste),
                 B_ORBIT => self.art_orbit(a, n, might),
+                B_THRUST => self.art_thrust(a, n, dt, might, haste),
                 _ => self.art_nova(a, n, dt, might, haste),
             }
         }
@@ -82,21 +134,27 @@ impl Game {
         if self.arts[a].timer > 0.0 {
             return;
         }
-        self.arts[a].timer = n.cooldown * haste;
+        self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
         let element = self.arts[a].element;
         let (px, py) = (self.player.x, self.player.y);
         let (ax, ay) = self.player.aim;
-        let reach = n.reach;
-        let dmg = n.damage * might;
+        let reach = n.reach * self.melee_reach() * self.kind_reach(a);
+        let knock = n.knockback * self.kind_knock(a);
+        let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, ax, ay);
+        let mut far: Option<(f32, u32)> = None;
         for i in 0..self.enemies.len() {
             let e = &self.enemies[i];
             let (dx, dy) = (e.x - px, e.y - py);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             let r = KINDS[e.kind as usize].r;
             if d < reach + r && (d < 30.0 || (dx * ax + dy * ay) / d > n.width) {
-                self.strike(i, dmg, dx / d * n.knockback, dy / d * n.knockback, element);
+                if far.is_none_or(|(fd, _)| d > fd) {
+                    far = Some((d, e.id));
+                }
+                self.strike(i, dmg, dx / d * knock, dy / d * knock, element);
             }
         }
+        self.hook(a, far.map(|(_, id)| id));
         self.formation_hit_arc(px, py, ax, ay, reach, n.width, dmg);
         self.player.attack = 0.25;
         let rot = fmath::atan2(ay, ax);
@@ -123,18 +181,166 @@ impl Game {
         self.event(EV_SLASH, px, py, 0.0);
     }
 
+    /// A thrust at the nearest enemy within reach, or along the aim.
+    fn art_thrust(&mut self, a: usize, n: &ArtLevel, dt: f32, might: f32, haste: f32) {
+        self.arts[a].timer -= dt;
+        if self.arts[a].timer > 0.0 {
+            return;
+        }
+        self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
+        let reach = n.reach * self.melee_reach() * self.kind_reach(a);
+        let (dx, dy) = self.thrust_aim(reach * 1.2);
+        let (px, py) = (self.player.x, self.player.y);
+        let knock = n.knockback * self.kind_knock(a);
+        let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, dx, dy);
+        self.line(a, px, py, dx, dy, reach, n.width, dmg, knock);
+        self.event(EV_SLASH, px, py, 0.0);
+    }
+
+    /// A sickle's hook (the `hook` trait): the farthest enemy a sweep hit is
+    /// pulled in toward the player.
+    pub(crate) fn hook(&mut self, a: usize, id: Option<u32>) {
+        if self.kind_trait(a) != WT_HOOK {
+            return;
+        }
+        let Some(i) = id.and_then(|id| self.enemies.iter().position(|e| e.id == id)) else { return };
+        let (px, py) = (self.player.x, self.player.y);
+        let e = &mut self.enemies[i];
+        let (dx, dy) = (px - e.x, py - e.y);
+        let d = (dx * dx + dy * dy).sqrt().max(0.001);
+        e.kx = dx / d * 260.0;
+        e.ky = dy / d * 260.0;
+    }
+
+    /// Where a thrust goes: at the nearest enemy within `reach`, else along the aim.
+    pub(crate) fn thrust_aim(&self, reach: f32) -> (f32, f32) {
+        let (px, py) = (self.player.x, self.player.y);
+        let mut best: Option<(f32, f32, f32)> = None;
+        for e in &self.enemies {
+            let (dx, dy) = (e.x - px, e.y - py);
+            let d2 = dx * dx + dy * dy;
+            if d2 < reach * reach && best.is_none_or(|(b, _, _)| d2 < b) {
+                best = Some((d2, dx, dy));
+            }
+        }
+        match best {
+            Some((d2, dx, dy)) => {
+                let d = d2.sqrt().max(0.001);
+                (dx / d, dy / d)
+            }
+            None => self.player.aim,
+        }
+    }
+
+    /// A straight line of art `a` from (x, y) along (dx, dy): everything within
+    /// `width` of it, up to `reach` away, is hit and pushed along it.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn line(
+        &mut self,
+        a: usize,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
+        reach: f32,
+        width: f32,
+        dmg: f32,
+        knock: f32,
+    ) {
+        self.line_hits(a, x, y, dx, dy, reach, width, dmg, knock);
+        let (tx, ty) = (x + dx * reach, y + dy * reach);
+        match self.kind_trait(a) {
+            // A halberd also sweeps round the tip of its thrust.
+            WT_TIP => self.ring(a, tx, ty, 55.0, dmg * 0.5, knock),
+            // A soft sword bends on from its tip to the nearest enemy there.
+            WT_BEND => {
+                let bend = reach * BEND_REACH;
+                if let Some((bx, by)) = self.nearest_from(tx, ty, bend) {
+                    self.line_hits(a, tx, ty, bx, by, bend, width, dmg * BEND_POWER, knock);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// The way from (x, y) to the nearest enemy within `reach` of it and
+    /// more than a step away, if any.
+    fn nearest_from(&self, x: f32, y: f32, reach: f32) -> Option<(f32, f32)> {
+        let mut best: Option<(f32, f32, f32)> = None;
+        for e in &self.enemies {
+            let (dx, dy) = (e.x - x, e.y - y);
+            let d2 = dx * dx + dy * dy;
+            if d2 > 100.0 && d2 < reach * reach && best.is_none_or(|(b, _, _)| d2 < b) {
+                best = Some((d2, dx, dy));
+            }
+        }
+        best.map(|(d2, dx, dy)| {
+            let d = d2.sqrt();
+            (dx / d, dy / d)
+        })
+    }
+
+    /// The hits and the streak of one straight line, without the kind's trait.
+    #[allow(clippy::too_many_arguments)]
+    fn line_hits(&mut self, a: usize, x: f32, y: f32, dx: f32, dy: f32, reach: f32, width: f32, dmg: f32, knock: f32) {
+        let element = self.arts[a].element;
+        for i in 0..self.enemies.len() {
+            let e = &self.enemies[i];
+            let (ex, ey) = (e.x - x, e.y - y);
+            let along = ex * dx + ey * dy;
+            let side = (ex * dy - ey * dx).abs();
+            let r = KINDS[e.kind as usize].r;
+            if along > -r && along < reach + r && side < width + r {
+                self.strike(i, dmg, dx * knock, dy * knock, element);
+            }
+        }
+        self.formation_hit_arc(x, y, dx, dy, reach, 0.95, dmg);
+        self.player.attack = 0.2;
+        let color = self.art_color(a, JADE, 0.9);
+        // A long thin streak along the thrust.
+        self.add_fx(Fx {
+            x: x + dx * reach * 0.5,
+            y: y + dy * reach * 0.5 - 24.0,
+            vx: 0.0,
+            vy: 0.0,
+            life: 0.16,
+            max: 0.16,
+            part: P_TALISMAN,
+            hw: width.max(6.0),
+            hh: reach * 0.5,
+            rot: fmath::atan2(dy, dx) + TAU * 0.25,
+            vr: 0.0,
+            grow: 0.0,
+            color,
+            seed: 0.4,
+            top: true,
+        });
+    }
+
     /// Shots that fly at the nearest enemies.
     fn art_projectile(&mut self, a: usize, n: &ArtLevel, dt: f32, might: f32, haste: f32) {
         self.arts[a].timer -= dt;
         if self.arts[a].timer > 0.0 {
             return;
         }
-        self.arts[a].timer = n.cooldown * haste;
+        self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
+        if !self.shoot_nearest(a, n, might * self.kind_power(a)) {
+            // Nothing in range: look again soon instead of waiting out the cooldown.
+            self.arts[a].timer = 0.15;
+        }
+    }
+
+    /// One volley of art `a` with numbers `n`: a shot at each of the nearest
+    /// enemies in range. Returns whether anything was shot at.
+    pub(crate) fn shoot_nearest(&mut self, a: usize, n: &ArtLevel, might: f32) -> bool {
         let def = &ARTS[a];
         let (px, py) = (self.player.x, self.player.y);
-        // The nearest `count` enemies, nearest first.
+        // The nearest `count` enemies, nearest first. Needles throw twice as many at half the damage.
         const MOST: usize = 8;
-        let count = n.count.min(MOST);
+        let swarm = self.kind_trait(a) == WT_SWARM;
+        let count = if swarm { (n.count * 2).min(MOST) } else { n.count.min(MOST) };
+        let might = if swarm { might * 0.5 } else { might };
+        let extra = self.kind_pierce(a);
         let mut best = [(f32::MAX, 0usize); MOST];
         for (i, e) in self.enemies.iter().enumerate() {
             let d = (e.x - px) * (e.x - px) + (e.y - py) * (e.y - py);
@@ -163,19 +369,21 @@ impl Game {
                 vy: dy / d * def.speed,
                 life: def.life,
                 dmg: n.damage * might,
-                pierce: n.pierce,
+                pierce: n.pierce + extra,
                 last: 0,
                 art: a as u8,
                 push: n.knockback,
+                split: 0,
+                grow: 0.0,
+                size: 1.0,
+                zen: 0,
             });
             fired = true;
         }
         if fired {
             self.event(EV_SHOOT, px, py, 0.0);
-        } else {
-            // Nothing in range: look again soon instead of waiting out the cooldown.
-            self.arts[a].timer = 0.15;
         }
+        fired
     }
 
     /// Beads that circle the player. Their places come from the clock, so
@@ -183,7 +391,8 @@ impl Game {
     fn art_orbit(&mut self, a: usize, n: &ArtLevel, might: f32) {
         let element = self.arts[a].element;
         let (px, py) = (self.player.x, self.player.y);
-        let dmg = n.damage * might;
+        let dmg = n.damage * might * self.kind_power(a);
+        let knock = n.knockback * self.kind_knock(a);
         for k in 0..n.count {
             let (bx, by) = self.orbit_pos(a, n, k);
             for i in 0..self.enemies.len() {
@@ -197,7 +406,7 @@ impl Game {
                     let (ox, oy) = (e.x - px, e.y - py);
                     let d = (ox * ox + oy * oy).sqrt().max(0.001);
                     self.enemies[i].bead_cd = n.cooldown;
-                    self.strike(i, dmg, ox / d * n.knockback, oy / d * n.knockback, element);
+                    self.strike(i, dmg, ox / d * knock, oy / d * knock, element);
                 }
             }
             self.formation_hit_bead(bx, by, dmg);
@@ -221,7 +430,7 @@ impl Game {
 
     /// Where bead `k` of an orbit art is now.
     fn orbit_pos(&self, a: usize, n: &ArtLevel, k: usize) -> (f32, f32) {
-        let radius = n.reach;
+        let radius = n.reach * self.kind_reach(a);
         let angle = self.time * ARTS[a].speed + k as f32 * TAU / n.count as f32;
         (self.player.x + fmath::cos(angle) * radius, self.player.y + fmath::sin(angle) * radius * 0.8)
     }
@@ -232,17 +441,24 @@ impl Game {
         if self.arts[a].timer > 0.0 {
             return;
         }
-        self.arts[a].timer = n.cooldown * haste;
-        let element = self.arts[a].element;
+        self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
         let (px, py) = (self.player.x, self.player.y);
-        let radius = n.reach;
-        let dmg = n.damage * might;
+        let (reach, power, knock) = (self.kind_reach(a), self.kind_power(a), self.kind_knock(a));
+        self.ring(a, px, py, n.reach * reach, n.damage * might * power, n.knockback * knock);
+        self.event(EV_PULSE, px, py, 0.0);
+    }
+
+    /// A ring of art `a` centred on (cx, cy): everything within `radius` is
+    /// hit and pushed away from the centre.
+    pub(crate) fn ring(&mut self, a: usize, cx: f32, cy: f32, radius: f32, dmg: f32, knockback: f32) {
+        let element = self.arts[a].element;
+        let (px, py) = (cx, cy);
         for i in 0..self.enemies.len() {
             let e = &self.enemies[i];
             let (dx, dy) = (e.x - px, e.y - py);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             if d < radius {
-                self.strike(i, dmg, dx / d * n.knockback, dy / d * n.knockback, element);
+                self.strike(i, dmg, dx / d * knockback, dy / d * knockback, element);
             }
         }
         self.formation_hit_circle(px, py, radius, dmg);
@@ -254,7 +470,7 @@ impl Game {
             vy: 0.0,
             life: 0.35,
             max: 0.35,
-            part: ARTS[a].part,
+            part: P_RING,
             hw: 20.0,
             hh: 20.0,
             rot: 0.0,
@@ -264,16 +480,20 @@ impl Game {
             seed: 0.7,
             top: true,
         });
-        self.event(EV_PULSE, px, py, 0.0);
     }
 
     /// Draw what the arts keep in the air: shots in flight and circling beads.
     pub(crate) fn draw_arts(&mut self) {
         for i in 0..self.shots.len() {
             let s = &self.shots[i];
-            let (x, y, rot, a) = (s.x, s.y, fmath::atan2(s.vy, s.vx) + TAU * 0.25, s.art as usize);
+            let (x, y, rot, a, size) = (s.x, s.y, fmath::atan2(s.vy, s.vx) + TAU * 0.25, s.art as usize, s.size);
             let color = self.art_color(a, PAPER_GOLD, 1.0);
-            self.put(x, y - 24.0, 6.0, 11.0, rot, ARTS[a].part, 0.0, 0.5, color);
+            // A blade wave of a sweeping art is drawn as a slash across its flight.
+            if ARTS[a].behaviour == B_ARC {
+                self.put(x, y - 24.0, 26.0 * size, 26.0 * size, rot - TAU * 0.25, ARTS[a].part, 0.0, 0.5, color);
+            } else {
+                self.put(x, y - 24.0, 6.0 * size, 11.0 * size, rot, ARTS[a].part, 0.0, 0.5, color);
+            }
         }
         for (a, def) in ARTS.iter().enumerate() {
             if def.behaviour != B_ORBIT {

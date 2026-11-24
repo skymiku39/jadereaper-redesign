@@ -80,6 +80,8 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
+  /* A finger on the game view steers; it must not scroll or zoom the page. */
+  touch-action: none;
 }
 
 /* ------------------------------------------------------------ paper pieces */
@@ -330,7 +332,8 @@ button.card { font-family: var(--hand); }
   position: fixed;
   inset: 0;
   pointer-events: none;
-  padding: 12px 16px;
+  /* Clear of a phone's notch and rounded corners. */
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -476,3 +479,135 @@ button.card { font-family: var(--hand); }
   .card.art-card .glyph { font-size: 32px; }
   .card.art-card .name { font-size: 17px; }
 }
+
+/* Marks the HUD while a replay from a link plays. */
+.replay-tag { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%) rotate(-1.5deg); color: var(--vermilion, #b8412b); font-size: 18px; }
+.replay-tag[hidden] { display: none; }
+
+/* Low health: a vermilion wash creeps in from the edges and pulses. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(194, 69, 45, 0.45) 100%);
+}
+body.low-health::after { opacity: 1; animation: low-pulse 0.9s ease-in-out infinite; }
+@keyframes low-pulse { 50% { opacity: 0.55; } }
+
+/* The experience bar glows for a moment on a level-up. */
+#hud .xp.flash .xp-fill { animation: xp-flash 0.6s ease-out; }
+@keyframes xp-flash { 0% { filter: brightness(2.2) saturate(0.6); } 100% { filter: none; } }
+
+/* An art on a route: its move order as dots, the move just used lit. */
+.chip .beats { display: inline-flex; gap: 2px; margin-left: 2px; align-self: center; }
+.chip .beats em { width: 5px; height: 5px; border-radius: 50%; background: rgba(43, 38, 34, 0.25); }
+.chip .beats em.on { background: var(--vermilion); }
+/* The martial record: a scrolling list of routes by weapon. */
+.record-sheet { width: min(760px, 94vw); }
+.record-body { max-height: 62vh; overflow-y: auto; text-align: left; padding: 0 6px; }
+.record-art { font-family: var(--brush); font-size: 26px; color: var(--jade-dark); margin: 14px 0 6px; font-weight: 400; }
+.record-route { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--jade-dark); background: rgba(255, 255, 255, 0.25); }
+.record-route.unknown { border-left-color: rgba(43, 38, 34, 0.25); opacity: 0.7; }
+.record-route-title { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
+.record-route-title b { font-family: var(--title); font-size: 19px; }
+.record-tag { font-size: 13px; color: var(--ink-soft); }
+.record-move { display: flex; gap: 10px; font-size: 14px; line-height: 1.4; margin-left: 10px; }
+.record-move b { min-width: 7.5em; font-weight: 700; }
+.record-move b.ultimate { color: var(--vermilion); }
+.record-move span { color: var(--ink-soft); }
+.record-move.unknown b { color: rgba(43, 38, 34, 0.35); letter-spacing: 0.1em; }
+.record-heights b { margin-left: 4px; }
+/* Give a kept manual to this route. */
+.record-give { margin: 6px 0 2px 10px; font-size: 14px; padding: 4px 12px; }
+/* The decks: five narrower cards; an empty deck is greyed out. */
+.deck-card { flex-basis: 150px; }
+.deck-card .glyph { font-size: 44px; }
+.deck-card[disabled] { opacity: 0.35; filter: grayscale(1); cursor: default; }
+/* Fine steel shines silver; a famous blade (like a fine card) gold. */
+.steel-card::before { box-shadow: inset 0 0 0 3px #8e9aa6, 0 0 10px rgba(142, 154, 166, 0.5); }
+.steel-card .name { color: #5c6874; }
+.chip-steel::before { box-shadow: inset 0 0 0 2px #8e9aa6; }
+.chip-famous::before { box-shadow: inset 0 0 0 2px #c9a23a, 0 0 8px rgba(201, 162, 58, 0.5); }
+/* A fine card (two layers at once) shines gold. */
+.fine-card::before { box-shadow: inset 0 0 0 3px #c9a23a, 0 0 14px rgba(201, 162, 58, 0.55); }
+.fine-card .rank { color: #a7811f; }
+/* A route card: the next move's line keeps its own line. */
+.route-card .desc { white-space: pre-line; }
+/* A route move's name, brushed over the player for a moment the first time it is used. */
+.callout {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%) rotate(-3deg);
+  font-family: var(--brush);
+  font-size: 34px;
+  color: var(--ink);
+  text-shadow: 0 0 6px rgba(244, 236, 220, 0.9), 2px 2px 0 rgba(244, 236, 220, 0.7);
+  white-space: nowrap;
+  animation: callout 1s ease-out forwards;
+}
+.callout.big { font-size: 56px; color: var(--vermilion); animation-duration: 1.4s; }
+.callout.ultimate { color: var(--vermilion); }
+/* An ultimate at its height (極致): big gold brush strokes. */
+.callout.zenith {
+  font-size: 60px;
+  color: #b8860b;
+  text-shadow: 0 0 10px rgba(255, 230, 160, 0.9), 2px 2px 0 rgba(90, 60, 10, 0.5);
+  animation-duration: 1.6s;
+}
+/* A school elite's move: red ink, a little smaller, like a challenge called across the field. */
+.callout.foe { color: #9b1d12; font-size: 30px; transform: translate(-50%, -50%) rotate(3deg); }
+@keyframes callout {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-3deg) scale(1.8); }
+  15% { opacity: 1; transform: translate(-50%, -50%) rotate(-3deg) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -60%) rotate(-3deg) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.low-health::after { animation: none; }
+  .callout, .callout.big, .callout.ultimate, .callout.foe { animation: fade 1s ease-out reverse forwards; }
+  #hud .xp.flash .xp-fill { animation: none; }
+}
+
+/* Touch: the floating stick, a paper disc where the finger landed, and its knob. */
+.touch-stick {
+  position: fixed;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 50%;
+  background: rgba(246, 240, 223, 0.35);
+  border: 2px solid rgba(43, 38, 33, 0.35);
+  pointer-events: none;
+  z-index: 5;
+}
+.touch-stick[hidden] { display: none; }
+.touch-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  border-radius: 50%;
+  background: var(--paper, #f6f0df);
+  border: 2px solid rgba(43, 38, 33, 0.7);
+  box-shadow: 3px 4px 0 rgba(43, 38, 33, 0.25);
+}
+/* The pause button, for screens without an Esc key. */
+.touch-pause {
+  display: none;
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  pointer-events: auto;
+  width: auto;
+  min-width: 0;
+  font-size: 20px;
+  padding: 10px 16px;
+}
+body.touch .touch-pause { display: block; }

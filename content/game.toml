@@ -17,7 +17,7 @@
 ink = [0.17, 0.15, 0.13]
 
 # Size of the HUD state buffer in floats.
-state_floats = 80
+state_floats = 136
 
 # How many martial arts the player can hold at once. An art not yet held is
 # not offered once this many are.
@@ -26,7 +26,7 @@ max_arts = 6
 # ---------------------------------------------------------------- parts
 # Paper part ids, sent to the renderer in each instance. The name is also the
 # key for an image override in assets/parts.json. Ids must be 0..31 (the
-# shader has 32 image slots). Id 17 is free.
+# shader has 32 image slots). Ids 19 to 31 are free.
 
 [[part]]
 id = 0
@@ -96,9 +96,26 @@ name = "ring"
 id = 16
 name = "scrap"
 
+# One brush digit of a damage number; the instance's seed picks which (0.0
+# for 0, 0.1 for 1 ... 0.9 for 9).
+[[part]]
+id = 17
+name = "digit"
+
 [[part]]
 id = 18
 name = "ground_shadow"
+
+# The sabre the player holds when the scythe art's kind is a sabre (單刀, and
+# twice for 雙刀).
+[[part]]
+id = 19
+name = "dao"
+
+# The broad blade on a pole the player holds for 大刀.
+[[part]]
+id = 20
+name = "dadao"
 
 # ------------------------------------------------------------- upgrades
 # Ids index the upgrade tables, so they run 0, 1, 2... without gaps.
@@ -164,6 +181,462 @@ id = 9
 name = "mending"
 max = 5
 glyph = "癒"
+
+# Inner arts (心法) that only exist while the `routes` tune is on.
+[[upgrade]]
+id = 10
+name = "jieli"
+max = 3
+glyph = "借"
+
+[[upgrade]]
+id = 11
+name = "qiguan"
+max = 3
+glyph = "貫"
+
+[[upgrade]]
+id = 12
+name = "wanfa"
+max = 3
+glyph = "歸"
+
+# The second batch of weapons (docs/martial-arts.md), offered only while the
+# `routes` tune is on (`routes_only` on their [[art]]).
+[[upgrade]]
+id = 13
+name = "sword"
+max = 6
+glyph = "劍"
+
+[[upgrade]]
+id = 14
+name = "spear"
+max = 6
+glyph = "槍"
+
+# -------------------------------------------------------------- passives
+# What each passive upgrade does: one `stat`, changed by `amount` per level of
+# the [[upgrade]] of the same name. How the levels add up depends on the stat:
+#   max_hp        `amount` more health, and as much healed, each time it is picked
+#   move_speed    walking speed times 1 + amount x level
+#   pickup_range  the range gems are pulled from, times 1 + amount x level
+#   damage        every martial art's damage times 1 + amount x level
+#   cooldown      every martial art's cooldown times amount ^ level
+#   regen         `amount` x level health back per second
+# Every upgrade is either an [[art]] or a passive. The six here are the
+# prototype's and are to be redesigned (docs/design.md, section 4.5).
+
+[[passive]]
+name = "vitality"
+stat = "max_hp"
+amount = 20
+
+[[passive]]
+name = "swift"
+stat = "move_speed"
+amount = 0.08
+
+[[passive]]
+name = "lure"
+stat = "pickup_range"
+amount = 0.3
+
+[[passive]]
+name = "might"
+stat = "damage"
+amount = 0.12
+
+[[passive]]
+name = "haste"
+stat = "cooldown"
+amount = 0.92
+
+[[passive]]
+name = "mending"
+stat = "regen"
+amount = 0.4
+
+# With the `routes` tune on, the passives are inner arts (心法) of three
+# layers (core/src/inner.rs, docs/design.md 4.8.4): the first layer does what
+# is written above, once; the second and third change a rule. These three
+# exist only then:
+#   splash   a share of a blow, per layer, passes to the enemies within reach
+#            of one that a hit throws back (四兩撥千斤)
+#   reach    melee moves reach this much further; from layer 2 the last move
+#            of a melee route also sends a blade of qi (氣貫長虹)
+#   element  hits that carry an element land this much harder; from layer 2
+#            reactions too (萬法歸一功)
+
+[[passive]]
+name = "jieli"
+stat = "splash"
+amount = 0.15
+
+[[passive]]
+name = "qiguan"
+stat = "reach"
+amount = 0.1
+
+[[passive]]
+name = "wanfa"
+stat = "element"
+amount = 0.15
+
+# --------------------------------------------------------------- enemies
+# Enemy kinds. Ids index a table, so they run 0, 1, 2... without gaps.
+# `radius` is what it collides with, `half_width` and `half_height` how large
+# its part is drawn, `pose_rate` how many times a second its puppet changes
+# pose, `xp` the worth of the gem it drops. Flags, each false when left out:
+# `corpse` (a corpse or a spirit, which the holy element hits hardest),
+# `heavy` (hard to push, bursts into more pieces), `hover` (drawn floating).
+#
+# How it joins the horde of the missions that have one:
+#   from    seconds into the run before the horde sends it
+#   share   its share of the horde's spawns from then on
+#   ramp    above 0, the share grows from nothing to `share` over this many
+#           seconds after `from`
+#   tune    the name of a tune that holds its share instead of `share`
+#   every   above 0, one comes every this many seconds with an announcement,
+#           and none with the horde
+# Enemy 0 takes none of these: it is whatever the others leave of the horde.
+# Missions that place their own enemies name the kinds in their own code.
+
+[[enemy]]
+id = 0
+name = "blot"
+part = "blot"
+color = [0.33, 0.31, 0.30]
+hp = 14
+speed = 62
+radius = 16
+damage = 5
+xp = 1
+half_width = 18
+half_height = 18
+pose_rate = 5
+
+[[enemy]]
+id = 1
+name = "wisp"
+part = "wisp"
+color = [0.36, 0.40, 0.56]
+hp = 7
+speed = 118
+radius = 12
+damage = 4
+xp = 1
+half_width = 22
+half_height = 13
+pose_rate = 9
+corpse = true
+hover = true
+from = 25
+share = 0.3
+
+[[enemy]]
+id = 2
+name = "brute"
+part = "brute"
+color = [0.58, 0.31, 0.24]
+hp = 70
+speed = 44
+radius = 26
+damage = 12
+xp = 5
+half_width = 30
+half_height = 30
+pose_rate = 3
+heavy = true
+from = 60
+share = 0.25
+ramp = 400
+
+[[enemy]]
+id = 3
+name = "elite"
+part = "brute"
+color = [0.74, 0.25, 0.18]
+hp = 600
+speed = 56
+radius = 44
+damage = 20
+xp = 40
+half_width = 52
+half_height = 52
+pose_rate = 2.5
+heavy = true
+every = 90
+
+# Faster than the player (190), so it cannot be outrun, but it falls to one
+# blow. Only the `chasers` tune sends it.
+[[enemy]]
+id = 4
+name = "hound"
+part = "wisp"
+color = [0.52, 0.20, 0.16]
+hp = 10
+speed = 215
+radius = 11
+damage = 6
+xp = 1
+half_width = 17
+half_height = 10
+pose_rate = 12
+tune = "chasers"
+
+# Disciples of the schools (docs/design.md 4.8.6): they join the horde at the
+# share of the `school_share` tune each, and the first one the player fells
+# teaches him that school's stolen routes (偷師). For now they only charge;
+# the elites that use a school's moves with a warning are still to come.
+[[enemy]]
+id = 5
+name = "bandit"
+part = "blot"
+color = [0.50, 0.30, 0.20]
+hp = 22
+speed = 70
+radius = 17
+damage = 6
+xp = 2
+half_width = 19
+half_height = 19
+pose_rate = 6
+tune = "school_share"
+school = "heifeng"
+
+[[enemy]]
+id = 6
+name = "constable"
+part = "blot"
+color = [0.22, 0.28, 0.42]
+hp = 26
+speed = 66
+radius = 17
+damage = 6
+xp = 2
+half_width = 19
+half_height = 19
+pose_rate = 5
+tune = "school_share"
+school = "liushanmen"
+
+[[enemy]]
+id = 7
+name = "needler"
+part = "wisp"
+color = [0.42, 0.24, 0.46]
+hp = 12
+speed = 104
+radius = 12
+damage = 5
+xp = 2
+half_width = 22
+half_height = 13
+pose_rate = 9
+hover = true
+tune = "school_share"
+school = "jiuyou"
+
+[[enemy]]
+id = 8
+name = "puppet"
+part = "blot"
+color = [0.38, 0.44, 0.36]
+hp = 34
+speed = 48
+radius = 18
+damage = 7
+xp = 2
+half_width = 20
+half_height = 20
+pose_rate = 3
+corpse = true
+tune = "school_share"
+school = "jiuyou"
+
+# School elites (core/src/foes.rs): one of each comes alone on its clock while
+# `school_share` is above 0, and uses its school's move named by `strike`,
+# warned of on the ground first and called out in red.
+[[enemy]]
+id = 9
+name = "bandit_chief"
+part = "brute"
+color = [0.55, 0.24, 0.14]
+hp = 240
+speed = 58
+radius = 26
+damage = 9
+xp = 12
+half_width = 30
+half_height = 30
+pose_rate = 3
+heavy = true
+every = 75
+tune = "school_share"
+school = "heifeng"
+strike = "kaitang"
+
+[[enemy]]
+id = 10
+name = "constable_chief"
+part = "brute"
+color = [0.16, 0.22, 0.40]
+hp = 280
+speed = 54
+radius = 26
+damage = 8
+xp = 12
+half_width = 30
+half_height = 30
+pose_rate = 3
+heavy = true
+every = 105
+tune = "school_share"
+school = "liushanmen"
+strike = "qianyang"
+
+[[enemy]]
+id = 11
+name = "claw_crone"
+part = "wisp"
+color = [0.30, 0.40, 0.30]
+hp = 200
+speed = 72
+radius = 20
+damage = 8
+xp = 12
+half_width = 30
+half_height = 18
+pose_rate = 6
+hover = true
+corpse = true
+every = 135
+tune = "school_share"
+school = "jiuyou"
+strike = "gouhun"
+
+# School masters (高手): rare and tough, they use their school's ultimate, and
+# drop a manual (秘笈) of the school when they fall. A stolen route without
+# manuals can be learned to its second move; each manual opens one more
+# (core/src/routes.rs).
+[[enemy]]
+id = 12
+name = "bandit_master"
+part = "brute"
+color = [0.42, 0.16, 0.08]
+hp = 1100
+speed = 52
+radius = 40
+damage = 14
+xp = 40
+half_width = 48
+half_height = 48
+pose_rate = 2.5
+heavy = true
+every = 240
+tune = "school_share"
+school = "heifeng"
+strike = "shede"
+manual = true
+
+[[enemy]]
+id = 13
+name = "constable_master"
+part = "brute"
+color = [0.10, 0.14, 0.32]
+hp = 1200
+speed = 50
+radius = 40
+damage = 12
+xp = 40
+half_width = 48
+half_height = 48
+pose_rate = 2.5
+heavy = true
+every = 300
+tune = "school_share"
+school = "liushanmen"
+strike = "guanmen"
+manual = true
+
+[[enemy]]
+id = 14
+name = "sect_master"
+part = "wisp"
+color = [0.22, 0.30, 0.20]
+hp = 1000
+speed = 64
+radius = 30
+damage = 12
+xp = 40
+half_width = 44
+half_height = 26
+pose_rate = 5
+hover = true
+corpse = true
+every = 360
+tune = "school_share"
+school = "jiuyou"
+strike = "wangui"
+manual = true
+
+# A Tang clan disciple, who throws from afar; felling one teaches the clan's
+# mechanism route (唐門九機匣).
+[[enemy]]
+id = 15
+name = "tang_disciple"
+part = "wisp"
+color = [0.30, 0.34, 0.30]
+hp = 16
+speed = 92
+radius = 12
+damage = 5
+xp = 2
+half_width = 22
+half_height = 13
+pose_rate = 8
+hover = true
+tune = "school_share"
+school = "tangmen"
+
+# A soldier of the frontier army, in a line with a spear; felling one teaches
+# 破軍槍. Its general drops the army's manuals.
+[[enemy]]
+id = 16
+name = "soldier"
+part = "blot"
+color = [0.40, 0.36, 0.24]
+hp = 30
+speed = 60
+radius = 18
+damage = 7
+xp = 2
+half_width = 19
+half_height = 19
+pose_rate = 4
+tune = "school_share"
+school = "bianjun"
+
+[[enemy]]
+id = 17
+name = "general"
+part = "brute"
+color = [0.36, 0.30, 0.14]
+hp = 1300
+speed = 50
+radius = 40
+damage = 14
+xp = 40
+half_width = 48
+half_height = 48
+pose_rate = 2.5
+heavy = true
+every = 280
+tune = "school_share"
+school = "bianjun"
+strike = "hengqiang"
+manual = true
 
 # ------------------------------------------------------------------ arts
 # Martial arts (武學): how the player attacks. Each has one `behaviour`, which
@@ -243,6 +716,1558 @@ cooldown = 4.2
 reach = [180, 210, 240, 270, 300, 330]
 knockback = 520
 
+# A thrust: a straight line from the player at the nearest enemy within its
+# reach (or along the aim), `width` wide on each side. The sword is quick and
+# short, the spear slow and long.
+[[art]]
+id = 4
+name = "sword"
+behaviour = "thrust"
+part = "talisman"
+first_delay = 0.4
+routes_only = true
+damage = [18, 24, 30, 36, 42, 48]
+cooldown = 0.7
+reach = [220, 250, 270, 290, 310, 330]
+width = [12, 13, 14, 15, 16, 17]
+knockback = 180
+
+[[art]]
+id = 5
+name = "spear"
+behaviour = "thrust"
+part = "talisman"
+first_delay = 0.6
+routes_only = true
+damage = [22, 28, 34, 40, 46, 52]
+cooldown = 1.0
+reach = [300, 330, 360, 390, 420, 450]
+width = [10, 11, 12, 13, 14, 15]
+knockback = 260
+
+# -------------------------------------------------------------- weapons
+# Weapon kinds (兵器種類, docs/design.md 4.8.2): with the `routes` tune on, an
+# art's weapon is one of its kinds, which the weapons deck draws; a held art
+# can change to another kind and keep its level and route. Ids index a table
+# (at most 32). Each art with kinds has exactly one `start` kind, the one it
+# comes in when first taken. The form tags change its numbers (core/src/kinds.rs):
+#   long       reach 15% further, a beat 10% slower
+#   short      reach 10% less, a beat 10% quicker
+#   heavy      10% more damage, 30% more knockback, a beat 10% slower
+#   light      a beat 10% quicker
+#   paired     20% more damage (two blades)
+#   mechanism  learns only the routes limited to it (`only` on [[route]])
+# A `trait` is what the kind does of its own: `hook` pulls in the last enemy a
+# sweep hits, `pierce` lets shots pass one enemy more, `swarm` throws twice the
+# shots at half the damage, `tip` sweeps round the tip of a thrust, `bend`
+# whips on from the tip of a thrust to the nearest enemy there.
+# Names are `weapon.<name>` in src/i18n.js.
+
+[[weapon]]
+id = 0
+name = "dandao"
+art = "scythe"
+glyph = "刀"
+short = true
+light = true
+start = true
+
+[[weapon]]
+id = 1
+name = "shuangdao"
+art = "scythe"
+glyph = "雙"
+short = true
+light = true
+paired = true
+
+[[weapon]]
+id = 2
+name = "dadao"
+art = "scythe"
+glyph = "斬"
+long = true
+heavy = true
+
+[[weapon]]
+id = 3
+name = "lian"
+art = "scythe"
+glyph = "鐮"
+short = true
+light = true
+trait = "hook"
+
+[[weapon]]
+id = 4
+name = "qimeigun"
+art = "beads"
+glyph = "棍"
+start = true
+
+[[weapon]]
+id = 5
+name = "changgun"
+art = "beads"
+glyph = "長"
+long = true
+
+[[weapon]]
+id = 6
+name = "biao"
+art = "talisman"
+glyph = "鏢"
+light = true
+start = true
+
+[[weapon]]
+id = 7
+name = "feidao"
+art = "talisman"
+glyph = "飛"
+light = true
+trait = "pierce"
+
+[[weapon]]
+id = 8
+name = "zhen"
+art = "talisman"
+glyph = "針"
+light = true
+trait = "swarm"
+
+[[weapon]]
+id = 9
+name = "tushou"
+art = "pulse"
+glyph = "拳"
+short = true
+light = true
+start = true
+
+[[weapon]]
+id = 10
+name = "hushou"
+art = "pulse"
+glyph = "護"
+short = true
+heavy = true
+
+[[weapon]]
+id = 11
+name = "zhaotao"
+art = "pulse"
+glyph = "爪"
+short = true
+light = true
+
+# The Tang clan's mechanisms: hidden weapons that only learn the routes limited
+# to them (`only` on [[route]]), and only come once such a route is known.
+[[weapon]]
+id = 12
+name = "xiujian"
+art = "talisman"
+glyph = "袖"
+light = true
+mechanism = true
+
+[[weapon]]
+id = 13
+name = "jiguanxia"
+art = "talisman"
+glyph = "匣"
+heavy = true
+mechanism = true
+
+[[weapon]]
+id = 14
+name = "changjian"
+art = "sword"
+glyph = "劍"
+light = true
+start = true
+
+[[weapon]]
+id = 15
+name = "shuangjian"
+art = "sword"
+glyph = "雙"
+light = true
+paired = true
+
+[[weapon]]
+id = 16
+name = "ruanjian"
+art = "sword"
+glyph = "軟"
+light = true
+trait = "bend"
+
+[[weapon]]
+id = 17
+name = "changqiang"
+art = "spear"
+glyph = "槍"
+long = true
+start = true
+
+[[weapon]]
+id = 18
+name = "huaqiang"
+art = "spear"
+glyph = "花"
+light = true
+
+[[weapon]]
+id = 19
+name = "ji"
+art = "spear"
+glyph = "戟"
+long = true
+heavy = true
+trait = "tip"
+
+# -------------------------------------------------------------- schools
+# Schools (門派): where a route comes from (docs/martial-arts.md). Ids index a
+# table, so they run 0, 1, 2... without gaps. Names are `school.<name>` in
+# src/i18n.js.
+
+[[school]]
+id = 0
+name = "duanyue"
+
+[[school]]
+id = 1
+name = "changfeng"
+
+[[school]]
+id = 2
+name = "caobang"
+
+[[school]]
+id = 3
+name = "tangmen"
+
+[[school]]
+id = 4
+name = "xuanzhong"
+
+[[school]]
+id = 5
+name = "qiushui"
+
+# The schools of the three powers (docs/martial-arts.md): their routes are
+# stolen, not known from the start.
+[[school]]
+id = 6
+name = "heifeng"
+
+[[school]]
+id = 7
+name = "liushanmen"
+
+[[school]]
+id = 8
+name = "jiuyou"
+
+[[school]]
+id = 9
+name = "qingming"
+
+[[school]]
+id = 10
+name = "baima"
+
+[[school]]
+id = 11
+name = "bianjun"
+
+# --------------------------------------------------------------- routes
+# Routes (套路, docs/design.md 4.8.3): with the `routes` tune on, an art that
+# reaches level 3 takes one of the routes that name it, and from then on uses
+# that route's moves in turn, one every `beat` seconds (before the haste
+# passive), instead of its own numbers. Levels 1 and 2 stay the art's basic
+# move. Its top level becomes 2 + the route's moves, the last of which may be
+# the ultimate (絕招). `start` marks a route known from the start; the others
+# are stolen (偷師) and are not offered yet. `zenith` names the inner art its
+# ultimate needs, with the route whole and an element on the art, to reach its
+# height (極致, core/src/zenith.rs). At most three routes per art.
+# Text is `route.<name>.name` and `.desc` in src/i18n.js.
+
+[[route]]
+id = 0
+name = "bengyue"
+art = "scythe"
+school = "duanyue"
+beat = 1.0
+start = true
+suits = "dadao"
+zenith = "might"
+
+[[route]]
+id = 1
+name = "jinghong"
+art = "scythe"
+school = "changfeng"
+beat = 0.5
+start = true
+suits = "dandao shuangdao"
+zenith = "haste"
+
+# The beads stand in for a staff (棍): it keeps circling, and the moves come on top.
+[[route]]
+id = 2
+name = "poyu"
+art = "beads"
+school = "changfeng"
+beat = 1.0
+start = true
+suits = "changgun"
+zenith = "jieli"
+
+[[route]]
+id = 3
+name = "fanjiang"
+art = "beads"
+school = "caobang"
+beat = 1.1
+start = true
+suits = "changgun"
+zenith = "qiguan"
+
+# The talisman stands in for hidden weapons (暗器).
+[[route]]
+id = 4
+name = "ershiba"
+art = "talisman"
+school = "tangmen"
+beat = 0.95
+start = true
+suits = "biao feidao"
+zenith = "swift"
+
+[[route]]
+id = 5
+name = "chuanyang"
+art = "talisman"
+school = "changfeng"
+beat = 1.3
+start = true
+suits = "feidao biao"
+zenith = "mending"
+
+# The pulse stands in for the fist and palm (拳掌).
+[[route]]
+id = 6
+name = "muguchenzhong"
+art = "pulse"
+school = "xuanzhong"
+beat = 2.2
+start = true
+suits = "tushou hushou"
+zenith = "might"
+
+[[route]]
+id = 7
+name = "zhuoyu"
+art = "pulse"
+school = "qiushui"
+beat = 0.5
+start = true
+suits = "tushou"
+zenith = "haste"
+
+# Stolen routes (偷師): offered only once a disciple of their school has
+# fallen to the player, in this run or an earlier one (the `stolen` tune).
+# A negative knockback pulls enemies in instead of throwing them back.
+[[route]]
+id = 8
+name = "lulin"
+art = "scythe"
+school = "heifeng"
+beat = 0.9
+suits = "dadao dandao"
+zenith = "vitality"
+rule = "crowd"
+
+[[route]]
+id = 9
+name = "shuihuo"
+art = "beads"
+school = "liushanmen"
+beat = 1.2
+suits = "qimeigun"
+zenith = "lure"
+
+[[route]]
+id = 10
+name = "yinhun"
+art = "talisman"
+school = "jiuyou"
+beat = 0.6
+suits = "zhen"
+zenith = "wanfa"
+rule = "opening"
+
+[[route]]
+id = 11
+name = "shesou"
+art = "pulse"
+school = "jiuyou"
+beat = 1.6
+suits = "zhaotao"
+zenith = "lure"
+
+# 唐門九機匣: limited to the mechanisms (`only`), stolen from the Tang
+# clan's disciples. Its moves set down mechanisms that shoot by themselves.
+[[route]]
+id = 12
+name = "jiuji"
+art = "talisman"
+school = "tangmen"
+beat = 1.5
+suits = "jiguanxia"
+zenith = "swift"
+only = "xiujian jiguanxia"
+
+# The sword's routes.
+[[route]]
+id = 13
+name = "liuyun"
+art = "sword"
+school = "qingming"
+beat = 0.55
+start = true
+suits = "changjian ruanjian"
+zenith = "wanfa"
+
+[[route]]
+id = 14
+name = "qiushuijian"
+art = "sword"
+school = "qiushui"
+beat = 1.4
+start = true
+suits = "changjian"
+zenith = "mending"
+
+[[route]]
+id = 15
+name = "xuehe"
+art = "sword"
+school = "jiuyou"
+beat = 0.7
+suits = "changjian shuangjian"
+zenith = "vitality"
+rule = "momentum"
+
+# The spear's routes.
+[[route]]
+id = 16
+name = "changban"
+art = "spear"
+school = "baima"
+beat = 0.9
+start = true
+suits = "changqiang huaqiang"
+zenith = "swift"
+
+[[route]]
+id = 17
+name = "youlong"
+art = "spear"
+school = "caobang"
+beat = 0.6
+start = true
+suits = "huaqiang"
+zenith = "haste"
+
+[[route]]
+id = 18
+name = "pojun"
+art = "spear"
+school = "bianjun"
+beat = 1.2
+suits = "changqiang ji"
+zenith = "might"
+
+# ---------------------------------------------------------------- moves
+# Moves (式) of the routes above. A route's moves have ids that follow each
+# other and are used in that order. Lengths are shares of the art's level-2
+# numbers (`reach = 1` is its reach then), and `power` a share of its damage
+# then. Every key but `route` and `shape` may be left out and is then 0.
+#   arc    sweeps around the player: `width` is a cosine bound like an art's
+#          (-2 all round); `count` sweeps, `spread` turns apart, `delay`
+#          seconds apart, each later one reaching `grow` further
+#   wave   `count` blade waves along the aim, fanned over `spread` turns,
+#          each hitting `pierce` enemies, at `speed` for `life` seconds
+#   marks  `count` marks ahead, `spread` reaches apart, each a circle of
+#          `reach` that strikes `delay` seconds later
+#   ring   `count` rings of `reach`, `delay` seconds apart, each later one
+#          reaching `grow` further, centred `offset` reaches ahead
+# A wave with `seek = 1` aims at the nearest enemy; with `delay` its waves
+# fly one after another down one line instead of in a fan; `split` small
+# waves burst from where each one's flight ends; `grow` adds that share of
+# damage with each enemy it passes through. A `spread` of 1 or more sets the
+# waves evenly all round.
+# `stop` asks the host for a moment of hit-stop when the move is used.
+# Text is `move.<name>.name` and `.desc` (the card's line) in src/i18n.js.
+
+# 崩嶽十三刀: slow and wide.
+[[move]]
+id = 0
+name = "hengyun"
+route = "bengyue"
+shape = "arc"
+power = 1.3
+reach = 1.0
+width = 0.0
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 1
+name = "huishou"
+route = "bengyue"
+shape = "arc"
+power = 1.2
+reach = 1.0
+width = -0.15
+count = 2
+spread = 0.5
+knockback = 1.0
+
+[[move]]
+id = 2
+name = "wanren"
+route = "bengyue"
+shape = "arc"
+power = 2.0
+reach = 1.3
+width = -2
+count = 1
+knockback = 2.0
+stop = true
+
+[[move]]
+id = 3
+name = "wuyue"
+route = "bengyue"
+shape = "arc"
+power = 3.5
+reach = 1.3
+width = -2
+count = 2
+delay = 0.15
+grow = 0.3
+knockback = 2.0
+ultimate = true
+stop = true
+
+# 驚鴻刀法: narrow and fast, many moves.
+[[move]]
+id = 4
+name = "yipie"
+route = "jinghong"
+shape = "arc"
+power = 0.7
+reach = 0.9
+width = 0.85
+count = 1
+knockback = 0.6
+
+[[move]]
+id = 5
+name = "pianruo"
+route = "jinghong"
+shape = "arc"
+power = 0.8
+reach = 1.4
+width = 0.9
+count = 1
+knockback = 0.6
+
+[[move]]
+id = 6
+name = "shuangyan"
+route = "jinghong"
+shape = "arc"
+power = 0.6
+reach = 1.0
+width = 0.85
+count = 2
+delay = 0.1
+knockback = 0.5
+
+[[move]]
+id = 7
+name = "hongfei"
+route = "jinghong"
+shape = "wave"
+power = 1.0
+count = 1
+pierce = 3
+speed = 600
+life = 0.8
+knockback = 0.3
+
+[[move]]
+id = 8
+name = "xueni"
+route = "jinghong"
+shape = "marks"
+power = 0.6
+reach = 0.35
+count = 4
+spread = 0.5
+delay = 0.5
+
+[[move]]
+id = 9
+name = "zhaoying"
+route = "jinghong"
+shape = "wave"
+power = 1.2
+count = 7
+spread = 0.25
+pierce = 5
+speed = 620
+life = 0.8
+knockback = 0.3
+ultimate = true
+stop = true
+
+# 潑雨棍法: the staff fenced round the player.
+[[move]]
+id = 10
+name = "shouwei"
+route = "poyu"
+shape = "arc"
+power = 1.6
+reach = 1.2
+width = -2
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 11
+name = "fengjuan"
+route = "poyu"
+shape = "arc"
+power = 1.6
+reach = 1.3
+width = -2
+count = 1
+knockback = 2.5
+
+[[move]]
+id = 12
+name = "luoye"
+route = "poyu"
+shape = "ring"
+power = 1.8
+reach = 1.45
+count = 1
+knockback = 0.5
+
+[[move]]
+id = 13
+name = "bafang"
+route = "poyu"
+shape = "ring"
+power = 1.4
+reach = 1.3
+count = 4
+delay = 0.25
+grow = 0.25
+knockback = 1.5
+ultimate = true
+stop = true
+
+# 翻江棍: the staff reaching far and pushing away.
+[[move]]
+id = 14
+name = "chaosheng"
+route = "fanjiang"
+shape = "arc"
+power = 1.6
+reach = 2.0
+width = -2
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 15
+name = "jingtao"
+route = "fanjiang"
+shape = "ring"
+power = 2.4
+reach = 0.8
+offset = 2.0
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 16
+name = "nishui"
+route = "fanjiang"
+shape = "arc"
+power = 1.4
+reach = 2.0
+width = -2
+count = 1
+knockback = 2.0
+
+[[move]]
+id = 17
+name = "dajiang"
+route = "fanjiang"
+shape = "arc"
+power = 1.8
+reach = 2.2
+width = -2
+count = 2
+delay = 0.12
+knockback = 2.0
+
+[[move]]
+id = 18
+name = "changhe"
+route = "fanjiang"
+shape = "arc"
+power = 4.0
+reach = 4.0
+width = -2
+count = 1
+knockback = 2.5
+ultimate = true
+stop = true
+
+# 唐門二十八宿鏢: darts thrown in widening fans.
+[[move]]
+id = 19
+name = "sanxing"
+route = "ershiba"
+shape = "wave"
+seek = 1
+power = 0.9
+count = 3
+spread = 0.083
+pierce = 1
+speed = 540
+life = 1.0
+knockback = 0.3
+
+[[move]]
+id = 20
+name = "wuxing"
+route = "ershiba"
+shape = "wave"
+seek = 1
+power = 0.8
+count = 5
+spread = 0.167
+pierce = 1
+speed = 540
+life = 1.0
+knockback = 0.3
+
+[[move]]
+id = 21
+name = "qixing"
+route = "ershiba"
+shape = "wave"
+seek = 1
+power = 0.75
+count = 7
+spread = 0.25
+pierce = 2
+speed = 540
+life = 1.0
+knockback = 0.3
+
+[[move]]
+id = 22
+name = "xingluo"
+route = "ershiba"
+shape = "wave"
+seek = 1
+power = 0.8
+count = 3
+spread = 0.12
+pierce = 1
+split = 3
+speed = 560
+life = 0.8
+knockback = 0.3
+
+[[move]]
+id = 23
+name = "zhoutian"
+route = "ershiba"
+shape = "wave"
+power = 0.8
+count = 28
+spread = 1.0
+pierce = 2
+speed = 520
+life = 1.0
+knockback = 0.3
+ultimate = true
+stop = true
+
+# 百步穿楊手: one dart through a whole line.
+[[move]]
+id = 24
+name = "moshi"
+route = "chuanyang"
+shape = "wave"
+seek = 1
+power = 2.0
+count = 1
+pierce = 4
+speed = 640
+life = 1.1
+knockback = 0.3
+
+[[move]]
+id = 25
+name = "sanjian"
+route = "chuanyang"
+shape = "wave"
+seek = 1
+power = 1.6
+count = 3
+delay = 0.1
+pierce = 3
+speed = 680
+life = 1.1
+knockback = 0.3
+
+[[move]]
+id = 26
+name = "shuangdiao"
+route = "chuanyang"
+shape = "wave"
+seek = 1
+power = 2.0
+count = 1
+pierce = 99
+grow = 0.15
+speed = 700
+life = 1.2
+knockback = 0.2
+
+[[move]]
+id = 27
+name = "houyi"
+route = "chuanyang"
+shape = "wave"
+seek = 1
+power = 6.0
+count = 1
+pierce = 999
+speed = 1800
+life = 0.7
+knockback = 0.1
+ultimate = true
+stop = true
+
+# 暮鼓晨鐘掌: palms like a temple bell, with an echo.
+[[move]]
+id = 28
+name = "chenzhong"
+route = "muguchenzhong"
+shape = "arc"
+power = 1.4
+reach = 1.25
+width = 0.5
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 29
+name = "yuyin"
+route = "muguchenzhong"
+shape = "ring"
+power = 0.9
+reach = 1.0
+count = 2
+delay = 0.5
+knockback = 0.6
+
+[[move]]
+id = 30
+name = "geshan"
+route = "muguchenzhong"
+shape = "ring"
+power = 2.0
+reach = 0.57
+offset = 1.05
+count = 1
+knockback = 0.8
+
+[[move]]
+id = 31
+name = "hongzhong"
+route = "muguchenzhong"
+shape = "ring"
+power = 4.0
+reach = 1.9
+count = 1
+knockback = 1.2
+ultimate = true
+stop = true
+
+# 琢玉拳: small, quick rings close in.
+[[move]]
+id = 32
+name = "qiecuo"
+route = "zhuoyu"
+shape = "ring"
+power = 0.6
+reach = 0.43
+count = 1
+knockback = 0.3
+
+[[move]]
+id = 33
+name = "zhuomo"
+route = "zhuoyu"
+shape = "ring"
+power = 0.5
+reach = 0.43
+count = 2
+delay = 0.12
+knockback = 0.3
+
+[[move]]
+id = 34
+name = "tashan"
+route = "zhuoyu"
+shape = "wave"
+seek = 1
+power = 0.5
+count = 3
+spread = 0.33
+pierce = 2
+speed = 500
+life = 0.5
+knockback = 0.3
+
+[[move]]
+id = 35
+name = "yushi"
+route = "zhuoyu"
+shape = "ring"
+power = 0.5
+reach = 0.43
+count = 2
+delay = 0.2
+grow = 0.5
+knockback = 0.3
+
+[[move]]
+id = 36
+name = "ningwei"
+route = "zhuoyu"
+shape = "ring"
+power = 0.8
+reach = 0.43
+count = 5
+delay = 0.12
+grow = 0.65
+knockback = 0.4
+ultimate = true
+stop = true
+
+# 綠林十八刀 (stolen from the bandits): two crude cuts and a desperate one.
+[[move]]
+id = 37
+name = "menghu"
+route = "lulin"
+shape = "arc"
+power = 1.1
+reach = 1.1
+width = 0.0
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 38
+name = "kaitang"
+route = "lulin"
+shape = "arc"
+power = 1.8
+reach = 1.0
+width = 0.6
+count = 1
+knockback = 1.5
+stop = true
+
+[[move]]
+id = 39
+name = "shede"
+route = "lulin"
+shape = "arc"
+power = 3.0
+reach = 1.3
+width = -2
+count = 2
+delay = 0.12
+knockback = 2.0
+ultimate = true
+stop = true
+
+# 六扇門水火棍 (stolen from the constables): seize them, then strike.
+[[move]]
+id = 40
+name = "qianyang"
+route = "shuihuo"
+shape = "arc"
+power = 1.0
+reach = 1.6
+width = -2
+count = 1
+knockback = -1.5
+
+[[move]]
+id = 41
+name = "yuqin"
+route = "shuihuo"
+shape = "ring"
+power = 1.6
+reach = 1.2
+count = 1
+knockback = 0.3
+
+[[move]]
+id = 42
+name = "shengdong"
+route = "shuihuo"
+shape = "arc"
+power = 1.4
+reach = 1.5
+width = -0.15
+count = 2
+spread = 0.5
+knockback = 1.0
+
+[[move]]
+id = 43
+name = "dacao"
+route = "shuihuo"
+shape = "arc"
+power = 1.2
+reach = 1.5
+width = 0.3
+count = 3
+delay = 0.15
+knockback = 1.0
+
+[[move]]
+id = 44
+name = "guanmen"
+route = "shuihuo"
+shape = "ring"
+power = 2.4
+reach = 2.8
+count = 2
+delay = 0.4
+grow = -0.55
+knockback = -2.0
+ultimate = true
+stop = true
+
+# 黃泉引魂針 (stolen from the sect): needles everywhere.
+[[move]]
+id = 45
+name = "huangquan"
+route = "yinhun"
+shape = "wave"
+power = 0.5
+count = 4
+spread = 1.0
+pierce = 1
+speed = 520
+life = 0.9
+knockback = 0.1
+
+[[move]]
+id = 46
+name = "guimen"
+route = "yinhun"
+shape = "wave"
+power = 0.5
+count = 8
+spread = 1.0
+pierce = 1
+speed = 520
+life = 0.9
+knockback = 0.1
+
+[[move]]
+id = 47
+name = "yanwang"
+route = "yinhun"
+shape = "wave"
+seek = 1
+power = 0.6
+count = 6
+spread = 0.4
+pierce = 2
+speed = 600
+life = 1.0
+knockback = 0.1
+
+[[move]]
+id = 48
+name = "shidian"
+route = "yinhun"
+shape = "wave"
+power = 0.5
+count = 32
+spread = 1.0
+pierce = 2
+speed = 500
+life = 1.1
+knockback = 0.1
+ultimate = true
+stop = true
+
+# 三屍攝魂爪 (stolen from the sect): draw them in, then tear.
+[[move]]
+id = 49
+name = "gouhun"
+route = "shesou"
+shape = "ring"
+power = 0.5
+reach = 1.25
+count = 1
+knockback = -1.2
+
+[[move]]
+id = 50
+name = "poguan"
+route = "shesou"
+shape = "ring"
+power = 1.5
+reach = 1.25
+count = 2
+delay = 0.3
+grow = -0.6
+knockback = -0.6
+
+[[move]]
+id = 51
+name = "wangui"
+route = "shesou"
+shape = "ring"
+power = 3.0
+reach = 3.0
+count = 2
+delay = 0.6
+grow = -0.8
+knockback = -2.0
+ultimate = true
+stop = true
+
+# 唐門九機匣: mechanisms that shoot by themselves (core/src/turrets.rs).
+#   turret  `count` mechanisms: at the player, in a ring `offset × 100` round
+#           him, or circling him at radius `width`; each lives `life` s,
+#           shoots every `delay` s, follows with `seek = 1`, bursts into
+#           `split` shots when it ends; with `slow`, a ring of them is a net
+#           that takes that share off the speed of the enemies inside
+[[move]]
+id = 52
+name = "gongshu"
+route = "jiuji"
+shape = "turret"
+power = 0.6
+width = 120
+count = 1
+life = 6
+delay = 0.6
+speed = 620
+pierce = 1
+
+[[move]]
+id = 53
+name = "jiugong"
+route = "jiuji"
+shape = "turret"
+power = 0.45
+count = 1
+life = 4
+delay = 0.5
+speed = 620
+pierce = 1
+
+[[move]]
+id = 54
+name = "muniu"
+route = "jiuji"
+shape = "turret"
+power = 0.45
+count = 1
+life = 5
+delay = 0.5
+speed = 620
+pierce = 1
+seek = 1
+
+[[move]]
+id = 55
+name = "wannu"
+route = "jiuji"
+shape = "turret"
+power = 0.45
+count = 1
+life = 4
+delay = 0.5
+speed = 620
+pierce = 1
+split = 12
+
+[[move]]
+id = 56
+name = "tianluo"
+route = "jiuji"
+shape = "turret"
+power = 0.4
+offset = 1.6
+count = 8
+life = 3
+delay = 0.35
+speed = 640
+pierce = 2
+slow = 0.5
+ultimate = true
+stop = true
+
+# Thrusts (the sword's and the spear's routes):
+#   thrust  `count` straight thrusts of `reach` (a share of the art's reach):
+#           fanned over `spread` turns (evenly round from 1), or one after
+#           another `delay` seconds apart; `width` above 0 widens them by that
+#           share; `seek = 1` aims at the nearest enemy
+
+# 行雲流水劍: thrust and turn, soft and unbroken.
+[[move]]
+id = 57
+name = "shangshan"
+route = "liuyun"
+shape = "thrust"
+seek = 1
+power = 0.7
+reach = 1.0
+count = 2
+spread = 0.06
+knockback = 0.6
+
+[[move]]
+id = 58
+name = "rouruo"
+route = "liuyun"
+shape = "thrust"
+seek = 1
+power = 0.6
+reach = 1.0
+count = 2
+delay = 0.12
+knockback = 0.6
+
+[[move]]
+id = 59
+name = "daxiang"
+route = "liuyun"
+shape = "thrust"
+seek = 1
+power = 0.6
+reach = 1.1
+count = 2
+delay = 0.4
+knockback = 0.6
+
+[[move]]
+id = 60
+name = "zhouxing"
+route = "liuyun"
+shape = "thrust"
+power = 0.5
+reach = 0.6
+count = 6
+spread = 1.0
+knockback = 0.8
+
+[[move]]
+id = 61
+name = "daofa"
+route = "liuyun"
+shape = "thrust"
+power = 1.0
+reach = 1.2
+count = 8
+spread = 1.0
+knockback = 1.0
+ultimate = true
+stop = true
+
+# 秋水劍: one thrust, very long and very heavy.
+[[move]]
+id = 62
+name = "changtian"
+route = "qiushuijian"
+shape = "thrust"
+seek = 1
+power = 1.6
+reach = 1.8
+width = 1.5
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 63
+name = "wangyang"
+route = "qiushuijian"
+shape = "ring"
+power = 1.2
+reach = 0.4
+offset = 1.0
+count = 1
+knockback = 0.8
+
+[[move]]
+id = 64
+name = "heboguanhai"
+route = "qiushuijian"
+shape = "thrust"
+seek = 1
+power = 2.5
+reach = 2.0
+width = 1.4
+count = 1
+knockback = 1.5
+stop = true
+
+[[move]]
+id = 65
+name = "tiandi"
+route = "qiushuijian"
+shape = "thrust"
+seek = 1
+power = 4.0
+reach = 5.0
+width = 2.2
+count = 1
+knockback = 2.0
+ultimate = true
+stop = true
+
+# 血河劍 (stolen from the sect): quick, bloody, more and more.
+[[move]]
+id = 66
+name = "xueji"
+route = "xuehe"
+shape = "thrust"
+seek = 1
+power = 0.9
+reach = 1.0
+count = 1
+knockback = 0.6
+
+[[move]]
+id = 67
+name = "sharen"
+route = "xuehe"
+shape = "thrust"
+seek = 1
+power = 0.8
+reach = 1.0
+count = 2
+delay = 0.1
+knockback = 0.6
+
+[[move]]
+id = 68
+name = "liucheng"
+route = "xuehe"
+shape = "ring"
+power = 1.0
+reach = 0.6
+count = 1
+knockback = 0.6
+
+[[move]]
+id = 69
+name = "daoxuan"
+route = "xuehe"
+shape = "thrust"
+seek = 1
+power = 0.8
+reach = 1.2
+count = 10
+delay = 0.06
+knockback = 0.4
+ultimate = true
+stop = true
+
+# 長坂槍: thrust and sweep, in and out of the crowd.
+[[move]]
+id = 70
+name = "baima"
+route = "changban"
+shape = "arc"
+power = 1.0
+reach = 0.8
+width = 0.0
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 71
+name = "hengqiang"
+route = "changban"
+shape = "arc"
+power = 1.2
+reach = 1.0
+width = 0.0
+count = 1
+knockback = 2.0
+
+[[move]]
+id = 72
+name = "qijin"
+route = "changban"
+shape = "thrust"
+power = 0.4
+reach = 0.8
+count = 7
+spread = 1.0
+knockback = 0.8
+
+[[move]]
+id = 73
+name = "danqi"
+route = "changban"
+shape = "thrust"
+seek = 1
+power = 0.6
+reach = 1.0
+count = 3
+spread = 0.5
+knockback = 0.8
+
+[[move]]
+id = 74
+name = "yishen"
+route = "changban"
+shape = "thrust"
+power = 0.5
+reach = 1.0
+count = 12
+spread = 1.0
+knockback = 1.0
+ultimate = true
+stop = true
+
+# 游龍槍: quick and alive, the spear tip quivering.
+[[move]]
+id = 75
+name = "baiwei"
+route = "youlong"
+shape = "thrust"
+seek = 1
+power = 0.8
+reach = 1.0
+count = 3
+spread = 0.08
+knockback = 0.6
+
+[[move]]
+id = 76
+name = "taitou"
+route = "youlong"
+shape = "thrust"
+seek = 1
+power = 0.9
+reach = 1.0
+count = 1
+knockback = 2.0
+
+[[move]]
+id = 77
+name = "ruhai"
+route = "youlong"
+shape = "thrust"
+seek = 1
+power = 0.7
+reach = 1.1
+count = 1
+knockback = -1.5
+
+[[move]]
+id = 78
+name = "jiaolong"
+route = "youlong"
+shape = "thrust"
+seek = 1
+power = 0.6
+reach = 1.2
+count = 6
+delay = 0.3
+knockback = 0.6
+ultimate = true
+stop = true
+
+# 破軍槍 (stolen from the frontier army): through a whole line.
+[[move]]
+id = 79
+name = "huangsha"
+route = "pojun"
+shape = "thrust"
+seek = 1
+power = 1.0
+reach = 1.5
+count = 1
+knockback = 1.0
+
+[[move]]
+id = 80
+name = "wanli"
+route = "pojun"
+shape = "thrust"
+seek = 1
+power = 1.0
+reach = 1.3
+count = 1
+knockback = 3.0
+
+[[move]]
+id = 81
+name = "qinghai"
+route = "pojun"
+shape = "thrust"
+seek = 1
+power = 0.9
+reach = 1.3
+count = 3
+spread = 0.05
+knockback = 1.0
+
+[[move]]
+id = 82
+name = "qinshi"
+route = "pojun"
+shape = "thrust"
+seek = 1
+power = 4.0
+reach = 4.0
+width = 3.0
+count = 1
+knockback = 1.5
+ultimate = true
+stop = true
+
 # -------------------------------------------------------------- elements
 # Magic elements (魔法): what a martial art adds to its hits once the element's
 # card is put on it. An art carries one element at most; a new card replaces
@@ -252,8 +2277,9 @@ knockback = 520
 #
 # `effect` is code in core/src/elements.rs; the numbers mean, per effect:
 #   guard   acts on the player: each hit adds `power` guard, up to `cap`.
-#           Guard takes damage before health. After `time` seconds without
-#           a hit it fades by `rate` per second.
+#           Guard takes the share `minor` of a blow (as far as it lasts) and
+#           health takes the rest. After `time` seconds without a hit it
+#           fades by `rate` per second.
 #   regrow  acts on the player: a hit starts `time` seconds of healing
 #           `power` health per second. More hits only restart the time.
 #   surge   `time` seconds after the hit, the enemy takes `power` times the
@@ -276,8 +2302,9 @@ name = "metal"
 glyph = "金"
 color = [0.80, 0.70, 0.36]
 effect = "guard"
-power = 3
-cap = 30
+power = 1
+cap = 12
+minor = 0.4
 time = 2.0
 rate = 6
 
@@ -296,7 +2323,7 @@ name = "water"
 glyph = "水"
 color = [0.25, 0.48, 0.70]
 effect = "surge"
-power = 0.7
+power = 1.0
 time = 0.8
 
 [[element]]
@@ -305,7 +2332,7 @@ name = "fire"
 glyph = "火"
 color = [0.82, 0.34, 0.18]
 effect = "burn"
-power = 0.6
+power = 0.8
 time = 3.0
 rate = 0.5
 
@@ -325,7 +2352,7 @@ name = "lightning"
 glyph = "雷"
 color = [0.56, 0.40, 0.78]
 effect = "chain"
-power = 0.4
+power = 0.3
 count = 3
 reach = 150
 time = 2.0
@@ -337,7 +2364,7 @@ glyph = "聖"
 color = [0.92, 0.86, 0.62]
 effect = "bane"
 power = 0.6
-minor = 0.2
+minor = 0.3
 time = 2.0
 
 # ------------------------------------------------------------- reactions
@@ -445,6 +2472,45 @@ name = "react"
 [[event]]
 id = 14
 name = "attach"
+
+# A commission turned up on the map in endless; it was done; it failed.
+[[event]]
+id = 15
+name = "commission"
+
+[[event]]
+id = 16
+name = "commission_done"
+
+[[event]]
+id = 17
+name = "commission_failed"
+
+# A move of a route was used. The value is the move's id.
+[[event]]
+id = 18
+name = "move"
+
+# A stolen route was learned (偷師). The value is the route's id.
+[[event]]
+id = 19
+name = "steal"
+
+# A school elite began a move, warned of on the ground. The value is the move's id.
+[[event]]
+id = 20
+name = "foe"
+
+# A master dropped a manual (秘笈) of its school, kept for after the run. The
+# value is the school's id.
+[[event]]
+id = 21
+name = "manual"
+
+# An ultimate reached its height (極致). The value is move + 256 × element.
+[[event]]
+id = 22
+name = "zenith"
 
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...
@@ -998,6 +3064,133 @@ min = 0
 max = 7
 step = 1
 
+# Three ways to put pressure on a player who only runs, each off at its
+# default. They are here to be tried against each other.
+#
+# The share of the horde that are hounds, which outrun the player.
+[[tune]]
+id = 46
+name = "chasers"
+mission = "any"
+default = 0.0
+min = 0.0
+max = 0.6
+step = 0.05
+
+# The chance that an enemy comes from where the player is heading instead of
+# from any side.
+[[tune]]
+id = 47
+name = "ambush"
+mission = "any"
+default = 0.0
+min = 0.0
+max = 1.0
+step = 0.1
+
+# The radius of a walled field around where the mission begins, which the
+# player cannot leave. 0 is no wall. Missions that send the player far away
+# cannot be finished inside a small one.
+[[tune]]
+id = 48
+name = "arena_radius"
+mission = "any"
+default = 0
+min = 0
+max = 3000
+step = 100
+
+# Commissions in endless (core/src/commission.rs): 1 on, 0 off.
+[[tune]]
+id = 49
+name = "commissions"
+mission = "endless"
+default = 1
+min = 0
+max = 1
+step = 1
+
+# The deck-first level-up (core/src/decks.rs, docs/design.md 4.9): 1 on, 0
+# off. On, a level-up first asks which deck to draw from, and the magic deck
+# replaces the element cards of `element_cards`.
+[[tune]]
+id = 51
+name = "decks"
+mission = "any"
+default = 1
+min = 0
+max = 1
+step = 1
+
+# The share of the horde each school's disciples take (the enemies with a
+# `school`). 0 sends none.
+[[tune]]
+id = 52
+name = "school_share"
+mission = "any"
+default = 0.04
+min = 0.0
+max = 0.25
+step = 0.01
+
+# The stolen routes learned in earlier runs, as bits by route id. The host
+# sets it from the save (mission "host": never on a setup screen), so a
+# replay plays with what the player knew then.
+[[tune]]
+id = 53
+name = "stolen"
+mission = "host"
+default = 0
+min = 0
+max = 16777215
+step = 1
+
+# The manuals (秘笈) gained in earlier runs: two bits per route id, the number
+# of moves each opens beyond the second on a stolen route. Set by the host.
+[[tune]]
+id = 54
+name = "manuals"
+mission = "host"
+default = 0
+min = 0
+max = 16777215
+step = 1
+
+# The weapon kinds bought at the weapon shop (兵器鋪, docs/design.md 4.12), as
+# bits by weapon id. A kind not bought does not come in the weapons deck; an
+# art's start kind and the mechanisms always do. Set by the host; the default
+# has every kind, as before the shop.
+[[tune]]
+id = 55
+name = "kinds_owned"
+mission = "host"
+default = 16777215
+min = 0
+max = 16777215
+step = 1
+
+# The inner arts (心法) learned with silver, as bits by upgrade id. One not
+# learned is not offered. Set by the host; the default has every one.
+[[tune]]
+id = 56
+name = "inner_owned"
+mission = "host"
+default = 16777215
+min = 0
+max = 16777215
+step = 1
+
+# Routes (套路, the [[route]] entries above): 1 on, 0 off. Off, every art
+# grows by its own numbers up to its top level as before routes existed.
+[[tune]]
+id = 50
+name = "routes"
+mission = "any"
+default = 1
+min = 0
+max = 1
+step = 1
+
 # ---------------------------------------------------------------- state
 # Fields of the HUD state buffer written by Game::write_state. `index` is the
 # first float. A field with `len` is a run of floats; its constant gets a 0
@@ -1063,11 +3256,55 @@ index = 14
 name = "running"
 index = 15
 
-# Current level of each upgrade.
+# The decks (core/src/decks.rs): 1 while a level-up asks which deck to draw
+# from (then `jr_choose` takes a deck, 0 weapons, 1 martial arts, 2 inner arts,
+# 3 magic, 4 fate); per deck, 1 when it can be picked; the deck drawn from
+# last; and per card on offer, 1 for a fine one (two levels at once).
 [[state]]
-name = "upgrade"
+name = "deck_pick"
 index = 16
 
+[[state]]
+name = "deck_open"
+index = 17
+len = 5
+
+[[state]]
+name = "last_deck"
+index = 22
+
+[[state]]
+name = "choice_rank"
+index = 23
+len = 3
+
+# The weapon kind each martial art is, by weapon id plus 1; 0 for none.
+[[state]]
+name = "art_kind"
+index = 112
+len = "art"
+
+# The stolen routes learned so far, as bits by route id (the host saves them).
+[[state]]
+name = "stolen"
+index = 120
+
+# The manuals gained so far, two bits per route id (the host saves them).
+[[state]]
+name = "manuals"
+index = 121
+
+# The quality of each martial art's weapon: 0 plain iron, 1 fine steel, 2 a famous blade.
+[[state]]
+name = "art_quality"
+index = 122
+len = "art"
+
+# Current level of each upgrade. It moved here from index 16, where there is
+# room for more upgrades.
+[[state]]
+name = "upgrade"
+index = 96
 len = "upgrade"
 
 # Id of the mission being played.
@@ -1190,3 +3427,79 @@ name = "art_element"
 index = 64
 
 len = "art"
+
+# The commission in endless: 0 none on the map, 1 offered, 2 under way; the
+# seconds left of that; the seconds the phase lasts in all; the seconds stood
+# at its spot while offered; the village's health and its full health; how
+# many were done this run.
+[[state]]
+name = "commission"
+index = 70
+
+[[state]]
+name = "commission_left"
+index = 71
+
+[[state]]
+name = "commission_need"
+index = 72
+
+[[state]]
+name = "commission_held"
+index = 73
+
+[[state]]
+name = "commission_hp"
+index = 74
+
+[[state]]
+name = "commission_max"
+index = 75
+
+[[state]]
+name = "commission_done"
+index = 76
+
+# The commission's kind (1 saving a village, 2 a hunt), and how many of a hunt's band are left.
+[[state]]
+name = "commission_kind"
+index = 77
+
+[[state]]
+name = "commission_band"
+index = 78
+
+# How far an escort's villager has walked, 0..1.
+[[state]]
+name = "commission_walked"
+index = 79
+
+# Choosing a route: the id of the art whose route is being chosen, plus 1; 0
+# when none is. While it is set, the choices hold route ids and `jr_choose`
+# takes the slot of one of them.
+[[state]]
+name = "route_pick"
+index = 80
+
+# The route each martial art follows, by route id plus 1; 0 for none.
+[[state]]
+name = "art_route"
+index = 81
+len = "art"
+
+# Where each martial art is in its route's move order (0 is the first), and
+# how many moves the order holds now; 0 for an art without a route.
+[[state]]
+name = "art_step"
+index = 87
+len = "art"
+
+[[state]]
+name = "art_order"
+index = 128
+len = "art"
+
+# 1 when the run has routes on (the `routes` tune).
+[[state]]
+name = "routes_on"
+index = 95

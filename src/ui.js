@@ -1,15 +1,30 @@
 // Paper UI: screens, HUD and menu focus. All DOM work lives here.
-import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, ELEMENTS } from './data.js';
+import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, WEAPONS, ELEMENTS, SCHOOLS, ROUTES, MOVES } from './data.js';
 import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
+import { KIND_PRICE, INNER_PRICE, kindFree, innerArts, innerFree } from './shop.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['title', 'setup', 'settings', 'levelup', 'pause', 'over', 'won', 'error'];
+const SCREENS = ['title', 'setup', 'settings', 'record', 'shop', 'levelup', 'pause', 'over', 'won', 'error'];
 
 /** An element's colour as CSS. `color` is 0..1 RGB. */
 const elementCss = (element) => `rgb(${element.color.map((c) => Math.round(c * 255)).join(', ')})`;
 /** The element with this id, or null for 0 (no element). Ids start at 1. */
 const elementById = (id) => ELEMENTS[id - 1] || null;
+/**
+ * How far a route can be learned: all its moves when it is known from the start; a stolen one
+ * two, and one more per manual. Manuals are kept two bits per stolen route, in id order.
+ */
+function movesOpen(route, manuals) {
+  if (route.start) return route.moves.length;
+  return Math.min(route.moves.length, 2 + ((manuals >>> (2 * manualSlot(route))) & 3));
+}
+
+/** Where a stolen route's manuals are kept: its place among the stolen routes, in id order. */
+function manualSlot(route) {
+  return ROUTES.filter((r) => !r.start && r.id < route.id).length;
+}
+
 /** The martial art an upgrade levels, or undefined for a plain stat upgrade. */
 const artOfUpgrade = (upgradeId) => ARTS.find((art) => art.upgrade === upgradeId);
 
@@ -142,7 +157,8 @@ export function createUI({ onAction }) {
   function hud({
     hp, maxHp, xp, xpNext, level, time, kills, enemies, upgrades, mission, goal, progress,
     carried, escape, escortHp, escortMaxHp, pointHp, pointMax, exit, bossWait, accept,
-    artElements = [], guard = 0, guardMax = 0, regrow = 0,
+    artElements = [], artRoutes = [], artSteps = [], artOrders = [], routesOn = false, artKinds = [], artQualities = [],
+    guard = 0, guardMax = 0, regrow = 0, commission = null, notice = null,
   }) {
     set('hpFill', 'width', `${Math.max(0, Math.min(100, (hp / maxHp) * 100)).toFixed(1)}%`);
     set('hpText', 'text', String(Math.ceil(hp)));
@@ -190,17 +206,39 @@ export function createUI({ onAction }) {
     } else if (boss) {
       label = t('hud.boss', { hp: Math.max(0, Math.ceil(goal - progress)) });
     }
+    // A commission in endless: what it asks, and how long is left.
+    const offered = commission?.phase === 1;
+    const hunt = commission?.kind === 2;
+    const escort = commission?.kind === 3;
+    // The village, or the villager being escorted: either has a health bar.
+    const village = commission?.phase === 2 && !hunt;
+    const left = commission ? formatTime(Math.ceil(commission.left)) : '';
+    if (offered) {
+      label = commission.held > 0
+        ? t('commission.accept', { n: Math.ceil(commission.need - commission.held) })
+        : t(hunt ? 'commission.offerHunt' : escort ? 'commission.offerEscort' : 'commission.offer', { time: left });
+    } else if (village && escort) {
+      label = t('commission.escort', { n: Math.floor(commission.walked * 100), time: left });
+    } else if (village) {
+      label = t('commission.defend', { time: left });
+    } else if (commission?.phase === 2) {
+      label = t('commission.hunt', { n: commission.band, time: left });
+    }
+    // A notice is a text key, or { key, vars } for a line that names something.
+    if (notice) label = typeof notice === 'string' ? t(notice) : t(notice.key, notice.vars);
     // Before the mission is accepted, the label says what to do: go to the circle, then stay in it.
     if (accept) {
       label = accept.held > 0 ? t('hud.accept', { n: Math.ceil(accept.need - accept.held) }) : t('hud.acceptGo');
     }
     set('goalText', 'text', label);
     set('goalText', 'display', label ? '' : 'none');
-    // The shrine's health, in the hold mission only.
-    set('pointRow', 'display', holding ? '' : 'none');
-    if (holding) {
-      set('pointFill', 'width', `${Math.max(0, Math.min(100, (pointHp / pointMax) * 100)).toFixed(1)}%`);
-      set('pointText', 'text', String(Math.ceil(pointHp)));
+    // The shrine's health in the hold mission, or the village's while a commission defends it.
+    set('pointRow', 'display', holding || village ? '' : 'none');
+    if (holding || village) {
+      const [hpNow, hpMax] = holding ? [pointHp, pointMax] : [commission.hp, commission.max];
+      set('pointLabel', 'text', t(holding ? 'hud.shrine' : escort ? 'hud.villager' : 'hud.village'));
+      set('pointFill', 'width', `${Math.max(0, Math.min(100, (hpNow / hpMax) * 100)).toFixed(1)}%`);
+      set('pointText', 'text', String(Math.ceil(hpNow)));
     }
     exitMarker(escaping ? exit : null);
     // The boss's health bar, once it has arrived.
@@ -219,19 +257,25 @@ export function createUI({ onAction }) {
     const marked = mission.id === MISSION_IDS.vendetta;
     const killsText = counted ? `${Math.min(kills, goal)} / ${goal}` : String(kills);
     set('killsText', 'text', marked ? `${progress} / ${goal}` : killsText);
-    const sig = `${getLang()}${upgrades.join(',')}|${artElements.join(',')}`;
+    const sig = `${getLang()}${routesOn}${artKinds.join(',')}${artQualities.join(',')}${upgrades.join(',')}|${artElements.join(',')}|${artRoutes.join(',')}|${artSteps.join(',')}|${artOrders.join(',')}`;
     if (cache.chips !== sig) {
       cache.chips = sig;
       $('chips').replaceChildren(...upgrades.flatMap((lvl, id) => {
         if (!lvl) return [];
         const chip = document.createElement('div');
         chip.className = 'chip';
-        chip.title = t(`upgrade.${id}.name`);
+        const art = artOfUpgrade(id);
+        chip.title = !art && routesOn ? t(`inner.${UPGRADES[id].name}.name`) : t(`upgrade.${id}.name`);
+        // An art in a weapon kind shows the kind's mark and name.
+        const kind = art ? WEAPONS[(artKinds[art.id] || 0) - 1] : null;
+        const quality = art ? artQualities[art.id] || 0 : 0;
+        if (kind) chip.title = `${t(`quality.${quality}`)}${t(`weapon.${kind.name}`)} · ${chip.title}`;
+        if (quality === 1) chip.classList.add('chip-steel');
+        if (quality === 2) chip.classList.add('chip-famous');
         const glyph = document.createElement('b');
-        glyph.textContent = UPGRADES[id].glyph;
+        glyph.textContent = kind ? kind.glyph : UPGRADES[id].glyph;
         chip.append(glyph, String(lvl));
         // An art that carries an element wears its colour and a small mark of it.
-        const art = artOfUpgrade(id);
         const element = art ? elementById(artElements[art.id] || 0) : null;
         if (element) {
           chip.classList.add('chip-element');
@@ -240,6 +284,23 @@ export function createUI({ onAction }) {
           const mark = document.createElement('i');
           mark.textContent = element.glyph;
           chip.append(mark);
+        }
+        // An art on a route names it, and shows its move order as dots, the move just used lit.
+        const route = art ? ROUTES[(artRoutes[art.id] || 0) - 1] : null;
+        if (route) {
+          chip.title = `${t(`route.${route.name}.name`)} · ${chip.title}`;
+          const order = artOrders[art.id] || 0;
+          if (order > 0) {
+            const dots = document.createElement('span');
+            dots.className = 'beats';
+            const lit = ((artSteps[art.id] || 0) + order - 1) % order;
+            for (let k = 0; k < order; k++) {
+              const dot = document.createElement('em');
+              if (k === lit) dot.className = 'on';
+              dots.append(dot);
+            }
+            chip.append(dots);
+          }
         }
         return [chip];
       }));
@@ -256,10 +317,28 @@ export function createUI({ onAction }) {
    * While `attach` is an element id, the screen instead asks which held art gets that element;
    * `artElements` holds, per art id, the element the art carries now (0 for none).
    */
-  function levelUp(choices, upgrades, { attach = 0, artElements = [] } = {}) {
+  function levelUp(choices, upgrades, {
+    attach = 0, artElements = [], routePick = 0, artRoutes = [], routesOn = false,
+    deckPick = false, deckOpen = [], lastDeck = 0, ranks = [], artKinds = [], manuals = 0,
+  } = {}) {
     const banner = $('levelBanner');
     const attaching = elementById(attach);
-    if (attaching) {
+    const picking = ARTS[routePick - 1];
+    if (deckPick) {
+      delete banner.dataset.i18n;
+      setText(banner, t('levelup.deck'));
+      $('cards').replaceChildren(...deckCards(deckOpen));
+      show('levelup');
+      // The deck drawn from last is offered first.
+      const last = document.querySelector(`#cards .card[data-value="${lastDeck}"]:not([disabled])`);
+      if (last) last.focus({ preventScroll: true });
+      return;
+    }
+    if (picking) {
+      delete banner.dataset.i18n;
+      setText(banner, t('levelup.route', { name: t(`upgrade.${picking.upgrade}.name`) }));
+      $('cards').replaceChildren(...routeCards(choices, picking, artKinds[picking.id] || 0, manuals));
+    } else if (attaching) {
       // The banner names the element, so it is not static text for applyStatic to reset.
       delete banner.dataset.i18n;
       setText(banner, t('levelup.attach', {
@@ -269,19 +348,294 @@ export function createUI({ onAction }) {
     } else {
       banner.dataset.i18n = 'levelup.banner';
       setText(banner, t('levelup.banner'));
-      $('cards').replaceChildren(...offerCards(choices, upgrades));
+      $('cards').replaceChildren(...offerCards(choices, upgrades, artRoutes, routesOn, artKinds, ranks));
+      // A fine card brings two layers at once: it says so and shines. (A weapon card's rank is its quality.)
+      ranks.forEach((rank, slot) => {
+        const card = document.querySelector(`#cards .card[data-value="${slot}"]`);
+        if (!card || rank !== 1 || card.classList.contains('weapon-card')) return;
+        card.classList.add('fine-card');
+        const label = card.querySelector('.rank');
+        if (label) label.textContent = t('levelup.fine');
+      });
     }
     show('levelup');
   }
 
+  /** One card per deck, in deck order; a deck with nothing to draw is greyed out. A card's value is its deck. */
+  function deckCards(deckOpen) {
+    const GLYPHS = ['兵', '武', '心', '法', '緣'];
+    return GLYPHS.map((glyph, d) => {
+      const card = document.createElement('button');
+      card.className = 'card deck-card';
+      card.dataset.action = 'choose';
+      card.dataset.value = String(d);
+      if (!deckOpen[d]) card.disabled = true;
+      cardParts(card, [
+        ['key', String(d + 1)],
+        ['glyph', glyph],
+        ['name', t(`deck.${d}.name`)],
+        ['desc', t(`deck.${d}.desc`)],
+      ]);
+      return card;
+    });
+  }
+
+  /** One card per route the art can take; one that suits the art's weapon kind says so. A card's value is its slot. */
+  function routeCards(choices, art, kind = 0, manuals = 0) {
+    return choices.flatMap((id, slot) => {
+      const route = ROUTES[id];
+      if (id < 0 || !route) return [];
+      const card = document.createElement('button');
+      card.className = 'card route-card';
+      card.dataset.action = 'choose';
+      card.dataset.value = String(slot);
+      const school = SCHOOLS[route.school];
+      const n = route.moves.length - (route.ultimate ? 1 : 0);
+      const moves = t(route.ultimate ? 'levelup.movesUltimate' : 'levelup.moves', { n });
+      const suits = route.suits.map((w) => t(`weapon.${WEAPONS[w].name}`)).join('、');
+      const oneness = kind > 0 && route.suits.includes(kind - 1);
+      if (oneness) card.classList.add('fine-card');
+      // A stolen route opens two moves, and one more per manual (秘笈).
+      const open = movesOpen(route, manuals);
+      const shut = open < route.moves.length ? `\n${t('levelup.shut', { n: open })}` : '';
+      cardParts(card, [
+        ['key', String(slot + 1)],
+        ['glyph', UPGRADES[art.upgrade].glyph],
+        ['name', t(`route.${route.name}.name`)],
+        ['rank', `${school ? t(`school.${school.name}`) : ''} · ${moves}${oneness ? ` · ${t('levelup.oneness')}` : ''}`],
+        ['desc', `${t(`route.${route.name}.desc`)}${suits ? `\n${t('levelup.suits', { routes: suits })}` : ''}${shut}`],
+      ]);
+      return [card];
+    });
+  }
+
+  /**
+   * What an art's next level brings, when it is on a route or about to choose one:
+   * [name, rank, desc] for its card, or null to show the plain upgrade card.
+   */
+  function routeCardText(art, lvl, artRoutes, routesOn) {
+    const route = ROUTES[(artRoutes[art.id] || 0) - 1];
+    if (!route) {
+      const waiting = routesOn && lvl === 2 && ROUTES.some((r) => r.art === art.id && r.start);
+      return waiting ? [t(`upgrade.${art.upgrade}.name`), t('levelup.chooseRoute'), t(`upgrade.${art.upgrade}.desc`)] : null;
+    }
+    const move = MOVES[route.moves[lvl - 2]];
+    if (!move) return null;
+    const regular = route.moves.length - (route.ultimate ? 1 : 0);
+    const learn = t(move.ultimate ? 'levelup.ultimate' : 'levelup.learn', { name: t(`move.${move.name}.name`) });
+    let formed = !move.ultimate && lvl - 2 === regular - 1 ? `\n${t('levelup.formed')}` : '';
+    // The ultimate's card says what it needs to reach its height (極致).
+    if (move.ultimate && route.zenith >= 0) {
+      formed += `\n${t('levelup.zenith', { inner: t(`inner.${UPGRADES[route.zenith].name}.name`) })}`;
+    }
+    return [
+      t(`route.${route.name}.name`),
+      t('levelup.rank', { from: lvl, to: lvl + 1 }),
+      `${learn}${formed}\n${t(`move.${move.name}.desc`)}`,
+    ];
+  }
+
+  /**
+   * The martial record (武學錄): per art, every route with its school and whether it is known,
+   * stolen or not yet, its manuals, and its moves: a learned move shows its name and its line,
+   * one not yet learned only the outline of its name. A manual kept from a run can be given
+   * here to a stolen route of its school; `onGive` then keeps the save.
+   */
+  function record(save, onGive = () => {}) {
+    const learned = new Set(Array.isArray(save.learned) ? save.learned : []);
+    const stolen = Number(save.stolen) || 0;
+    const manuals = Number(save.manuals) || 0;
+    const zeniths = new Set(Array.isArray(save.zeniths) ? save.zeniths : []);
+    const inner = save.inner && typeof save.inner === 'object' ? save.inner : {};
+    const el = (tag, cls, text) => {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const hidden = (text) => '？'.repeat([...text].length);
+    const parts = ARTS.flatMap((art) => {
+      const routes = ROUTES.filter((r) => r.art === art.id);
+      if (!routes.length) return [];
+      const head = el('h3', 'record-art', `${UPGRADES[art.upgrade].glyph} ${t(`upgrade.${art.upgrade}.name`)}`);
+      const entries = routes.map((route) => {
+        const known = route.start || (stolen & (1 << route.id)) !== 0;
+        const school = SCHOOLS[route.school];
+        const box = el('div', known ? 'record-route' : 'record-route unknown');
+        const title = el('div', 'record-route-title');
+        const name = t(`route.${route.name}.name`);
+        title.append(el('b', '', known ? name : hidden(name)), el('span', 'record-tag', school ? t(`school.${school.name}`) : ''));
+        const got = route.moves.filter((m) => learned.has(m)).length;
+        let status = route.start ? t('record.native') : known ? t('record.stolen') : t('record.notYet');
+        if (!route.start && known) {
+          status += ` · ${t('record.manuals', { n: movesOpen(route, manuals), m: route.moves.length })}`;
+        }
+        title.append(el('span', 'record-tag', `${status} · ${t('record.count', { n: got, m: route.moves.length })}`));
+        // The heights (極致) its ultimate has reached, by the elements' marks.
+        const heights = ELEMENTS.filter((e) => zeniths.has(`${route.id}:${e.id}`));
+        if (heights.length) {
+          const tag = el('span', 'record-tag record-heights', t('record.heights'));
+          for (const e of heights) {
+            const mark = el('b', '', e.glyph);
+            mark.style.color = elementCss(e);
+            tag.append(mark);
+          }
+          title.append(tag);
+        }
+        box.append(title);
+        // A manual of the route's school, not yet given: give it to this route to open one more move.
+        const spare = Number(save.scrolls?.[route.school]) || 0;
+        if (!route.start && known && spare > 0 && movesOpen(route, manuals) < route.moves.length && manualSlot(route) < 12) {
+          const give = el('button', 'record-give', t('record.give', { n: spare }));
+          give.addEventListener('click', () => {
+            save.manuals = (Number(save.manuals) || 0) + 2 ** (2 * manualSlot(route));
+            save.scrolls[route.school] = spare - 1;
+            onGive(save);
+            record(save, onGive);
+          });
+          box.append(give);
+        }
+        for (const id of route.moves) {
+          const move = MOVES[id];
+          const moveName = t(`move.${move.name}.name`);
+          const row = el('div', learned.has(id) ? 'record-move' : 'record-move unknown');
+          if (learned.has(id)) {
+            row.append(el('b', move.ultimate ? 'ultimate' : '', moveName), el('span', '', t(`move.${move.name}.desc`)));
+          } else {
+            row.append(el('b', '', hidden(moveName)));
+          }
+          box.append(row);
+        }
+        return box;
+      });
+      return [head, ...entries];
+    });
+    // The inner arts (心法): the layers ever reached, each with its line; the rest only outlined.
+    const innerHead = el('h3', 'record-art', t('record.inner'));
+    const inners = UPGRADES.flatMap((u, id) => {
+      if (artOfUpgrade(id)) return [];
+      const top = Number(inner[u.name]) || 0;
+      const name = t(`inner.${u.name}.name`);
+      const box = el('div', top ? 'record-route' : 'record-route unknown');
+      const title = el('div', 'record-route-title');
+      title.append(el('b', '', top ? `${u.glyph} ${name}` : hidden(name)), el('span', 'record-tag', t('record.layers', { n: top, m: 3 })));
+      box.append(title);
+      for (let layer = 1; layer <= top; layer++) {
+        const row = el('div', 'record-move');
+        row.append(el('b', '', t('levelup.layer', { n: layer })), el('span', '', t(`inner.${u.name}.${layer}`)));
+        box.append(row);
+      }
+      return [box];
+    });
+    $('recordBody').replaceChildren(...parts, innerHead, ...inners);
+  }
+
+  /**
+   * The weapon shop (兵器鋪, docs/design.md 4.12): the weapon kinds and inner arts not yet owned,
+   * each with its price and a button to buy it with silver; the ones owned are listed as such.
+   * `onBuy(what, name)` buys and returns whether it could.
+   */
+  function shop(save, onBuy) {
+    const el = (tag, cls, text) => {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const silver = Number(save.silver) || 0;
+    const kindsBought = new Set(save.kindsBought || []);
+    const innerBought = new Set(save.innerBought || []);
+    $('shopSilver').textContent = t('shop.silver', { n: silver });
+    const row = (glyph, name, line, owned, price, what, key) => {
+      const box = el('div', owned ? 'record-route' : 'record-route unknown');
+      const title = el('div', 'record-route-title');
+      title.append(el('b', '', `${glyph} ${name}`), el('span', 'record-tag', line));
+      box.append(title);
+      if (owned) {
+        title.append(el('span', 'record-tag', t('shop.owned')));
+      } else {
+        const btn = el('button', 'record-give', t('shop.buy', { n: price }));
+        btn.disabled = silver < price;
+        btn.addEventListener('click', () => {
+          if (onBuy(what, key)) shop(save, onBuy);
+        });
+        box.append(btn);
+      }
+      return box;
+    };
+    const parts = [el('h3', 'record-art', t('shop.kinds'))];
+    for (const art of ARTS) {
+      for (const w of WEAPONS.filter((x) => x.art === art.id)) {
+        const free = kindFree(w);
+        const forms = w.forms.map((f) => t(`form.${f}`)).join('・');
+        const line = `${t(`upgrade.${art.upgrade}.name`)}${forms ? `・${forms}` : ''}${w.trait !== 'none' ? `・${t(`trait.${w.trait}`)}` : ''}`;
+        parts.push(row(w.glyph, t(`weapon.${w.name}`), line, free || kindsBought.has(w.name), KIND_PRICE, 'kind', w.name));
+      }
+    }
+    parts.push(el('h3', 'record-art', t('record.inner')));
+    for (const u of innerArts()) {
+      parts.push(row(u.glyph, t(`inner.${u.name}.name`), t(`inner.${u.name}.1`), innerFree(u) || innerBought.has(u.name), INNER_PRICE, 'inner', u.name));
+    }
+    $('shopBody').replaceChildren(...parts);
+  }
+
+  /**
+   * Write a move's name in brush strokes over the game for a moment. `kind` is 'big' for an
+   * ultimate the first time, 'ultimate' for one used again, or '' for a move. Names shown at
+   * once take the free rows over the player instead of covering each other.
+   */
+  function callout(text, kind = '') {
+    // Rows above and below the player, nearest first, clear of the top HUD.
+    const ROWS = [33, 67, 25, 75];
+    const taken = new Set(Array.from(document.querySelectorAll('#hud .callout'), (el) => Number(el.dataset.row)));
+    let row = 0;
+    while (taken.has(row) && row < ROWS.length - 1) row++;
+    const el = document.createElement('div');
+    el.className = `callout ${kind}`.trim();
+    el.dataset.row = String(row);
+    el.style.top = `${ROWS[row]}%`;
+    el.textContent = text;
+    $('hud').append(el);
+    setTimeout(() => el.remove(), kind === 'zenith' ? 1600 : kind === 'big' ? 1400 : 1000);
+  }
+
   /** One card per offered upgrade or element. A card's value is its slot. */
-  function offerCards(choices, upgrades) {
+  function offerCards(choices, upgrades, artRoutes = [], routesOn = false, artKinds = [], ranks = []) {
     return choices.flatMap((id, slot) => {
       if (id < 0) return [];
       const card = document.createElement('button');
       card.className = 'card';
       card.dataset.action = 'choose';
       card.dataset.value = String(slot);
+      // A weapon kind card: a new art in that kind, or a held art changed to it.
+      const weapon = WEAPONS[id - UPGRADES.length - ELEMENTS.length];
+      if (id >= UPGRADES.length + ELEMENTS.length && weapon) {
+        const art = ARTS[weapon.art];
+        const current = WEAPONS[(artKinds[art.id] || 0) - 1];
+        const name = t(`weapon.${weapon.name}`);
+        const rank = upgrades[art.upgrade] > 0 && current
+          ? t('levelup.swap', { from: t(`weapon.${current.name}`), to: name })
+          : t('levelup.newWeapon', { art: t(`upgrade.${art.upgrade}.name`) });
+        const forms = weapon.forms.map((f) => t(`form.${f}`)).join('・');
+        const suits = ROUTES.filter((r) => r.suits.includes(weapon.id)).map((r) => t(`route.${r.name}.name`)).join('、');
+        // Its rank is its quality: fine steel shines silver, a famous blade gold.
+        const quality = ranks[slot] || 0;
+        card.classList.add('route-card', 'weapon-card');
+        if (quality === 1) card.classList.add('steel-card');
+        if (quality === 2) card.classList.add('fine-card');
+        cardParts(card, [
+          ['key', String(slot + 1)],
+          ['glyph', weapon.glyph],
+          ['name', `${t(`quality.${quality}`)}${name}`],
+          ['rank', rank],
+          ['desc', [
+            forms,
+            weapon.trait && weapon.trait !== 'none' ? t(`trait.${weapon.trait}`) : '',
+            suits ? t('levelup.suits', { routes: suits }) : '',
+          ].filter(Boolean).join('\n')],
+        ]);
+        return [card];
+      }
       if (id >= UPGRADES.length) {
         const element = elementById(id - UPGRADES.length + 1);
         if (!element) return [];
@@ -297,6 +651,32 @@ export function createUI({ onAction }) {
         return [card];
       }
       const lvl = upgrades[id];
+      const art = artOfUpgrade(id);
+      // With routes on, a passive is an inner art (心法): its card names the layer it brings.
+      if (!art && routesOn) {
+        const name = UPGRADES[id].name;
+        card.classList.add('route-card');
+        cardParts(card, [
+          ['key', String(slot + 1)],
+          ['glyph', UPGRADES[id].glyph],
+          ['name', t(`inner.${name}.name`)],
+          ['rank', lvl === 0 ? t('levelup.new') : t('levelup.layer', { n: lvl + 1 })],
+          ['desc', t(`inner.${name}.${lvl + 1}`)],
+        ]);
+        return [card];
+      }
+      const routed = art ? routeCardText(art, lvl, artRoutes, routesOn) : null;
+      if (routed) {
+        card.classList.add('route-card');
+        cardParts(card, [
+          ['key', String(slot + 1)],
+          ['glyph', UPGRADES[id].glyph],
+          ['name', routed[0]],
+          ['rank', routed[1]],
+          ['desc', routed[2]],
+        ]);
+        return [card];
+      }
       cardParts(card, [
         ['key', String(slot + 1)],
         ['glyph', UPGRADES[id].glyph],
@@ -347,7 +727,7 @@ export function createUI({ onAction }) {
    * `reason` is the text key of the title when the run ended without the player dying
    * (the pursuit target got away, the villager or the shrine fell); null for death.
    */
-  function gameOver(mission, { time, kills, level }, save, beaten, reason = null) {
+  function gameOver(mission, { time, kills, level, commissions = 0, silver }, save, beaten, reason = null) {
     const title = $('overTitle');
     title.dataset.i18n = reason || 'over.title';
     setText(title, t(title.dataset.i18n));
@@ -356,22 +736,29 @@ export function createUI({ onAction }) {
       [t('over.kills'), String(kills), beaten?.kills],
       [t('over.level'), String(level), beaten?.level],
     ];
+    // Endless has commissions; the run's count of done ones.
+    if (mission.id === MISSION_IDS.endless) rows.push([t('over.commissions'), String(commissions), false]);
     if (beaten) rows.push([t('over.bestTime'), formatTime(save.bestTime), false]);
     else rows.unshift([t('over.mission'), t(`mission.${mission.name}.name`), false]);
+    if (silver !== undefined) rows.push([t('over.silver'), t('shop.earned', { n: silver, total: save.silver }), false]);
     statRows('stats', rows);
     $('recordStamp').hidden = !(beaten && (beaten.time || beaten.kills || beaten.level));
+    resetReplayButtons();
     show('over');
   }
 
   /** The mission's goal was met. */
-  function missionWon(mission, { time, kills, level }, save) {
+  function missionWon(mission, { time, kills, level, silver }, save) {
     $('wonMission').textContent = t(`mission.${mission.name}.name`);
-    statRows('wonStats', [
+    const rows = [
       [t('won.time'), formatTime(time), false],
       [t('over.kills'), String(kills), false],
       [t('over.level'), String(level), false],
       [t('won.wins'), String(missionRecord(save, mission.name).wins), false],
-    ]);
+    ];
+    if (silver !== undefined) rows.push([t('over.silver'), t('shop.earned', { n: silver, total: save.silver }), false]);
+    statRows('wonStats', rows);
+    resetReplayButtons();
     show('won');
   }
 
@@ -454,7 +841,7 @@ export function createUI({ onAction }) {
       : '';
   }
 
-  function settings({ volume, muted }) {
+  function settings({ volume, muted, numbers, motion, music, quality }) {
     const on = Math.round(volume * 10);
     $('volPips').replaceChildren(...Array.from({ length: 10 }, (_, i) => {
       const pip = document.createElement('i');
@@ -464,7 +851,49 @@ export function createUI({ onAction }) {
     for (const btn of document.querySelectorAll('button[data-action="mute"]')) {
       btn.textContent = t(muted ? 'settings.soundOff' : 'settings.soundOn');
     }
+    $('numbersBtn').textContent = t(numbers ? 'settings.numbersOn' : 'settings.numbersOff');
+    $('motionBtn').textContent = t(motion ? 'settings.motionOn' : 'settings.motionOff');
+    const level = music === true ? 1 : music === false ? 0 : Number(music) || 0;
+    $('musicBtn').textContent = t(level >= 1 ? 'settings.musicOn' : level > 0 ? 'settings.musicSoft' : 'settings.musicOff');
+    $('qualityBtn').textContent = t(quality ? 'settings.qualityHigh' : 'settings.qualityLow');
     setText($('langBtn'), t('settings.language', { name: t('lang.name') }));
+  }
+
+  /** Redden the edges of the screen while health is low. */
+  function lowHealth(on) {
+    if (cache.low === on) return;
+    cache.low = on;
+    document.body.classList.toggle('low-health', on);
+  }
+
+  /** Flash the experience bar on a level-up. */
+  function flashLevel() {
+    const bar = document.querySelector('#hud .xp');
+    bar.classList.remove('flash');
+    // Restart the animation even when the last one has not finished.
+    void bar.offsetWidth;
+    bar.classList.add('flash');
+  }
+
+  /** Mark the HUD while a replay plays. */
+  function replaying(on) {
+    $('replayTag').hidden = !on;
+  }
+
+  /** Say on the replay buttons whether the link was copied. */
+  function replayCopied(ok) {
+    for (const btn of document.querySelectorAll('button[data-action="copy-replay"]')) {
+      btn.dataset.i18n = ok ? 'replay.copied' : 'replay.failed';
+      setText(btn, t(btn.dataset.i18n));
+    }
+  }
+
+  /** Put the replay buttons back to their first text. */
+  function resetReplayButtons() {
+    for (const btn of document.querySelectorAll('button[data-action="copy-replay"]')) {
+      btn.dataset.i18n = 'replay.copy';
+      setText(btn, t('replay.copy'));
+    }
   }
 
   function error(message) {
@@ -474,6 +903,7 @@ export function createUI({ onAction }) {
 
   return {
     show, navigate, confirm, hud, pointers, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
+    replaying, replayCopied, lowHealth, flashLevel, callout, record, shop,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };

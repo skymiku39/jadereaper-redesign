@@ -33,8 +33,19 @@ fn g() -> &'static mut Game {
 #[no_mangle]
 pub extern "C" fn jr_reset(seed: u32) {
     let (w, h) = (g().view_w, g().view_h);
+    let (numbers, motion) = (g().show_numbers, g().motion);
     *g() = Game::new(seed);
     g().set_view(w, h);
+    g().show_numbers = numbers;
+    g().motion = motion;
+}
+
+/// How the game looks, from the host's settings: `numbers` 1 to draw damage
+/// numbers, `motion` 0..1 for how much the camera shakes. Neither changes how a run goes.
+#[no_mangle]
+pub extern "C" fn jr_feel(numbers: u32, motion: f32) {
+    g().show_numbers = numbers != 0;
+    g().motion = if motion.is_finite() { motion.clamp(0.0, 1.0) } else { 1.0 };
 }
 
 /// The tunes the next `jr_start` gives its run, indexed like `[[tune]]` in the content file.
@@ -83,7 +94,10 @@ pub extern "C" fn jr_set_view(w: f32, h: f32) {
 /// Movement input, each axis in -1..1.
 #[no_mangle]
 pub extern "C" fn jr_input(mx: f32, my: f32) {
-    g().input = (mx, my);
+    // While a replay plays, the moves come from its log.
+    if !g().replay.playing {
+        g().input = (mx, my);
+    }
 }
 
 /// Advance by `dt` seconds of real time. The simulation moves in whole steps
@@ -112,10 +126,70 @@ pub extern "C" fn jr_scripted_run(seed: u32, ticks: u32) -> u32 {
     game::scripted_run(seed, ticks)
 }
 
+/// The same for a mission (an id from `[[mission]]`), with every martial art
+/// and an element on each when `armed` is not 0. See `game::scripted_mission`.
+#[no_mangle]
+pub extern "C" fn jr_scripted_mission(seed: u32, ticks: u32, mission: u32, armed: u32) -> u32 {
+    game::scripted_mission(seed, ticks, mission as usize, armed != 0)
+}
+
 /// Pick one of the offered upgrades (0..2).
 #[no_mangle]
 pub extern "C" fn jr_choose(i: u32) {
-    g().choose(i as usize);
+    // While a replay plays, the picks come from its log.
+    if !g().replay.playing {
+        g().choose(i as usize);
+    }
+}
+
+/// What the player has done this run: `jr_log_len()` x 4 u32
+/// `[step, kind, a, b]`, kind 0 a move (a and b the bits of the two axes),
+/// kind 1 a pick (a what `jr_choose` was given). See `replay.rs`.
+#[no_mangle]
+pub extern "C" fn jr_log_ptr() -> *const u32 {
+    g().replay.log.as_ptr() as *const u32
+}
+
+#[no_mangle]
+pub extern "C" fn jr_log_len() -> u32 {
+    g().replay.log.len() as u32
+}
+
+/// Play a log back in the run just started with `jr_start` (same seed,
+/// mission and tunes as the run it was logged in). Hand the entries over with
+/// `jr_replay_push`, in order. From then on `jr_input` and `jr_choose` are ignored.
+#[no_mangle]
+pub extern "C" fn jr_replay_begin() {
+    g().replay.begin();
+}
+
+#[no_mangle]
+pub extern "C" fn jr_replay_push(step: u32, kind: u32, a: u32, b: u32) {
+    g().replay.push([step, kind, a, b]);
+}
+
+/// 1 while a replay plays.
+#[no_mangle]
+pub extern "C" fn jr_replaying() -> u32 {
+    g().replay.playing as u32
+}
+
+/// Give the player a martial art (an id from `[[art]]`) at a level, carrying
+/// an element (an id from `[[element]]`, 0 for none). For the tools and the
+/// browser console, to look at a build without playing up to it; the game
+/// itself never calls it.
+#[no_mangle]
+pub extern "C" fn jr_give(art: u32, level: u32, element: u32) {
+    g().give(art as usize, level, element);
+}
+
+/// Take weapon kind `weapon` (an id from `[[weapon]]`) as if its card were
+/// chosen, plain. For the tools and the browser console, like `jr_give`.
+#[no_mangle]
+pub extern "C" fn jr_hold(weapon: u32) {
+    if (weapon as usize) < generated::N_WEAPONS {
+        g().take_weapon(weapon as usize, 0);
+    }
 }
 
 #[no_mangle]
@@ -195,6 +269,33 @@ mod tests {
         let a = game::scripted_run(42, 60 * 120);
         assert_eq!(a, game::scripted_run(42, 60 * 120));
         assert_ne!(a, game::scripted_run(44, 60 * 120));
+    }
+
+    #[test]
+    fn the_armed_endless_check_takes_commissions() {
+        // The determinism check plays these runs (its ticks and seeds); they must
+        // reach the commissions for the check to cover them.
+        for seed in [1, 987654321] {
+            let game = game::scripted_game(seed, 60 * 150, M_ENDLESS, true);
+            let ended = game.commission.done + game.commission.failed;
+            assert!(ended > 0, "seed {seed}: no commission was taken and ended in the armed endless run");
+        }
+    }
+
+    #[test]
+    fn every_mission_plays_the_same_run_twice() {
+        for mission in 0..N_MISSIONS {
+            for armed in [false, true] {
+                let a = game::scripted_mission(9, 60 * 40, mission, armed);
+                assert_eq!(a, game::scripted_mission(9, 60 * 40, mission, armed), "mission {mission}, armed {armed}");
+            }
+            // Holding four arts with elements changes the run.
+            assert_ne!(
+                game::scripted_mission(9, 60 * 40, mission, false),
+                game::scripted_mission(9, 60 * 40, mission, true),
+                "mission {mission}"
+            );
+        }
     }
 
     /// Drive two games with the same inputs per step, one at 60 frames per

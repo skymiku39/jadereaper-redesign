@@ -287,10 +287,13 @@ mod tests {
     #[test]
     fn the_mission_is_lost_on_death() {
         let mut game = start(3);
-        for _ in 0..(60 * 120) {
+        // A player who stands still and takes no cards falls in the end.
+        game.tune[T_ROUTES] = 0.0;
+        for _ in 0..(60 * 600) {
             game.tick();
             if game.choosing {
-                game.choose(0);
+                game.pending = 0;
+                game.choosing = false;
             }
             if game.over {
                 break;

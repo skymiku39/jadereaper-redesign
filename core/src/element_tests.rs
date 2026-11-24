@@ -228,10 +228,14 @@ fn metal_builds_a_guard_that_takes_the_blow_and_fades() {
     assert!(near(g.player.guard, metal.cap));
     assert!(near(g.guard_cap(), metal.cap));
 
-    // A blow smaller than the guard costs no health; a larger one costs the rest.
-    assert_eq!(g.guard_against(metal.cap - 1.0), 0.0);
-    assert!(near(g.player.guard, 1.0));
-    assert!(near(g.guard_against(10.0), 9.0));
+    // The guard takes its share of a blow and health the rest.
+    assert!(metal.minor > 0.0 && metal.minor <= 1.0);
+    let blow = 0.5 * metal.cap / metal.minor;
+    assert!(near(g.guard_against(blow), blow * (1.0 - metal.minor)));
+    assert!(near(g.player.guard, metal.cap * 0.5));
+    // A blow too large for what is left takes all of it and no more.
+    let big = 4.0 * metal.cap / metal.minor;
+    assert!(near(g.guard_against(big), big - metal.cap * 0.5));
     assert_eq!(g.player.guard, 0.0);
     assert_eq!(g.guard_against(10.0), 10.0);
     assert_eq!(g.guard_cap(), 0.0);
@@ -256,13 +260,10 @@ fn an_enemy_touching_the_player_wears_the_guard_first() {
     g.player.guard_element = E_METAL;
     put(&mut g, K_BLOT, 5.0, 0.0);
     g.move_enemies(TICK);
-    // A blot hits for 5: all of it lands on the guard.
-    assert_eq!(g.player.hp, 100.0);
-    assert!(near(g.player.guard, 3.0));
-    g.player.iframe = 0.0;
-    g.move_enemies(TICK);
-    assert!(near(g.player.hp, 98.0));
-    assert_eq!(g.player.guard, 0.0);
+    // A blot hits for 5: the guard takes its share of that, health the rest.
+    let share = el(E_METAL).minor;
+    assert!(near(g.player.hp, 100.0 - 5.0 * (1.0 - share)));
+    assert!(near(g.player.guard, 8.0 - 5.0 * share));
 }
 
 #[test]
@@ -477,6 +478,7 @@ fn an_element_card_is_offered_as_the_last_card_at_its_chance() {
     let mut seen = 0;
     for seed in 1..400u32 {
         let mut g = Game::new(seed);
+        g.tune[T_DECKS] = 0.0;
         g.pending = 1;
         g.offer();
         assert!(g.choices[0] < N_UPGRADES as i32 && g.choices[1] < N_UPGRADES as i32);
@@ -494,6 +496,7 @@ fn an_element_card_is_offered_as_the_last_card_at_its_chance() {
         for seed in 1..50u32 {
             let mut g = Game::new(seed);
             g.tune[T_ELEMENT_CARDS] = chance;
+            g.tune[T_DECKS] = 0.0;
             g.pending = 1;
             g.offer();
             assert_eq!(g.choices[2] >= N_UPGRADES as i32, always, "chance {chance}, seed {seed}");
@@ -505,6 +508,10 @@ fn an_element_card_is_offered_as_the_last_card_at_its_chance() {
 fn an_element_card_takes_the_first_empty_slot_when_upgrades_run_short() {
     let mut g = Game::new(3);
     g.tune[T_ELEMENT_CARDS] = 1.0;
+    g.tune[T_DECKS] = 0.0;
+    // With routes off every upgrade's top is its own.
+    g.tune[T_ROUTES] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.up = UPGRADE_MAX;
     g.up[U_HASTE] -= 1;
     g.pending = 1;
@@ -592,6 +599,24 @@ fn the_start_element_tune_puts_an_element_on_the_first_art() {
 }
 
 #[test]
+fn give_sets_an_art_up_within_what_exists() {
+    let mut g = Game::new(3);
+    g.give(A_PULSE, 3, E_FIRE as u32);
+    assert_eq!(g.up[U_PULSE], 3);
+    assert_eq!(g.arts[A_PULSE].element, E_FIRE);
+    // A level past the top is the top; an element or an art that does not exist is none.
+    g.give(A_PULSE, 99, 99);
+    assert_eq!(g.up[U_PULSE], UPGRADE_MAX[U_PULSE]);
+    assert_eq!(g.arts[A_PULSE].element, 0);
+    let before = g.up;
+    g.give(N_ARTS + 1, 2, 1);
+    assert_eq!(g.up, before);
+    // Level 0 takes the art away.
+    g.give(A_PULSE, 0, 0);
+    assert_eq!(g.arts_held(), 1);
+}
+
+#[test]
 fn the_held_arts_are_counted_for_the_slot_limit() {
     // The content holds fewer arts than there are slots, so the limit cannot
     // be reached in a real run yet; this checks the count the limit uses.
@@ -611,6 +636,7 @@ fn a_run_with_an_element_on_every_art_holds_up() {
         let mut g = Game::new(20 + element as u32);
         g.set_view(640.0, 360.0);
         g.tune[T_ELEMENT_CARDS] = 1.0;
+        g.tune[T_DECKS] = 0.0;
         g.start(M_ENDLESS);
         g.up[U_TALISMAN] = 3;
         g.up[U_BEADS] = 3;

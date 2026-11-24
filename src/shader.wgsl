@@ -13,7 +13,7 @@ struct Globals {
   time: f32,
   qtime: f32,    // time stepped to the stop-motion frame rate
   px: f32,       // world units per device pixel
-  pad: f32,
+  quality: f32,  // 1 for full quality; 0 drops line boil, grain and the drop shadow
 };
 
 struct PartRects {
@@ -44,7 +44,10 @@ const PART_STONE: i32 = 13;
 const PART_HEART: i32 = 14;
 const PART_RING: i32 = 15;
 const PART_SCRAP: i32 = 16;
+const PART_DIGIT: i32 = 17;
 const PART_GROUND_SHADOW: i32 = 18;
+const PART_DAO: i32 = 19;
+const PART_DADAO: i32 = 20;
 // END GENERATED
 const PAPER = vec3f(0.965, 0.94, 0.875);
 const PAD = 10.0;        // extra quad size for margin and shadow, world units
@@ -134,6 +137,22 @@ fn shape(part: i32, p: vec2f, h: vec2f, seed: f32) -> Shape {
       s.d = min(handle, blade) * m;
       s.light = 0.5 * dab(blade);
     }
+    case PART_DAO { // sabre: grip, guard and a blade curving to its tip
+      let grip = sdSeg(q, vec2f(0.0, 1.0), vec2f(0.0, 0.6)) - 0.09;
+      let guard = sdBox(q - vec2f(0.0, 0.52), vec2f(0.3, 0.05));
+      let t = clamp((0.45 - q.y) / 1.4, 0.0, 1.0);
+      let spine = 0.32 * t * t;
+      let blade = max(abs(q.x - spine - 0.05) - (0.2 + 0.08 * t) * (1.0 - t * t * t * 0.9), max(q.y - 0.47, -0.97 - q.y));
+      s.d = min(min(grip, guard), blade) * m;
+      s.light = 0.5 * dab(blade + 0.04);
+    }
+    case PART_DADAO { // broad blade on a long pole
+      let pole = sdSeg(q, vec2f(-0.15, 1.0), vec2f(-0.15, -0.3)) - 0.07;
+      let e = length((q - vec2f(0.1, -0.5)) / vec2f(0.42, 0.48)) - 1.0;
+      let blade = max(e * 0.42, -0.2 - q.x);
+      s.d = min(pole, blade) * m;
+      s.light = 0.5 * dab(blade + 0.03);
+    }
     case PART_BLOT { // ink blot spirit
       let ang = atan2(q.y, q.x);
       let r = 0.82 + 0.07 * sin(ang * 5.0 + seed * 40.0) + 0.05 * sin(ang * 3.0 - G.qtime * 2.0);
@@ -198,6 +217,24 @@ fn shape(part: i32, p: vec2f, h: vec2f, seed: f32) -> Shape {
     }
     case PART_SCRAP { // paper scrap
       s.d = sdBox(q, vec2f(0.9, 0.9)) * m;
+    }
+    case PART_DIGIT { // one brush digit, picked by the seed: seven strokes, some of them drawn
+      let n = clamp(i32(seed * 10.0 + 0.5), 0, 9);
+      // Which of the strokes a (top), b (top right), c (bottom right), d (bottom),
+      // e (bottom left), f (top left) and g (middle) each digit uses, one bit each.
+      var masks = array<u32, 10>(0x3fu, 0x06u, 0x5bu, 0x4fu, 0x66u, 0x6du, 0x7du, 0x07u, 0x7fu, 0x6fu);
+      let mask = masks[n];
+      let w = 0.62;
+      let k = vec2f(q.x + q.y * 0.12, q.y);   // a slight brush slant
+      var d = 1e3;
+      if ((mask & 0x01u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, -0.9), vec2f(w, -0.9))); }
+      if ((mask & 0x02u) != 0u) { d = min(d, sdSeg(k, vec2f(w, -0.9), vec2f(w, 0.0))); }
+      if ((mask & 0x04u) != 0u) { d = min(d, sdSeg(k, vec2f(w, 0.0), vec2f(w, 0.9))); }
+      if ((mask & 0x08u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, 0.9), vec2f(w, 0.9))); }
+      if ((mask & 0x10u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, 0.0), vec2f(-w, 0.9))); }
+      if ((mask & 0x20u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, -0.9), vec2f(-w, 0.0))); }
+      if ((mask & 0x40u) != 0u) { d = min(d, sdSeg(k, vec2f(-w, 0.0), vec2f(w, 0.0))); }
+      s.d = (d - 0.2) * m;
     }
     case PART_GROUND_SHADOW { // soft ground shadow
       s.d = (length(q) - 0.6) * m;
@@ -268,9 +305,13 @@ fn fs(i: VOut) -> @location(0) vec4f {
   // Line boil: nudge the shape a little, changing only on stepped frames.
   let bo = vec2f(seed * 17.0 + G.qtime * 3.1, seed * 5.0 - G.qtime * 1.7);
   let boil = vec2f(vnoise(i.p * 0.09 + bo), vnoise(i.p * 0.09 + bo + 31.7)) - 0.5;
-  let amp = select(2.0, 1.0, flat_part);
+  let full = G.quality > 0.5;
+  let amp = select(2.0, 1.0, flat_part) * select(0.0, 1.0, full);
   let p = i.p + boil * amp;
-  let grain = vnoise(i.p * 1.3 + seed * 9.0) * 0.6 + vnoise(i.p * 0.35 + seed * 3.0) * 0.4;
+  var grain = 0.5;
+  if (full) {
+    grain = vnoise(i.p * 1.3 + seed * 9.0) * 0.6 + vnoise(i.p * 0.35 + seed * 3.0) * 0.4;
+  }
 
   var fill = 0.0;     // coverage of the coloured shape
   var margin = 0.0;   // coverage including the white margin
@@ -303,8 +344,11 @@ fn fs(i: VOut) -> @location(0) vec4f {
     }
     if (!flat_part) {
       margin = smoothstep(aa, -aa, s.d - MARGIN);
-      let sd = shape(part, p - i.soff, h, seed).d;
-      shadow = smoothstep(3.0, -3.0, sd - MARGIN) * 0.3;
+      // The drop shadow costs a second evaluation of the shape.
+      if (full) {
+        let sd = shape(part, p - i.soff, h, seed).d;
+        shadow = smoothstep(3.0, -3.0, sd - MARGIN) * 0.3;
+      }
       col = col * (0.9 + 0.2 * grain);
       col = mix(col, INK, smoothstep(-3.2, -1.2, s.d) * 0.7);   // ink outline
       col = mix(col, PAPER, s.light);

@@ -8,9 +8,206 @@ Run git, `cargo` and `./build.sh` inside WSL only. Windows git on the `\\wsl.loc
 
 Environment: `gh` is not installed inside WSL, so use the Windows one with `--repo skymiku39/jadereaper-redesign`. Node is 24 locally against the 26 the repository asks for; everything passes on 24. The smoke test runs locally.
 
-### feat/elements-and-reactions
+### `feat/weapon-shop` (cut from `feat/record-inner`)
 
-Cut from `main` at 8788f39. The user was shown a list of where the redesign could start, picked the martial arts × elements axis ("沒錯，就是這個"; read here as the recommended first item, the user did not name it) and said to work without stopping until it was done. Committed, pushed and opened as this repository's third PR on 2026-11-17 (the user said "提交並開 PR"). The user has not said to merge it; a merge to `main` redeploys the Pages site with the elements in it.
+`feat/record-inner` was committed as c7b39d8 and this branch cut.
+
+- **Built:** the out-of-run growth of design 4.12, as proposed there. Silver (銀兩) comes from every finished run that is not a test run or a replay (`src/shop.js`: 30 per commission done, 60 for a mission won, 1 per 30 s lived) and shows on the over and won screens. The weapon shop (兵器鋪) on the title screen sells, for 120 each, every weapon kind but each art's start kind and the mechanisms; and, for 200 each, the four inner arts beyond the five every player has (周天吐納功, 一葦渡江功, 袖裡乾坤, 銅皮鐵骨功, 拔山訣). The host passes what is owned in two new host tunes, `kinds_owned` (55) and `inner_owned` (56), bits by weapon and upgrade id; their default has everything, so the tools, the tests and old replays play as before.
+- **Checked:** fmt, clippy, tests (283, one for the two tunes), `./build.sh`, fonts, determinism, smoke; in a headless browser, a save with 400 silver shows 16 things to buy, and buying 雙刀 and 萬法歸宗 leaves 80 with every button greyed out.
+- **Not checked:** nobody has played it. A player's save now starts with the basic kinds only, so the weapons deck is thinner early on than in the balance tool, which still has everything; the prices and the silver per run are guesses. Famous blades (名器) in the shop are not done.
+
+### `feat/record-inner` (cut from `feat/manual-choice`, committed c7b39d8)
+
+`feat/manual-choice` was committed as 78d1229 and this branch cut.
+
+- **Built:** the martial record now also shows, per route, the heights (極致) its ultimate has reached, by the elements' marks in their colours; and a section of the nine inner arts (心法) with the highest layer ever reached and the line of each layer, an inner art never taken only outlined. The host keeps the layers in `save.inner` (per inner art name) when a run with routes on ends, won or lost, outside test runs and replays.
+- **Checked:** determinism, smoke; in a headless browser, a save with two inner arts and two heights shows them as above (picture checked).
+- **Not checked:** that a real run's end writes `save.inner` (the console cannot hand out inner arts); nobody has played it.
+
+### `feat/manual-choice` (cut from `feat/master-routes`, committed 78d1229)
+
+`feat/master-routes` was committed as 12753a9 and this branch cut.
+
+- **Built:** as design 4.5 has it, a manual (秘笈) is now kept for after the run and the player chooses where it goes. A master's fall sends `EV_MANUAL` with its school's id and opens nothing in the run; the host keeps it in `save.scrolls` (per school id) and says so. In the martial record, a stolen route of that school with a move still shut has a button that gives it one manual, which adds to `save.manuals` (the same two bits per stolen route as before, so older saves keep what they had) and so opens one more move from the next run on.
+- **Checked:** fmt, clippy, tests (the manual test now checks that nothing opens in the run and that the tune opens one move per manual), `./build.sh`, fonts, determinism, smoke; in a headless browser, a save with a stolen route and two kept manuals of its school shows one button, and two clicks give both (manuals 0 → 4 → 8 for slot 1, scrolls 2 → 0, the button gone).
+- **Not checked:** nobody has played it. A manual dropped in a run no longer helps that run; whether that feels like a loss is for play to tell.
+
+### `feat/master-routes` (cut from `feat/paired-blows`, committed 12753a9)
+
+`feat/paired-blows` was committed as b54dc8c and this branch cut.
+
+- **Built:** a master (an enemy kind with `manual`) no longer uses only its `strike`: it goes through every move of the route that move belongs to, in order, and round again (`foes::foe_move`), so the bandit master opens with 猛虎, the constable master with 牽羊, and each ends on its ultimate, warned of for 1.3 s instead of 0.8. Thrusts are a narrow arc for a foe, or a fan as wide as their spread, or all round. Elites that are not masters use their one move as before.
+- **Checked:** fmt, clippy, tests (282, one new; the elite tests now measure from a master's first move), `./build.sh`, determinism, smoke. The balance tool's bots live a little longer (seek 227 s from 216, circle 115 s from 109), since masters now land their ultimate only every few moves.
+- **Not checked:** nobody has played it; whether the general's twelve-spear ultimate as one ring warning reads well.
+
+### `feat/paired-blows` (cut from `feat/net-slow`, committed b54dc8c)
+
+`feat/net-slow` was committed as 5cfb964 and this branch cut.
+
+- **Built:** a paired kind (雙刀, 雙劍) lands its basic blow as two of half the damage each, the other hand's 0.12 s after the first along the same aim (`kinds.rs`, `Echo`); the whole stays the 20% more of the paired tag, so the numbers are as before but each blow can carry an element or open a 破綻 twice. Route moves other than the basic one are not doubled. The soft sword (軟劍) has the new trait `bend`: from the tip of each thrust it whips on, 60% as far and 60% as hard, to the nearest enemy there (`line` is now the hits plus the kind's trait, `line_hits` the hits alone).
+- **Checked:** fmt, clippy (core and generator), tests (281, two new), `./build.sh`, fonts (new characters subset), determinism, smoke; the balance tool's bots stay where they were (seek 216 s, circle 109 s).
+- **Not checked:** nobody has played it.
+
+### `feat/net-slow` (cut from `feat/hud-weapon`, committed 5cfb964)
+
+`feat/hud-weapon` was committed as 3fbcb8e and this branch cut.
+
+- **Built:** `slow` on `[[move]]`: a turret move that sets down a ring of mechanisms with it stretches a net (`turrets::Net`) inside the ring, and enemies there walk at that share less speed until it comes down with the mechanisms. 天羅地網 has `slow = 0.5`, as `docs/martial-arts.md` has it. The net is drawn as two rings of thread on the ground and fades in its last second. Nothing changes without a net (the enemy speed is only multiplied while one stands, and the hash takes it only then).
+- **Checked:** fmt, clippy (core and generator), tests (279, one for the net), `./build.sh`, fonts, determinism, smoke.
+- **Not checked:** nobody has played it or seen the net drawn; the console cannot give a stolen route's ultimate.
+
+### `feat/hud-weapon` (cut from `feat/kind-traits`, committed 3fbcb8e)
+
+`feat/kind-traits` was committed as 8481ab1 and this branch cut.
+
+- **Built:** the player draws the weapon the scythe art is in: a sabre (`dao`, new part 19) for 單刀, two of them swung one after the other for 雙刀, a broad blade on a pole (`dadao`, part 20) for 大刀, and the old scythe for 鐮 and with kinds off. Both shapes are in the WebGPU shader and the WebGL2 one. `jr_hold(weapon)` takes a kind card from the console or a tool, like `jr_give`. Only the scythe art is held in the hand; the other arts stay as they were drawn.
+- **Checked:** fmt, clippy, tests, `./build.sh`, fonts, determinism (drawing is not in the state hash), pictures of the four kinds from a headless browser. `npm run smoke` failed once more without its message; five runs after that all passed.
+- **Not checked:** nobody has played it; the pictures are small and the shapes may want work, or images in `assets/parts.json`.
+
+### `feat/kind-traits` (cut from `feat/sword-spear`, committed 8481ab1)
+
+`feat/sword-spear` was committed as 42e2463 and this branch cut.
+
+- **Built:** what some weapon kinds do of their own (`trait` on `[[weapon]]`): the sickle hooks the farthest enemy its sweep hit back in, throwing knives pass one enemy more, needles throw twice the shots at half the damage, the halberd also sweeps round the tip of its thrust; weapon cards say so. The routes' own rules of `docs/martial-arts.md` (`rule` on `[[route]]`): 綠林十八刀 lands 4% harder for each enemy within 200 (at most 60%), 黃泉引魂針 leaves an opening (破綻) that makes the next blow on that enemy land 30% harder, 血河劍 gains 5% for each kill of the last three seconds (at most ten). Hits now know which art lands them (`Game::striking`).
+- **Checked:** fmt, clippy, `cargo test --release` (278, six for the traits and rules), `./build.sh`, fonts, determinism; `npm run smoke` failed once and passed when run again (its message was not kept), so watch it.
+- **Not checked:** nobody has played it; the soft sword's bending thrust and the paired kinds' two blows of the design are still only extra damage.
+
+### `feat/sword-spear` (cut from `feat/tang-mechanisms`, committed 42e2463)
+
+After "提交後繼續", `feat/tang-mechanisms` was committed as 6d89d34 and this branch cut. Then the user said they cannot play for now and to keep going without stopping ("我現在沒有條件試玩，都直接幫我繼續，不要停止"); read here as leave to keep committing each finished branch locally, as the user had said each time before, and to go on. Nothing is pushed.
+
+- **Built:** the second batch of weapons, the sword and the spear: a `thrust` behaviour (a straight line at the nearest enemy within reach, else along the aim, `width` wide each side; `Game::line`), `routes_only` on `[[art]]` so they are only offered with routes on (`Game::upgrade_hidden`), six kinds (長劍, 雙劍, 軟劍, 長槍, 花槍, 戟), three schools (青冥觀, 白馬莊, 邊軍), six routes (行雲流水劍, 秋水劍, 血河劍 stolen from the sect, 長坂槍, 游龍槍, 破軍槍 stolen from the army) with 26 moves of a new `thrust` shape and the older ones, the army's `soldier` and its `general` (a master with 長坂橫槍 who drops the army's manuals). Manuals are now kept two bits per stolen route in the order of the stolen routes (`Game::manual_slot`), not by route id, so twelve stolen routes fit; manuals saved before this branch point at the wrong routes. State: `art_quality` moved to 122, `art_order` to 128, `state_floats` 136.
+- **Checked:** fmt, clippy, `cargo test --release` (272, with thrust and hiding tests), `./build.sh`, fonts, determinism, smoke; a headless browser gave the sword and spear their first routes and saw their moves called out and the thrust streaks.
+- **Not checked:** nobody has played it; the balance of the two new arts.
+
+### `feat/tang-mechanisms` (cut from `feat/zenith`, committed 6d89d34)
+
+After "提交後繼續", `feat/zenith` was committed as d19f479 (not pushed) and this branch cut. The user had asked for the Tang clan's hidden weapons or mechanisms ("唐門暗器也要安排上，或者是機關").
+
+- **Built:** two mechanism kinds of the talisman (袖箭, 機關匣, form tag `mechanism`); `only` on `[[route]]` (限用): a limited route is learned only by those kinds, and a mechanism learns nothing else; a mechanism is only drawn once such a route is known, and an art on a route only changes to a kind that can learn it. The route 唐門九機匣 (stolen from a new `tang_disciple`), its five moves of a new `turret` shape (`core/src/turrets.rs`): a wooden bird circling the player and shooting (公輸木鵲), a mechanism set down (九攻九距), one that follows (木牛流馬), one that bursts into twelve shots when it ends (萬弩齊發), and a ring of eight (天羅地網, the ultimate); at most eight at once, each shooting the nearest enemy within 420. The generator allows a fourth route per art when it is limited.
+- **Decided here, not by the user:** every number; the net of 天羅地網 does not slow enemies; mechanisms are drawn as the talisman's paper part; the mechanism kinds' basic move is the talisman's.
+- **Checked:** fmt, clippy, `cargo test --release` (270, with tests for the limit and for mechanisms shooting, ending and the cap), `./build.sh`, fonts, determinism, smoke.
+- **Not checked:** nobody has played it and no browser run used the route: `jr_give` takes an art's first route, which for the talisman is not this one.
+
+### `feat/zenith` (cut from `feat/martial-record`, committed d19f479)
+
+After "提交後繼續", `feat/martial-record` was committed as 94d0a10 (not pushed) and this branch cut.
+
+- **Built:** the height of a route (極致, design 4.8.5) in `core/src/zenith.rs`: `zenith = "<inner art>"` on every `[[route]]` (the pairs of `docs/martial-arts.md`); with the route whole, an element on the art and that inner art held, the ultimate lands 1.5 times as hard and each of its hits (sweeps, delayed hits and waves alike, through a `zen` mark on delayed hits and shots) does its element's height: metal fills the guard and halves blows for 2 s, wood heals 1 a hit, water makes the surges go together after 0.5 s, fire passes its burn to the nearest enemy, earth holds for 2 s however recently held, lightning jumps to two more, holy fells a corpse or spirit that does not come alone. `EV_ZENITH` (move + 256 × element) calls out "火・五嶽同崩" in big gold; the first time for a route and element the hero remembers the world of magic in a line (one per element), kept in the save (`zeniths`). The ultimate's card says which inner art it needs. Also fixed: a delayed hit used only the inner-art damage factor, not the weapon's and the finisher's; it now keeps the move's factor (`cast_might`).
+- **Decided here, not by the user:** every number; one memory line per element rather than per route; the record does not show heights yet.
+- **Checked:** fmt, clippy, `cargo test --release` (268, six height tests), `./build.sh`, fonts, determinism, smoke.
+- **Not checked:** nobody has played it, and no browser run reached a height (the host cannot hand out inner arts; only the core tests reach it).
+
+### `feat/martial-record` (cut from `feat/masters-manuals`, committed 94d0a10)
+
+After "提交後繼續", `feat/masters-manuals` was committed as 6dcecec (not pushed) and this branch cut.
+
+- **Built (host only, no core change):** the martial record (武學錄, design 4.12), a title button and screen: per art, every route with its school, whether it is known, stolen or not yet (its name hidden as ？ until stolen), how far its manuals open it, and its moves; a move used at least once shows its name and card line, the rest only an outline of question marks. The save keeps `learned`, the ids of the moves ever used (written the first time a move is called out, not during a replay).
+- **Decided here, not by the user:** a move counts as learned when it is first used, not when its card is picked; inner arts and weapon kinds are not in the record yet; the memory lines of ultimates (design 4.8.5) are not written yet.
+- **Checked:** `npm run fonts:subset` and `fonts:check`, `npm run smoke`; a headless browser used the scythe's route, went back to the title, opened the record, read it and took a picture.
+- **Not checked:** gamepad scrolling of the long record; narrow screens.
+
+### `feat/masters-manuals` (cut from `feat/school-elites`, committed 6dcecec)
+
+After "提交後繼續", `feat/school-elites` was committed as 4b12df4 (not pushed) and this branch cut.
+
+- **Built:** three school masters (`bandit_master` every 240 s with 捨得一身剮, `constable_master` 300 s with 關門捉賊, `sect_master` 360 s with 萬鬼朝宗), tough and using their school's ultimate through `foes.rs`; `manual = true` on an `[[enemy]]` drops a manual (秘笈) of its school when it falls (`EV_MANUAL`, a notice). A stolen route can now be learned to its second move, one more per manual (two bits per route in `Game.manuals`); the host keeps them in the save and passes them to later runs and replays through the `manuals` tune (mission "host"). Route cards of a stolen route say how far it can be learned.
+- **Decided here, not by the user:** a manual goes straight to the routes of the master's school instead of being given out by the player between runs as design 4.5 says; the masters' clocks and numbers; a master uses one move, the ultimate, not its whole route.
+- **Checked:** fmt, clippy, `cargo test --release` (262, with a test that kills masters until a stolen route is whole), `./build.sh`, fonts, determinism, smoke.
+- **Not checked:** nobody has played it; no browser run reached a master (the first comes at four minutes).
+
+### `feat/school-elites` (cut from `feat/weapon-quality`, committed 4b12df4)
+
+After "提交後繼續", `feat/weapon-quality` was committed as 4a6c28b (not pushed) and this branch cut.
+
+- **Built:** `core/src/foes.rs`: an `[[enemy]]` may name a `strike` move; such a foe stops, shows the move's shape on the ground in faint red for 0.8 s (`EV_FOE`, its name called out in red ink with a warning sound), then lands it: an arc toward where the player stood, or a ring round itself, `reach × 100` across; a negative knockback pulls the player in. Three elites come alone on their clocks while `school_share` is above 0: `bandit_chief` (開膛破肚, every 75 s), `constable_chief` (順手牽羊, 105 s), `claw_crone` (勾魂攝魄, 135 s); felling one teaches its school's route like a disciple. A kind that comes alone with a share tune now only comes while that tune is above 0 (the old elite has no share tune, so it is unchanged).
+- **Decided here, not by the user:** the warning time, the rest between moves, the 100-unit scale, the shove sizes, which move each elite uses, that a foe's move ignores elements and inner arts other than the player's own defences; masters (高手) with whole routes and ultimates, and manuals, are still not built.
+- **Checked:** fmt, clippy, `cargo test --release` (261 with five foe tests: warning, standing still, landing, dodging by stepping out, pulling; 26 content), `./build.sh`, fonts, determinism, smoke, the balance tool; a headless browser run saw the call-out 開膛破肚.
+- **Not checked:** nobody has played it; how readable the faint red warning is on the paper ground was not seen (the one picture was taken as the bot died).
+
+### `feat/weapon-quality` (cut from `feat/level-decks`, committed 4a6c28b)
+
+After "提交後繼續" again, `feat/level-decks` was committed as b72050f (not pushed) and this branch cut.
+
+- **Built:** weapon quality (plain iron, fine steel, famous blade: damage ×1, 1.15, 1.3, reach ×1, 1.05, 1.1) as the rank of weapon cards (25% steel, 5% famous, steel sure after three plain cards; a card of the kind an art already is always brings a better one; a change of kind keeps the better quality); silver and gold card frames and HUD chips. Stealing (偷師): four stolen routes (綠林十八刀, 六扇門水火棍, 黃泉引魂針, 三屍攝魂爪, 15 moves, pulls through negative knockback), three schools of the powers, four disciple enemies (`bandit`, `constable`, `needler`, `puppet`) that join the horde at the `school_share` tune each (0.04); the first disciple of a school to fall teaches its routes in that run (`EV_STEAL`, a notice), and the host keeps them in the save as bits, passed to later runs and replays through the `stolen` tune (mission "host": the generator now accepts it, and no setup screen shows it).
+- **Decided here, not by the user:** every number; disciples only charge (the elites with telegraphed moves of design 4.8.6 are not built), and stealing needs any disciple, not an elite; manuals that cap stolen routes at the second move are not built, so a stolen route is whole at once; the route rules of the design (the bandits' crowd bonus, the needles' opening, homing) are left out and the moves are made of the existing shapes.
+- **Checked:** fmt, clippy, `cargo test --release` (256 and 26 content), `./build.sh`, fonts, determinism, smoke; the balance tool; a headless browser with more disciples saw the notice "偷師：三屍攝魂爪（九幽教）" and the save and the core both holding the four stolen routes.
+- **Not checked:** nobody has played it; the stolen routes' cards and moves were not looked at on screen.
+
+### `feat/level-decks` (cut from `feat/martial-routes`, committed b72050f)
+
+After the user said "提交後繼續", `docs/martial-routes` (05df291) and `feat/martial-routes` (a2e42d9) were committed locally (nothing pushed), and this branch was cut.
+
+- **Built:** `core/src/decks.rs` and the `decks` tune (default 1): a level-up asks for a deck (weapons, martial arts, inner arts, magic, fate), then three cards from it; a deck with nothing is greyed out, one open deck skips the question, the last deck is focused next time; inner-art cards are now and then fine (two layers, 20%, 40% from fate). `core/src/kinds.rs`, `[[weapon]]` in the content (12 kinds) and `suits` on routes: an art comes in its start kind; the weapons deck hands out a new art in any kind or another kind for a held art; form tags scale reach, beat, damage and knockback; a route that suits the kind hits 15% harder (人器合一). The deck screen, weapon cards (new or `單刀 → 雙刀`, form tags, the routes it suits), route cards marked when they suit the kind, kind glyphs on the HUD chips. State: `deck_pick` at 16, `deck_open` 17-21, `last_deck` 22, `choice_rank` 23-25, `art_kind` 112 (`state_floats` 128).
+- **Decided here, not by the user:** the deck odds and fine-card chances; fate sometimes ends in an element; a closed deck falls back to the first open one; kinds are on with routes (one tune); paired is simply 20% more damage, and the sickle's hook, the throwing knife's pierce and the needles' count from the design are not built; the mission tests' bots play without decks.
+- **Checked:** fmt and clippy, `cargo test --release` (254, 26 content), `./build.sh`, fonts, `npm run determinism`, `npm run smoke`; the balance tool with `--pick arts` (the circling bot lasts 101 s against 108 s before routes, the seeking bot 182 s against 104 s); a headless browser drew from every deck, saw a fine card and weapon cards of both sorts.
+- **Not checked:** nobody has played it; gamepad on the deck screen; how the five cards fit a narrow screen.
+
+### `feat/martial-routes` (cut from `docs/martial-routes`, committed a2e42d9)
+
+On 2026-11-17 the user said quota was no longer a limit and to put it into development ("我現在有無限額度。趕快用於開發"). Committed as a2e42d9 on 2026-11-17 at the user's word; not pushed.
+
+- **Built:** `[[school]]`, `[[route]]` and `[[move]]` tables in the generator and `content/game.toml` (6 schools, 8 routes, 37 moves: two routes for each of scythe, beads, talisman and pulse, standing in for sabre, staff, hidden weapons and fist); `core/src/routes.rs` (route choice at level 3, the move order, four move shapes, delayed hits, splitting and piercing shots); `core/src/inner.rs` (the passives as three-layer inner arts, and three new ones: `jieli`, `qiguan`, `wanfa`); the `routes` tune (default 1) that turns both on; the route cards, move-order dots on HUD chips, move names brushed over the game, hit-stop and sounds for ultimates, inner-art cards (`src/ui.js`, `src/main.js`, `src/audio.js`, `style.css`); text in both languages. State moved: `upgrade` is now at index 96 (`state_floats` 112).
+- **Decided here, not by the user:** every number; a route's basic move hits more lightly when the route beats faster than the art's own cooldown; beads on a route keep growing with the level under the moves; inner-art layers count as passive levels 2, 4 and 5, so the old numbers stay the base; borrowed force is a splash around the struck enemy rather than a real collision; the staff's moves are sweeps and rings rather than the extending rod of the design; the routes and inner arts share one tune.
+- **Checked:** fmt and clippy on `core` and `tools/gen`, `cargo test --release` (249 with the new route and inner tests, 25 content tests), `./build.sh`, fonts subset and check, `npm run determinism`, `npm run smoke`. The recorded whole run passes with the tune off. The balance tool shows the four bots last about as long with routes as without (`--pick arts`). A headless browser took the scythe to level 3, saw the route cards, took a route, and saw each move's name called out once and the ultimates every time; all four arts at the top level at once; inner-art cards.
+- **Not checked:** nobody has played it. Whether every move reads on screen, and whether the route numbers feel right, was not judged; only a few pictures were looked at. Gamepad and narrow screens on the new cards were not tried. Replay links made before this branch play back wrongly, since their tunes lack `routes`.
+
+### `docs/martial-routes` (cut from `feat/gem-curve`, committed 05df291)
+
+On 2026-11-17 the user said levelling up felt messy and flat ("我感覺升級很亂，玩起來沒勁"), suggested a draw that guarantees the kind but not the rarity (from RO), and asked how growing stronger should feel. Shown two directions, the user chose to design the martial-art routes first, then said to keep going without stopping and finish as much design as possible, with weapons and martial arts linked and more wuxia ("武器和武學應該要有連動，並且要江湖一點").
+
+- **Written:** `docs/design.md` 4.8 (weapons, routes, inner arts, ultimates), 4.9 (deck-first level-up with rarity and a gamble deck), 4.10 (how growth is shown), pointers in 4.5, 4.6 and 4.7, and rows 11 to 15 in section 9; `docs/martial-arts.md`, the catalogue of four weapons with twelve routes, every move's shape, multiplier and card line, how each element changes an ultimate, example famous weapons, and the code the routes need; the plan in `ROADMAP.md` step 1.
+- **Decided here, not by the user:** all of it is marked 已提出. The four layers, six weapon kinds as the six slots, levels 1 and 2 as basics and the route chosen at level 3, the move order that drops the basic move at level 5, stolen routes capped at the second move until a manual, the nine inner arts and every number, name and card line.
+- **Names, second round:** the user called the first names ugly and not wuxia ("名稱有夠難聽，根本不武俠") and asked for traditional and fan names to be researched first. `docs/naming.md` holds what four scouts and a fetch of the Chinese Wikipedia list of Gu Long's arts found (Jin Yong, Gu Long, a little of Liang Yusheng and Wen Rui'an, games, real boxing manuals), the naming rules drawn from it (full name = number or source + motif + category word; one classical source per route; the school sets the source), and the new names, now used in `docs/martial-arts.md` and `docs/design.md`.
+- **Weapons first, third round:** the user asked for weapons to come first, with two tags on each route (weapon type and school), move counts that differ between routes ("式的話不一定只要三個，沒必要對齊"), extra tags on the weapon itself such as its kind, and Tang clan hidden weapons or mechanisms ("唐門暗器也要安排上，或者是機關"). Now: a weapon has a type, a kind (single sabre, twin sabres, great sabre, sickle; long staff, eyebrow staff; dart, flying knife, needle, sleeve arrow, mechanism box; bare hand, gauntlet, claw) and form tags (long, short, heavy, light, paired, mechanism) with shared modifiers; a route has a type, a school, kinds it suits or is limited to, and two to five moves, so its top level is 2 + moves + 1; eleven schools; thirteen routes, among them the Tang clan's dart route and its mechanism route (turrets and a wooden bird), which only mechanism kinds can learn. `docs/martial-arts.md` is ordered by weapon type.
+- **Design only, fourth round:** the user stopped the sabre prototype ("開始做原型", then "現在要考慮的是設計") and said names are only a reference that will be reworked with puns later, so wording is not to be polished. Added: `docs/design.md` 4.8.6 (school enemies in three tiers, disciple, elite, master, every move telegraphed, which schools appear where), 4.11 (level-up pacing: about 40 level-ups in a story run, about 90 in endless, 12 to 18 minutes to a first ultimate), 4.12 (meta progression that adds choices rather than power: weapon types, routes, manuals, and silver for the weapon shop, inner arts and the martial record); in `docs/martial-arts.md` the sword and spear with three routes each, a twelfth school (白馬莊), and the school enemy table.
+- **Not checked:** no code changed; nothing was simulated, so the multipliers and beats are guesses, and the uneven move counts change how fast each route reaches its ultimate. The new names were checked only against the names the research collected, not against every existing work.
+
+### The overnight stack (newest branch at the end of the list below)
+
+On 2026-11-17, before going to sleep, the user said to keep improving the project for as long as the quota lasts ("能做到什麼程度就做到什麼程度，不要停止"). The work was done as a stack of branches, each cut from the one before, starting from `main` at 5b95ed0, one commit each, all **committed locally only: nothing is pushed and no PR is open** (pushing and PRs wait for the user's word). In order, with what each adds:
+
+1. `tools/game-view` (325dad3): `npm run shot` and `tools/play.mjs`, which play a mission with a bot in headless Chromium and save pictures with the game view in them (the page draws into a texture of its own that is copied out, since a headless canvas is never presented); `jr_give(art, level, element)` for tools and the console.
+2. `test/mission-checks` (e360e4e): `npm run determinism` plays every mission natively and in wasm, with and without every art carrying an element (48 runs); `npm run smoke` starts every mission in a browser for 2.5 s. `game::scripted_mission` and `jr_scripted_mission`.
+3. `feat/balance-sim` (e0a3fb4): `cargo run --release --bin sim` (`core/src/bin/sim.rs`), many native runs with three bots (still, circle, kite) and four ways of picking cards, as a table; `--element each` compares the elements. Its first table showed metal made the player untouchable (the guard refilled on every swing and took whole blows), so the guard now takes a share (`minor`, 0.4) of a blow with a cap of 12; water, fire and holy were raised and lightning lowered. With the circle bot each element now lasts 1.05 to 1.35 times as long as none. The generator writes name tables (`MISSION_NAMES` and so on) for the tools.
+4. `feat/enemies-as-data` (692b7f3): the four enemy kinds are `[[enemy]]` entries, with how each joins the horde (`from`, `share`, `ramp`, `every`, `tune`).
+5. `feat/pressure-options` (7c2fdb7): three tunes, off by default, against a player who only runs (P-21, P-29): `chasers` (hounds, a new enemy faster than the player), `ambush` (enemies from where the player heads) and `arena_radius` (a walled field, drawn as a ring of stones). With the kite bot, which never dies otherwise, 15% hounds end 12 runs of 32 in five minutes, a wall of 600 ends 7, ambushes end none.
+6. `feat/replays` (e14230f): the core logs moves, the visible area and picks per step (`core/src/replay.rs`); the game-over and mission-complete screens copy a link (`?replay=`, packed by `src/replay.js`) that plays the run back, marked "重播中" on the HUD. The smoke test plays a link back in Node and compares the state hash.
+7. `feat/game-feel` (0c50096): damage numbers as brush digits (new part `digit`, id 17, drawn in the shader), coloured by element and reaction and adding up per enemy; hit-stop on heavy kills and reactions, done in the host; two settings, damage numbers, and shake with hit-stop.
+8. `feat/passives-as-data` (b2021a9, then 318461a for this file): the six passives are `[[passive]]` entries (a stat and an amount per level), read through `Game::stat`.
+9. `feat/feel-more` (1b9d712): a fallen enemy's paper tears into spinning pieces (from its id, so the run is unchanged); below a quarter of health the screen's edges redden and a heartbeat sounds; the experience bar flashes on level-up; generative music (plucks over a drone) with a switch, quieter in menus.
+10. `feat/touch` (06d5075): a floating stick where a finger lands on the game view, a pause button on the HUD after the first touch, the HUD clear of notches.
+11. `feat/low-quality` (aea6722): at most 1.5 pixels per CSS pixel on small screens, and a "畫質：低" setting without line boil, grain or drop shadows.
+12. `feat/webgl2-fallback` (b20f8e7): `src/renderer-gl.js`, the shader ported to GLSL, used when WebGPU fails or with `?renderer=webgl2`; the smoke test plays a run with it.
+
+13. `feat/seek-bot`: the balance tool gets a fourth bot, `seek`, which heads for whatever the mission's edge markers point at while keeping clear of enemies, and `--mission all`.
+
+14. `feat/commissions`: the first commission in endless (design 4.3), saving a village, in `core/src/commission.rs`: one at a time, 30 s into the run and 40 s after the last, 650 to 950 away, gone after 45 s; two seconds by it takes it; then 35 s of attackers (one a second, growing with the run's time, a fifth of them brutes) that go for the village (150 health); held, it gives a level-up and 30 health; fallen, nothing. A `commissions` tune on endless's setup screen (1 on); the recorded run test turns it off, so the game without it plays as before. A script in a headless browser followed the marker, took one, held it and saw "委託完成：多一次升級" and the level go up.
+
+15. `feat/hunt-commission`: the second commission kind, a hunt (the design's vendetta commission): a marked band (a brute and four blots at 2.5 times health) waits 550 from where it was taken, moves only once the player comes within 320, and must all die within 75 s. Each offer is a village or a hunt at even odds. Tried three times in a headless browser by a script that follows the marker: two villages and one hunt, all done. A picture of the hunt showed damage numbers piling up over a crowd into a mess, worth judging when playing.
+
+16. `fix/number-clutter`: at most 40 damage numbers at once, and an enemy adds to its number for longer.
+17. `feat/escort-commission`: the third commission kind, an escort: a villager (120 health) walks 800 from the spot at 70 a second, only while the player is within 260, with attackers going for it as for a village; done on arrival, failed if it falls or after 90 s. Offers are now a village, a hunt or an escort at even odds. It does not reuse the escort mission's code (that is written for a whole mission). Seen in a headless browser: the villager, its health bar, "護送：已走 27%" and the marker to where it is going; nobody walked one to the end in a browser, only in a test.
+
+18. `feat/commission-count`: endless's game-over screen shows the commissions done.
+19. `fix/review-findings`: fixes from a review of the whole stack by a subagent: at the enemy cap a hunt was won with no band and a village could not be harmed (the horde enemy furthest from the player now makes way); a replay showed the level-up cards over itself and stopped reading events (cards are not shown while replaying); harm to an escort's villager on the step it arrived carried into the next commission. The review found no way for native and wasm, or a replay and its run, to differ, but noted that no automated check played a commission natively against wasm, since the bots never took one. The next commit closes that: in the armed endless run of the determinism check the bot now goes for the commissions, and a test makes sure that run takes and ends at least one for each of the check's seeds.
+
+20. `fix/review-findings` also holds: the determinism check's armed endless run now takes commissions (da11b67), and the host rounds stick and touch input to steps of 1/16 so replay links stay short (9e3ba6b).
+21. `feat/rumble-and-soft-music` (557b9e2): a gamepad rumbles when the player is hurt and lightly when a heavy enemy falls (off with "shake and hit-stop"); the music button cycles full, soft and off. The rumble was not tried: there is no gamepad in a headless browser.
+
+22. `feat/gem-curve` (fc64e47): a gem being pulled in is drawn bending to one side, the most halfway in; its place in the run is unchanged. Not looked at in motion, only checked by the tests and the recorded run.
+
+Also checked at the end of the night: the settings screen (10 buttons) and the longest setup screen (formation, 15 tunes) keep every control reachable at 1280x720 and 400x700, in both languages.
+
+The wasm core takes about 0.08 ms a frame (worst 0.28 ms) at 489 enemies with every art carrying an element, measured in Node; drawing, not simulating, is where the frame goes.
+
+What the tool says about the missions (16 runs per bot, picking martial arts first, up to 600 s, no accept phase, default tunes), for P-30: the seeking bot wins pursuit 1 time in 16 and vendetta 2 times, and no other mission; it dies in escape after 34 s on average and in hold after 108 s. The bot that only backs away wins survive 16 of 16 and never dies in endless, kills, formation, arena, retrieval, escort or escape within ten minutes, but wins none of them either. No bot wins kills, formation, arena, retrieval, escort, hold, escape or boss. These bots are crude, so this says more about what a mission does not reward than about how hard it is for a person.
+
+- **Decided here, not by the user:** everything in the list is my pick of what to do next from `ROADMAP.md`; the new element numbers and the guard's share; the hound's numbers; that the pressure options are tunes rather than part of the game; the look of the damage numbers and the length of the hit-stop; the replay format (only valid on the same build); the commit attribution changed from Fable 5.2 to Opus 5.5 partway, following the session's reminder.
+- **Checked, on each branch before its commit:** `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` on `core` and `tools/gen`, `cargo test --release` (214 passed, 5 ignored, 23 content tests at the tip), `./build.sh` twice (the second changes nothing), `npm run fonts:check` (after `fonts:subset` where text changed), `npm run determinism`, `npm run smoke`. The recorded whole-run test passed unchanged on every branch, so the base game plays as it did at `main`. Pictures from `npm run shot` were looked at for the elements, the wall and hounds, the damage numbers and a replay.
+- **Not checked:** nobody has played any of it. The new settings buttons and the "Copy replay link" button were only clicked by scripts; the clipboard write was not tried in a real browser. Sounds, music and hit-stop were not seen or heard. The low-health wash was confirmed by a script (it is on exactly while playing below a quarter of health) but never caught in a picture. Touch was tried only with synthetic pointer events in a 390x844 headless page, not on a phone. The low-quality setting's saving is unmeasured (headless runs at 60 frames a second either way). The WebGL2 look was compared with WebGPU in one picture by eye. The sim's numbers come from crude bots. CI has not run on any of these branches.
+
+Merged on 2026-11-17 by rebase as PR 3 (the user said "通過後合併"; Core, Smoke and Fonts passed; the Pages deploy of `main` at 5b95ed0 succeeded, and the site's `src/generated.js` holds the elements; `feat/elements-and-reactions` is deleted locally and on `origin`): the martial arts as data, the seven elements and three reactions. Cut from `main` at 8788f39. The user was shown a list of where the redesign could start, picked the martial arts × elements axis ("沒錯，就是這個"; read here as the recommended first item, the user did not name it) and said to work without stopping until it was done. What follows describes PR 3.
 
 - **Martial arts as data:** `[[art]]` in `content/game.toml` (behaviour, part, numbers per level), generated as `ARTS`; `core/src/arts.rs` has one function per behaviour and `Game.arts` holds each art's timer and element. `core/src/schema.rs` holds the table shapes. The old `Game::weapons` and the three timer fields are gone.
 - **Elements and reactions:** `[[element]]` (seven) and `[[reaction]]` (three), generated as `ELEMENTS` and `REACTIONS`; `core/src/elements.rs` has `Game::strike` (a hit of an art with its element), `react`, `tick_tags` (burn ticks, the delayed surge), the player's guard and slow heal, and the drawing (a dot per tag above the enemy, a ring per burst, a ring around the player for guard). An art's swing, shot, bead or ring takes its element's colour.
@@ -79,7 +276,7 @@ The working order agreed with the user on 2026-11-16, with missions moved ahead 
 
 1. Mission prototypes from `docs/design.md` 4.2.1: all built and merged as PR 6. Next for them is the user playing them and the decisions in `Pending` (P-29, P-30).
 2. The rest of roadmap step 3: input recording with replay playback, then the headless balance tool. The fixed time step is done (PR 3).
-3. Martial arts × magic elements and reactions: built on `feat/elements-and-reactions` (2026-11-17), not yet committed. Next for it is the user playing it and settling the numbers (P-35). The rest of roadmap step 1 is still open: enemies and passives as data, schools, puppet rigs.
+3. Martial arts × magic elements and reactions: merged as PR 3. Next for it is the user playing it and settling the numbers (P-35). Of roadmap step 1, enemies and passives as data are on the overnight stack; schools and puppet rigs are open.
 4. The game feel pass (roadmap step 2), then the rest of roadmap step 4. A determinism check and a smoke test that play the new missions belong here or earlier.
 5. English UI fonts to match the Chinese set.
 6. Touch controls and a WebGL2 fallback (roadmap step 6); scaling to thousands of enemies (roadmap step 7).
@@ -88,8 +285,14 @@ Done: the rest of CI (roadmap step 5), merged as PR 2, and the fixed time step, 
 
 ## Pending
 
+- **P-39** The user's call on `docs/design.md` 4.8 to 4.10 and `docs/martial-arts.md` (section 9, rows 11 to 15): the weapon, route and inner-art layers, the deck-first level-up, and whether the prototype scythe stays as the famous weapon 玉鐮. Blocks: building routes (ROADMAP step 1, "Proposed next").
 - **P-34** What "重新設計" covers beyond its first piece: on 2026-11-17 the user chose the martial arts × elements axis to start with (and had the Pages site enabled), but has not said which other parts of the design or code are to be redone. Blocks: choosing the work after `feat/elements-and-reactions`.
-- **P-35** The user's call, after playing, on the elements: every number in `[[element]]` and `[[reaction]]`, how often an element card comes (35% of offers), and the choices listed as "decided here" under `feat/elements-and-reactions`, above all that a reaction ends both tags and that the wisp stands in for corpse enemies. Blocks: nothing.
+- **P-36** What to do with the overnight stack (local branches from `tools/game-view` to the newest, listed under the stack in `In progress`): push it and open one PR for the whole stack, one PR per branch in order, or drop parts. Blocks: any of it reaching `main` or the site.
+- **P-38** The commission's numbers and reward (a level-up and 30 health stand in for the in-run boost; the out-of-run currency and achievements of design 4.3 are not designed), the hunt's and the escort's numbers. Blocks: nothing.
+- **P-37** Which of the three pressure options (`chasers`, `ambush`, `arena_radius`) becomes part of the game, and how strong, after playing them. Answers P-21 and P-29. Blocks: nothing. What the balance tool says (24 runs each, picking martial arts first, up to 420 s):
+  - Survive: the bots that back away or head for goals win 24 of 24 with no pressure. With 15% hounds they win 15 and 19, with 30% hounds 9 and 10, inside a wall of radius 800 22 each. Ambushes change nothing. The bot walking a square loses every time in all cases.
+  - Escape: no bot wins with or without pressure. The bot that heads for the exit dies after about 30 s in every case, so the mission now looks too hard to push straight through rather than too easy to dodge through, which is the opposite of the earlier bot finding (P-29). A wall cannot be used with escape, since the exit lies outside it.
+- **P-35** The user's call, after playing, on the elements (the numbers have since been levelled against bots on the overnight stack): every number in `[[element]]` and `[[reaction]]`, how often an element card comes (35% of offers), and the choices listed as "decided here" under `feat/elements-and-reactions`, above all that a reaction ends both tags and that the wisp stands in for corpse enemies. Blocks: nothing.
 - **P-21** The user's call on the survive mission: it can be won by only running away. In a native simulation of 40 seeds, a bot that moves away from nearby enemies and always takes the first card won 40 of 40 at a mean level of 1.4; a bot walking in circles won 0 of 40 and lasted 102 s on average. The arena has no edge and enemies are slower than the player. It needs pressure that running cannot escape (a bounded arena, spawns that surround, faster chasers); open in `docs/design.md` 4.2.1. Blocks: nothing, but it shapes the next mission prototypes.
 - **P-22** The user has not yet said whether the game looks right at the fixed step (PR 3). Blocks: nothing.
 - **P-29** What makes the encirclement in `escape` real, since enemies neither block nor outrun the player: guards standing at the exit, a slowdown inside a crowd, or a higher enemy cap. Same root as P-21. Blocks: `escape` being a mission at all.

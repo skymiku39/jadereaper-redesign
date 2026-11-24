@@ -11,6 +11,7 @@
     "fonts:check": "node tools/fonts.mjs check",
     "start": "node tools/serve.mjs",
     "smoke": "node tools/smoke.mjs",
+    "shot": "node tools/shot.mjs",
     "determinism": "node tools/determinism.mjs"
   },
   "devDependencies": {

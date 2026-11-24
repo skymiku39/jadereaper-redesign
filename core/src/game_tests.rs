@@ -11,8 +11,13 @@ fn near(a: f32, b: f32) -> bool {
 
 /// A running game at time 0 with every weapon timer parked far away, so a test
 /// only sees the weapon it arms. Scythe is at level 1 (as in a real run).
+/// Routes and inner arts are off: these tests pin down the arts and passives
+/// as they grow on their own (`route_tests.rs` and `inner_tests.rs` cover the rest).
 fn base() -> Game {
     let mut g = Game::new(1);
+    g.tune[T_ROUTES] = 0.0;
+    g.tune[T_SCHOOL_SHARE] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.running = true;
     g.arts[A_SCYTHE].timer = 100.0;
     g.arts[A_TALISMAN].timer = 100.0;
@@ -488,11 +493,14 @@ fn vitality_raises_max_and_current_health_on_choose() {
 
 #[test]
 fn passive_and_weapon_ids_and_caps() {
-    assert_eq!(N_UPGRADES, 10);
-    assert_eq!(UPGRADE_MAX, [6, 6, 6, 6, 5, 5, 5, 5, 5, 5]);
+    assert_eq!(N_UPGRADES, 15);
+    assert_eq!(UPGRADE_MAX, [6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 3, 3, 3, 6, 6]);
     assert_eq!(
-        [U_SCYTHE, U_TALISMAN, U_BEADS, U_PULSE, U_VITALITY, U_SWIFT, U_LURE, U_MIGHT, U_HASTE, U_MENDING],
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        [
+            U_SCYTHE, U_TALISMAN, U_BEADS, U_PULSE, U_VITALITY, U_SWIFT, U_LURE, U_MIGHT, U_HASTE, U_MENDING, U_JIELI,
+            U_QIGUAN, U_WANFA
+        ],
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     );
     let g = Game::new(1);
     let mut expect = [0u8; N_UPGRADES];
@@ -504,6 +512,7 @@ fn passive_and_weapon_ids_and_caps() {
 fn offer_gives_three_distinct_valid_choices() {
     for seed in 1..200u32 {
         let mut g = Game::new(seed);
+        g.tune[T_DECKS] = 0.0;
         g.pending = 1;
         g.offer();
         assert!(g.choosing);
@@ -524,7 +533,11 @@ fn offer_gives_three_distinct_valid_choices() {
 fn offer_never_includes_maxed_upgrades() {
     for seed in 1..100u32 {
         let mut g = Game::new(seed);
+        g.tune[T_DECKS] = 0.0;
         g.tune[T_ELEMENT_CARDS] = 0.0;
+        g.tune[T_ROUTES] = 0.0;
+        g.tune[T_SCHOOL_SHARE] = 0.0;
+        g.tune[T_DECKS] = 0.0;
         g.up = UPGRADE_MAX;
         // Leave three upgrades one level short.
         for id in [U_PULSE, U_SWIFT, U_MENDING] {
@@ -541,6 +554,10 @@ fn offer_never_includes_maxed_upgrades() {
 #[test]
 fn offer_pads_with_empty_slots_when_few_remain() {
     let mut g = Game::new(5);
+    g.tune[T_DECKS] = 0.0;
+    g.tune[T_ROUTES] = 0.0;
+    g.tune[T_SCHOOL_SHARE] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.up = UPGRADE_MAX;
     g.up[U_HASTE] -= 1;
     g.up[U_LURE] -= 1;
@@ -558,6 +575,7 @@ fn offer_pads_with_empty_slots_when_few_remain() {
 #[test]
 fn choose_raises_level_and_closes_the_offer() {
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.pending = 1;
     g.offer();
     let id = g.choices[1] as usize;
@@ -572,6 +590,7 @@ fn choose_raises_level_and_closes_the_offer() {
 #[test]
 fn choose_chains_into_the_next_pending_offer() {
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.pending = 2;
     g.offer();
     g.choose(0);
@@ -585,6 +604,7 @@ fn choose_chains_into_the_next_pending_offer() {
 #[test]
 fn choose_is_ignored_when_not_choosing_or_out_of_range() {
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.choices = [U_MIGHT as i32, -1, -1];
     g.choose(0); // not choosing
     assert_eq!(g.up[U_MIGHT], 0);
@@ -600,6 +620,7 @@ fn choose_on_a_maxed_upgrade_changes_nothing_but_still_consumes_the_pick() {
     // Oddity: a stale choice that is already maxed is not raised, yet the
     // offer is closed and a pending level up is spent.
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.up[U_SWIFT] = UPGRADE_MAX[U_SWIFT];
     g.choosing = true;
     g.pending = 1;
@@ -614,6 +635,10 @@ fn choose_on_a_maxed_upgrade_changes_nothing_but_still_consumes_the_pick() {
 fn vitality_at_full_health_overheals_current_health() {
     // Oddity: hp is raised by 20 without clamping, so it stays equal to max.
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
+    g.tune[T_ROUTES] = 0.0;
+    g.tune[T_SCHOOL_SHARE] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.choosing = true;
     g.pending = 1;
     g.choices = [U_VITALITY as i32, -1, -1];
@@ -625,6 +650,7 @@ fn vitality_at_full_health_overheals_current_health() {
 #[test]
 fn offer_heals_when_everything_is_maxed() {
     let mut g = Game::new(9);
+    g.tune[T_DECKS] = 0.0;
     g.up = UPGRADE_MAX;
     g.player.hp = 10.0;
     g.pending = 2;
@@ -653,6 +679,121 @@ fn collecting_enough_xp_triggers_a_level_up_offer() {
     assert_eq!(g.pending, 1);
 }
 
+// ------------------------------------------------------------------- feel
+
+#[test]
+fn damage_numbers_add_up_on_one_enemy_and_fade() {
+    let mut g = base();
+    let e = put(&mut g, K_BLOT, 50.0, 0.0);
+    let other = put(&mut g, K_BLOT, -50.0, 0.0);
+    g.hurt_enemy(e, 12.0, 0.0, 0.0);
+    g.hurt_enemy(e, 8.0, 0.0, 0.0);
+    g.hurt_enemy(other, 5.0, 0.0, 0.0);
+    assert_eq!(g.nums.len(), 2);
+    assert!(near(g.nums[0].value, 20.0));
+    // Damage of another colour gets its own number.
+    g.hurt_enemy_as(e, 3.0, 0.0, 0.0, [1.0, 0.0, 0.0]);
+    assert_eq!(g.nums.len(), 3);
+    for _ in 0..60 {
+        g.move_nums(TICK);
+    }
+    assert!(g.nums.is_empty());
+    // With the setting off there are none.
+    g.show_numbers = false;
+    g.hurt_enemy(e, 12.0, 0.0, 0.0);
+    assert!(g.nums.is_empty());
+}
+
+#[test]
+fn the_look_settings_do_not_change_the_run() {
+    let run = |numbers: bool, motion: f32| {
+        let mut g = Game::new(42);
+        g.show_numbers = numbers;
+        g.motion = motion;
+        g.start(M_ENDLESS);
+        g.input = (1.0, 0.5);
+        for _ in 0..(60 * 40) {
+            g.update(TICK);
+            if g.choosing {
+                g.choose(0);
+            }
+        }
+        g.hash()
+    };
+    assert_eq!(run(true, 1.0), run(false, 0.0));
+}
+
+// ---------------------------------------------------------------- pressure
+
+#[test]
+fn hounds_join_the_horde_only_at_the_share_of_their_tune() {
+    assert!(KINDS[K_HOUND as usize].speed > 190.0, "a hound must outrun the player");
+    let count = |share: f32| {
+        let mut g = Game::new(5);
+        g.tune[T_CHASERS] = share;
+        g.start(M_ENDLESS);
+        let mut hounds = 0;
+        for _ in 0..(60 * 20) {
+            g.player.hp = g.player.max_hp;
+            let before = g.enemies.len();
+            g.tick();
+            if g.choosing {
+                g.choose(0);
+            }
+            hounds += g.enemies.iter().skip(before).filter(|e| e.kind == K_HOUND).count();
+        }
+        hounds
+    };
+    assert_eq!(count(0.0), 0);
+    assert!(count(0.5) > 5);
+}
+
+#[test]
+fn an_ambush_comes_from_where_the_player_is_heading() {
+    let mut g = base();
+    g.tune[T_AMBUSH] = 1.0;
+    g.player.moving = true;
+    g.player.aim = (0.0, -1.0);
+    for _ in 0..40 {
+        g.spawn_enemy(K_BLOT);
+    }
+    // All of them are ahead (up the screen), none behind.
+    assert!(g.enemies.iter().all(|e| e.y < -300.0), "an enemy came from behind");
+
+    // Standing still, or with the tune at 0, they come from every side.
+    for (ambush, moving) in [(1.0, false), (0.0, true)] {
+        let mut g = base();
+        g.tune[T_AMBUSH] = ambush;
+        g.player.moving = moving;
+        g.player.aim = (0.0, -1.0);
+        for _ in 0..40 {
+            g.spawn_enemy(K_BLOT);
+        }
+        assert!(g.enemies.iter().any(|e| e.y > 300.0));
+    }
+}
+
+#[test]
+fn a_walled_field_keeps_the_player_inside() {
+    let mut g = base();
+    g.tune[T_ARENA_RADIUS] = 400.0;
+    g.spawn_acc = -1000.0;
+    g.input = (1.0, 0.0);
+    for _ in 0..(60 * 10) {
+        g.step(TICK);
+    }
+    assert!(near(g.player.x, 400.0), "the player is at {}", g.player.x);
+
+    // Without a wall he walks on.
+    let mut g = base();
+    g.spawn_acc = -1000.0;
+    g.input = (1.0, 0.0);
+    for _ in 0..(60 * 10) {
+        g.step(TICK);
+    }
+    assert!(g.player.x > 1500.0);
+}
+
 // --------------------------------------------------------------- whole run
 
 /// Fold the observable state into one number (FNV-1a style).
@@ -667,8 +808,12 @@ fn fold(g: &Game) -> u64 {
 
 fn whole_run() -> (u32, u32, f32, usize, u64) {
     let mut g = Game::new(42);
-    // No element cards: this run pins down how the game plays without elements.
+    // No element cards, no commissions and no routes: this run pins down the game as it was.
     g.tune[T_ELEMENT_CARDS] = 0.0;
+    g.tune[T_COMMISSIONS] = 0.0;
+    g.tune[T_ROUTES] = 0.0;
+    g.tune[T_SCHOOL_SHARE] = 0.0;
+    g.tune[T_DECKS] = 0.0;
     g.set_view(640.0, 360.0);
     g.running = true;
     g.input = (1.0, 0.5);

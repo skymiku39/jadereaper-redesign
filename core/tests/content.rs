@@ -112,7 +112,97 @@ fn undefined_reference_is_rejected() {
 #[test]
 fn overlapping_state_is_rejected() {
     assert_error(&errors_after("name = \"over\"\nindex = 11", "name = \"over\"\nindex = 10"), "overlaps `choice`");
-    assert_error(&errors_after("state_floats = 80", "state_floats = 20"), "ends past state_floats");
+    assert_error(&errors_after("state_floats = 136", "state_floats = 20"), "ends past state_floats");
+}
+
+#[test]
+fn routes_and_moves_are_checked() {
+    let c = real();
+    assert!(!c.routes.is_empty() && !c.moves.is_empty() && !c.schools.is_empty());
+    assert_error(&errors_after("art = \"scythe\"\nschool", "art = \"axe\"\nschool"), "art `axe`, which is not defined");
+    assert_error(
+        &errors_after("school = \"duanyue\"\nbeat", "school = \"nowhere\"\nbeat"),
+        "school `nowhere`, which is not defined",
+    );
+    assert_error(
+        &errors_after("route = \"bengyue\"\nshape = \"arc\"", "route = \"lost\"\nshape = \"arc\""),
+        "route `lost`",
+    );
+    assert_error(&errors_after("shape = \"wave\"", "shape = \"spin\""), "`shape` is \"spin\"");
+    assert_error(
+        &errors_after(
+            "name = \"hengyun\"\nroute = \"bengyue\"\nshape = \"arc\"\n",
+            "name = \"hengyun\"\nroute = \"bengyue\"\nshape = \"arc\"\nultimate = true\n",
+        ),
+        "only have its last move as its ultimate",
+    );
+}
+
+#[test]
+fn weapon_kinds_are_checked() {
+    let c = real();
+    assert!(!c.weapons.is_empty());
+    assert_error(&errors_after("suits = \"dadao\"", "suits = \"spear\""), "suits weapon `spear`, which is not defined");
+    assert_error(&errors_after("suits = \"dadao\"", "suits = \"biao\""), "which is a kind of `talisman`");
+    assert_error(&errors_after("name = \"dandao\"\nart = \"scythe\"", "name = \"dandao\"\nart = \"axe\""), "art `axe`");
+    assert_error(
+        &errors_after("glyph = \"雙\"\nshort = true", "glyph = \"雙\"\nstart = true\nshort = true"),
+        "exactly one weapon kind",
+    );
+}
+
+#[test]
+fn every_route_move_and_school_has_text() {
+    let c = real();
+    let i18n = read("src/i18n.js");
+    for r in &c.routes {
+        for key in [format!("'route.{}.name'", r.name), format!("'route.{}.desc'", r.name)] {
+            assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
+        }
+    }
+    for m in &c.moves {
+        for key in [format!("'move.{}.name'", m.name), format!("'move.{}.desc'", m.name)] {
+            assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
+        }
+    }
+    for s in &c.schools {
+        let key = format!("'school.{}'", s.name);
+        assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
+    }
+    for w in &c.weapons {
+        let key = format!("'weapon.{}'", w.name);
+        assert_eq!(i18n.matches(&key).count(), 2, "{key} should appear once per language in src/i18n.js");
+    }
+}
+
+#[test]
+fn passives_are_checked() {
+    let c = real();
+    assert!(!c.passives.is_empty());
+    assert_error(&errors_after("stat = \"regen\"", "stat = \"luck\""), "must be one of");
+    assert_error(&errors_after("name = \"mending\"\nstat", "name = \"mended\"\nstat"), "needs an [[upgrade]]");
+    // Without its passive, the mending upgrade would do nothing.
+    assert_error(
+        &errors_after("name = \"mending\"\nstat", "name = \"mended\"\nstat"),
+        "neither an [[art]] nor a [[passive]]",
+    );
+    assert_error(&errors_after("name = \"lure\"\nstat", "name = \"scythe\"\nstat"), "both a martial art and a passive");
+}
+
+#[test]
+fn enemies_are_checked() {
+    let c = real();
+    assert!(!c.enemies.is_empty());
+    assert_error(
+        &errors_after("name = \"wisp\"\npart = \"wisp\"", "name = \"wisp\"\npart = \"ghost\""),
+        "which is not defined",
+    );
+    assert_error(&errors_after("id = 3\nname = \"elite\"", "id = 8\nname = \"elite\""), "enemy ids must run");
+    assert_error(&errors_after("corpse = true", "corpse = 1"), "true or false");
+    assert_error(&errors_after("pose_rate = 9\n", ""), "missing `pose_rate`");
+    // Enemy 0 is what the others leave of the horde, so it has no share of its own.
+    assert_error(&errors_after("pose_rate = 5\n", "pose_rate = 5\nshare = 0.5\n"), "takes no spawn keys");
+    assert_error(&errors_after("from = 25\n", "from = 25\ntune = \"wisps\"\n"), "which is not defined");
 }
 
 #[test]

@@ -16,6 +16,7 @@ use arts::ArtState;
 use core::f32::consts::TAU;
 use elements::Tags;
 use mission_escort::Escort;
+use routes::Delayed;
 
 const MAX_ENEMIES: usize = 500;
 const MAX_GEMS: usize = 700;
@@ -55,6 +56,14 @@ pub struct Shot {
     art: u8,
     /// The share of its speed a hit pushes the enemy at.
     push: f32,
+    /// Small shots it bursts into where its flight ends (a route move); 0 for none.
+    split: u8,
+    /// How much more damage it does with each enemy it passes through (a route move).
+    grow: f32,
+    /// How big it is drawn, 1 for an art's own shot.
+    size: f32,
+    /// The element of the ultimate at its height it came from; 0 for none (`zenith.rs`).
+    zen: u8,
 }
 
 pub struct Gem {
@@ -84,6 +93,23 @@ pub struct Fx {
     /// Drawn above characters instead of on the ground.
     top: bool,
 }
+
+/// A damage number floating up from where a hit landed. Drawing only: it
+/// takes no part in the run, its hash or its random numbers.
+pub struct Num {
+    x: f32,
+    y: f32,
+    value: f32,
+    life: f32,
+    /// The enemy it belongs to; more damage to it while the number is fresh adds up.
+    id: u32,
+    color: [f32; 3],
+}
+
+const MAX_NUMS: usize = 40;
+const NUM_LIFE: f32 = 0.7;
+/// The colour of plain damage: ink, which reads on the paper's white cutout edge.
+const NUM_PLAIN: [f32; 3] = [0.22, 0.2, 0.18];
 
 pub struct Player {
     pub x: f32,
@@ -143,6 +169,11 @@ pub struct Game {
     pub shots: Vec<Shot>,
     pub gems: Vec<Gem>,
     pub fx: Vec<Fx>,
+    pub nums: Vec<Num>,
+    /// Draw damage numbers (a setting of the host).
+    pub show_numbers: bool,
+    /// How much the camera shakes, 0..1 (a setting of the host).
+    pub motion: f32,
     pub up: [u8; N_UPGRADES],
     /// The timer and the element of each martial art, by art id.
     pub arts: [ArtState; N_ARTS],
@@ -152,12 +183,58 @@ pub struct Game {
     /// The element whose card was picked and now waits for the player to say
     /// which martial art gets it; 0 when none does.
     pub attach: u8,
+    /// The art whose route is being chosen, plus 1; 0 when none is. While it
+    /// is set, `choices` holds route ids.
+    pub route_pick: u8,
+    /// Hits of route moves that land a moment after the move.
+    pub delayed: Vec<Delayed>,
+    /// The second blows of paired weapon kinds, still to land (`kinds.rs`).
+    pub echoes: Vec<kinds::Echo>,
+    /// The clocks of the inner arts (心法).
+    pub inner: inner::Inner,
+    /// True while a level-up asks which deck to draw from (`decks.rs`).
+    pub deck_pick: bool,
+    /// The deck drawn from last, which the host offers first next time.
+    pub last_deck: u8,
+    /// Per card on offer: 1 for a fine card that brings two levels at once;
+    /// for a weapon card, its quality.
+    pub ranks: [u8; 3],
+    /// Weapon cards drawn in a row without fine steel or better (`kinds.rs`).
+    pub dry: u8,
+    /// The stolen routes learned (偷師), as bits by route id: from earlier runs
+    /// (the `stolen` tune) and this one (`routes.rs`).
+    pub stolen: u32,
+    /// The school elites on the field and their moves (`foes.rs`).
+    pub foes: Vec<foes::Foe>,
+    /// The manuals (秘笈) gained, two bits per route id (`routes.rs`): from
+    /// earlier runs (the `manuals` tune) and this one.
+    pub manuals: u32,
+    /// The element of the ultimate at its height (極致) whose hits are landing
+    /// right now; 0 the rest of the time (`zenith.rs`).
+    pub zenith: u8,
+    /// Seconds left of blows halved after a metal height.
+    pub bulwark: f32,
+    /// The damage factor of the route move being used, for its later hits.
+    pub cast_might: f32,
+    /// The mechanisms set down by route moves (`turrets.rs`).
+    pub turrets: Vec<turrets::Turret>,
+    /// The net a ring of mechanisms stretches, while it stands.
+    pub net: Option<turrets::Net>,
+    /// The art whose hits are landing now, plus 1; 0 for none or not a route's (`routes.rs`).
+    pub striking: u8,
+    /// Kills of the last few seconds while a route with momentum is followed, and the seconds before they go.
+    pub momentum: u8,
+    pub momentum_left: f32,
     pub pending: u32,
+    /// The log of what the player does, and a log being played back.
+    pub replay: replay::Replay,
     pub kills: u32,
     /// State of the retrieval mission; idle in other missions.
     pub retrieval: Retrieval,
     /// State of the `hold` mission; idle in every other mission.
     pub hold: Hold,
+    /// The commission in endless, if any.
+    pub commission: commission::Commission,
     /// State of the `escape` mission.
     pub escape: Escape,
     /// State of the boss mission; idle in the others.
@@ -171,7 +248,8 @@ pub struct Game {
     /// State of the vendetta mission; empty in every other mission.
     pub vendetta: mission_vendetta::Vendetta,
     spawn_acc: f32,
-    next_elite: f32,
+    /// When the next enemy of each kind that comes alone is due.
+    next_lone: [f32; N_KINDS],
     next_id: u32,
     /// State of the pursuit mission; idle in every other mission.
     pursuit: mission_pursuit::Pursuit,
@@ -196,12 +274,42 @@ pub const TICK: f32 = 1.0 / 60.0;
 /// return the final state hash. Native and wasm builds must agree on it; the
 /// determinism check compares them.
 pub fn scripted_run(seed: u32, ticks: u32) -> u32 {
+    scripted_mission(seed, ticks, M_ENDLESS, false)
+}
+
+/// The same for any mission, without its accept phase. With `armed`, the
+/// player holds every martial art from the start, each with an element (which
+/// ones depends on the seed), so the elements and their reactions are played
+/// too. A run that is won stands still from then on.
+pub fn scripted_mission(seed: u32, ticks: u32, mission: usize, armed: bool) -> u32 {
+    scripted_game(seed, ticks, mission, armed).hash()
+}
+
+/// The game at the end of `scripted_mission`'s run, to look into.
+pub fn scripted_game(seed: u32, ticks: u32, mission: usize, armed: bool) -> Game {
     let mut game = Game::new(seed);
-    game.running = true;
+    game.start(mission);
+    if armed {
+        for a in 0..N_ARTS {
+            game.give(a, 3, (seed as usize + a) as u32 % N_ELEMENTS as u32 + 1);
+        }
+    }
     let mut bot = Rng((seed ^ 0x9e37_79b9) | 1);
     for t in 0..ticks {
         if t % 30 == 0 {
             game.input = (bot.range(-1.0, 1.0), bot.range(-1.0, 1.0));
+        }
+        // Armed in endless, the bot takes the commissions too, so the checks
+        // cover them: it walks to one on offer, stays by a village or a
+        // villager, and goes after a hunt's band.
+        if armed && game.commissions_on() && game.commission.phase != commission::WAITING {
+            let c = &game.commission;
+            let (tx, ty) = if c.phase == commission::DEFENDING && c.kind == commission::HUNT_BAND {
+                (c.gx, c.gy)
+            } else {
+                (c.x, c.y)
+            };
+            game.input = (tx - game.player.x, ty - game.player.y);
         }
         game.tick();
         if game.choosing {
@@ -217,7 +325,7 @@ pub fn scripted_run(seed: u32, ticks: u32) -> u32 {
             game.player.hp = game.player.max_hp;
         }
     }
-    game.hash()
+    game
 }
 
 fn xp_for(level: u32) -> f32 {
@@ -276,15 +384,39 @@ impl Game {
             shots: Vec::with_capacity(MAX_SHOTS),
             gems: Vec::with_capacity(MAX_GEMS),
             fx: Vec::with_capacity(MAX_FX),
+            nums: Vec::with_capacity(MAX_NUMS),
+            show_numbers: true,
+            motion: 1.0,
             up,
             arts: ArtState::fresh(),
             choices: [-1; 3],
             attach: 0,
+            route_pick: 0,
+            delayed: Vec::with_capacity(64),
+            echoes: Vec::with_capacity(kinds::MAX_ECHOES),
+            inner: inner::Inner::default(),
+            deck_pick: false,
+            last_deck: 0,
+            ranks: [0; 3],
+            dry: 0,
+            stolen: 0,
+            foes: Vec::with_capacity(16),
+            manuals: 0,
+            zenith: 0,
+            bulwark: 0.0,
+            cast_might: 1.0,
+            turrets: Vec::with_capacity(turrets::MAX_TURRETS),
+            net: None,
+            striking: 0,
+            momentum: 0,
+            momentum_left: 0.0,
             pending: 0,
+            replay: replay::Replay::default(),
             kills: 0,
             retrieval: Retrieval::default(),
             hold: Hold::new(),
             escape: Escape::default(),
+            commission: commission::Commission::default(),
             boss: mission_boss::Boss::default(),
             shake: 0.0,
             cam: (0.0, -30.0),
@@ -292,7 +424,7 @@ impl Game {
             arena: Arena::new(),
             vendetta: mission_vendetta::Vendetta::default(),
             spawn_acc: 0.0,
-            next_elite: 90.0,
+            next_lone: core::array::from_fn(|k| KINDS[k].every),
             next_id: 1,
             pursuit: mission_pursuit::Pursuit::default(),
             inst: Vec::with_capacity(MAX_INST),
@@ -312,6 +444,15 @@ impl Game {
         self.mission = if mission < N_MISSIONS { mission } else { M_ENDLESS };
         self.hold.begin(self.mission == M_HOLD, &self.tune);
         self.running = true;
+        // The stolen routes learned in earlier runs.
+        self.stolen = self.tune[T_STOLEN] as u32;
+        self.manuals = self.tune[T_MANUALS] as u32;
+        // With weapon kinds on, the arts held from the start come in their start kinds.
+        for a in 0..N_ARTS {
+            if self.art_level(a) > 0 {
+                self.hold_kind(a);
+            }
+        }
         // A test run can open with an element already on the first held art.
         let element = self.tune[T_START_ELEMENT] as usize;
         if (1..=N_ELEMENTS).contains(&element) {
@@ -395,6 +536,10 @@ impl Game {
     }
 
     pub fn set_view(&mut self, half_w: f32, half_h: f32) {
+        // While a replay plays, the visible area comes from its log.
+        if self.replay.playing {
+            return;
+        }
         self.view_w = half_w.max(100.0);
         self.view_h = half_h.max(100.0);
     }
@@ -425,6 +570,7 @@ impl Game {
     pub fn tick(&mut self) {
         self.ticks = self.ticks.wrapping_add(1);
         self.anim += TICK;
+        self.replay_before_step();
         if self.running && !self.choosing && !self.over && !self.won {
             if self.accept.active {
                 self.accept_step(TICK);
@@ -432,13 +578,14 @@ impl Game {
                 self.step(TICK);
             }
         }
+        self.replay_after_step();
         self.shake = (self.shake - TICK * 3.0).max(0.0);
     }
 
     /// Rebuild the camera, the instance list and the HUD state.
     pub fn present(&mut self) {
         // Camera follows the player, with a decaying shake.
-        let s = self.shake * self.shake * 9.0;
+        let s = self.shake * self.shake * 9.0 * self.motion;
         let q = (self.anim * 30.0).floor();
         self.cam = (self.player.x + s * fmath::sin(q * 12.9898), self.player.y - 30.0 + s * fmath::cos(q * 78.233));
         self.build();
@@ -471,6 +618,9 @@ impl Game {
             self.escort.mix_into(&mut mix);
         }
         self.hold.mix(&mut mix);
+        if self.commissions_on() {
+            self.commission.mix(&mut mix);
+        }
         for v in self.escape.hash_words() {
             mix(v);
         }
@@ -491,6 +641,24 @@ impl Game {
             mix(art.element as u32);
         }
         mix(self.attach as u32);
+        self.routes_hash(&mut mix);
+        self.foes_hash(&mut mix);
+        self.turrets_hash(&mut mix);
+        self.echoes_hash(&mut mix);
+        if self.inner_on() {
+            self.inner.mix(&mut mix);
+            mix(self.stolen);
+            mix(self.manuals);
+            mix(self.bulwark.to_bits());
+            mix(self.momentum as u32);
+        }
+        if self.decks_on() {
+            mix(self.deck_pick as u32);
+            mix(self.dry as u32);
+            for r in self.ranks {
+                mix(r as u32);
+            }
+        }
         mix(p.guard.to_bits());
         mix(p.regrow.to_bits());
         mix(self.enemies.len() as u32);
@@ -500,6 +668,9 @@ impl Game {
             mix(e.hp.to_bits());
             for left in &e.tags.left[1..] {
                 mix(left.to_bits());
+            }
+            if e.tags.opening {
+                mix(1);
             }
         }
         mix(self.shots.len() as u32);
@@ -527,8 +698,30 @@ impl Game {
         }
     }
 
-    fn lvl(&self, id: usize) -> f32 {
-        self.up[id] as f32
+    /// What the passive upgrades make of a stat (an `ST_*` id), from their levels:
+    /// a factor for speed, range, damage and cooldown, health per second for regen.
+    /// The most health is raised when the upgrade is picked, not here.
+    /// As inner arts (with routes on) a passive has three layers, which count
+    /// here as levels 2, 4 and 5 of the passive, so its third layer adds what
+    /// its top level always did; the second and third also change rules (`inner.rs`).
+    pub(crate) fn stat(&self, stat: u8) -> f32 {
+        let held = PASSIVES.iter().filter(|p| p.stat == stat);
+        match stat {
+            ST_COOLDOWN => held.fold(1.0, |f, p| f * fmath::powu(p.amount, self.passive_level(p.upgrade))),
+            ST_REGEN => held.fold(0.0, |sum, p| sum + p.amount * self.passive_level(p.upgrade) as f32),
+            _ => 1.0 + held.fold(0.0, |sum, p| sum + p.amount * self.passive_level(p.upgrade) as f32),
+        }
+    }
+
+    /// The level a passive counts as: its own, or as an inner art, the level its layer stands for.
+    pub(crate) fn passive_level(&self, id: usize) -> u32 {
+        const LAYER_LEVEL: [u32; 4] = [0, 2, 4, 5];
+        let level = self.up[id] as usize;
+        if self.inner_on() && !Self::inner_only(id) {
+            LAYER_LEVEL[level.min(3)]
+        } else {
+            level as u32
+        }
     }
 
     // ---------------------------------------------------------------- step
@@ -546,8 +739,8 @@ impl Game {
             my /= len;
             len = 1.0;
         }
-        let speed = 190.0 * (1.0 + 0.08 * self.lvl(U_SWIFT)) * self.retrieval.speed_factor();
-        let regen = 0.4 * self.lvl(U_MENDING);
+        let speed = 190.0 * self.stat(ST_MOVE_SPEED) * self.retrieval.speed_factor() * self.stride();
+        let regen = self.stat(ST_REGEN) * self.mending();
         let p = &mut self.player;
         p.moving = len > 0.15;
         if p.moving {
@@ -567,6 +760,18 @@ impl Game {
     fn step(&mut self, dt: f32) {
         self.time += dt;
         self.walk(dt);
+        self.inner_tick(dt);
+        self.tick_momentum(dt);
+        // A walled field: the player cannot leave the circle around where the mission began.
+        let wall = self.tune[T_ARENA_RADIUS];
+        if wall > 0.0 {
+            let p = &mut self.player;
+            let d = (p.x * p.x + p.y * p.y).sqrt();
+            if d > wall {
+                p.x *= wall / d;
+                p.y *= wall / d;
+            }
+        }
         self.tick_boons(dt);
 
         let moved = self.retrieval.step(self.player.x, self.player.y);
@@ -587,7 +792,9 @@ impl Game {
         self.boss_think(dt);
         self.vendetta.step(self.player.x, self.player.y);
         self.move_enemies(dt);
+        self.foes_step(dt);
         self.escort_step(dt);
+        self.commission_step(dt);
         // The shrine falling on the step the player dies counts as dying.
         if self.hold.step(self.player.x, self.player.y, dt) && !self.over {
             self.over = true;
@@ -596,10 +803,16 @@ impl Game {
         }
         self.separate();
         self.move_shots(dt);
+        self.tick_delayed(dt);
+        self.tick_echoes(dt);
+        self.tick_turrets(dt);
+        self.tick_net(dt);
+        self.land_splash();
         self.tick_tags(dt);
         self.reap();
         self.move_gems(dt);
         self.move_fx(dt);
+        self.move_nums(dt);
 
         // Level ups.
         while self.player.xp >= self.player.xp_next {
@@ -619,10 +832,20 @@ impl Game {
     }
 
     fn hurt_enemy(&mut self, i: usize, dmg: f32, kx: f32, ky: f32) {
+        self.hurt_enemy_as(i, dmg, kx, ky, NUM_PLAIN);
+    }
+
+    /// Hurt an enemy, with its damage number in `color`.
+    pub(crate) fn hurt_enemy_as(&mut self, i: usize, dmg: f32, kx: f32, ky: f32, color: [f32; 3]) {
+        let (id, x, y, r) = {
+            let e = &self.enemies[i];
+            (e.id, e.x, e.y, KINDS[e.kind as usize].hh)
+        };
+        self.add_num(id, x, y - r * 2.0 - 6.0, dmg, color);
         let e = &mut self.enemies[i];
         e.hp -= dmg;
         e.flash = 1.0;
-        let heavy = if e.kind >= K_BRUTE { 0.35 } else { 1.0 };
+        let heavy = if KINDS[e.kind as usize].heavy { 0.35 } else { 1.0 };
         e.kx += kx * heavy;
         e.ky += ky * heavy;
         let (x, y) = (e.x, e.y);
@@ -637,7 +860,14 @@ impl Game {
         if self.enemies.len() >= MAX_ENEMIES {
             return;
         }
-        let a = self.rng.range(0.0, TAU);
+        let mut a = self.rng.range(0.0, TAU);
+        // An ambush: now and then an enemy comes from where the player is heading,
+        // so running in a straight line runs into something.
+        let ambush = self.tune[T_AMBUSH];
+        if ambush > 0.0 && self.player.moving && self.rng.f() < ambush {
+            let (ax, ay) = self.player.aim;
+            a = fmath::atan2(ay, ax) + self.rng.range(-0.6, 0.6);
+        }
         let ring = self.spawn_ring();
         let (x, y) = (self.player.x + fmath::cos(a) * ring, self.player.y + fmath::sin(a) * ring);
         self.spawn_enemy_at(kind, x, y);
@@ -669,6 +899,24 @@ impl Game {
         });
     }
 
+    /// The share of the horde's spawns that are of kind `k`, `t` seconds into the run.
+    fn horde_share(&self, k: usize, t: f32) -> f32 {
+        let def = &KINDS[k];
+        if def.every > 0.0 {
+            0.0
+        } else if def.share_tune < N_TUNES {
+            self.tune[def.share_tune]
+        } else if t > def.from {
+            if def.ramp > 0.0 {
+                ((t - def.from) / def.ramp).min(def.share)
+            } else {
+                def.share
+            }
+        } else {
+            0.0
+        }
+    }
+
     fn spawn(&mut self, dt: f32) {
         if self.mission == M_ARENA {
             self.arena_step(dt);
@@ -680,21 +928,27 @@ impl Game {
         while self.spawn_acc >= 1.0 {
             self.spawn_acc -= 1.0;
             let roll = self.rng.f();
-            let brute = if t > 60.0 { ((t - 60.0) / 400.0).min(0.25) } else { 0.0 };
-            let wisp = if t > 25.0 { 0.3 } else { 0.0 };
-            let kind = if roll < brute {
-                K_BRUTE
-            } else if roll < brute + wisp {
-                K_WISP
-            } else {
-                K_BLOT
-            };
+            // Each kind takes its share of the rolls, the last kind first; kind 0 gets the rest.
+            let mut kind = 0;
+            let mut taken = 0.0;
+            for k in (1..N_KINDS).rev() {
+                taken += self.horde_share(k, t);
+                if roll < taken {
+                    kind = k as u8;
+                    break;
+                }
+            }
             self.spawn_enemy(kind);
         }
-        if t >= self.next_elite {
-            self.next_elite += 90.0;
-            self.spawn_enemy(K_ELITE);
-            self.event(EV_ELITE, self.player.x, self.player.y, 0.0);
+        // The kinds that come alone, on a clock.
+        for k in 0..N_KINDS {
+            // A kind that comes alone but belongs to a tune's share only comes while that share is above 0.
+            let off = KINDS[k].share_tune < N_TUNES && self.tune[KINDS[k].share_tune] <= 0.0;
+            if KINDS[k].every > 0.0 && !off && t >= self.next_lone[k] {
+                self.next_lone[k] += KINDS[k].every;
+                self.spawn_enemy(k as u8);
+                self.event(EV_ELITE, self.player.x, self.player.y, 0.0);
+            }
         }
     }
 
@@ -706,21 +960,32 @@ impl Game {
         let pace = self.tune[T_ENEMY_SPEED];
         let escort = &self.escort;
         let mut hit: Option<f32> = None;
+        // School elites winding up a move stand still (`foes.rs`).
+        let mut still = [0u32; 16];
+        let mut n_still = 0;
+        for f in self.foes.iter().filter(|f| f.wind > 0.0).take(16) {
+            still[n_still] = f.id;
+            n_still += 1;
+        }
         let hold = &mut self.hold;
+        let siege = &mut self.commission;
+        let net = self.net;
         for e in self.enemies.iter_mut() {
             // The pursuit target moves itself and never leaves its route.
             if e.id == mission_pursuit::PURSUIT_ID {
                 continue;
             }
             let k = &KINDS[e.kind as usize];
-            let speed = k.speed * pace;
+            let speed = if net.is_some() { k.speed * pace * Self::net_pace(&net, e.x, e.y) } else { k.speed * pace };
             let (dx, dy) = (px - e.x, py - e.y);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             // The boss of the boss mission steers itself.
             let drive = self.boss.drive(e.id);
             // A marked enemy of the vendetta mission follows the mission, not the horde.
             let marked = self.vendetta.steer(e.id, e.x, e.y, px, py, speed);
-            if d > far && drive.is_none() && marked.is_none() {
+            // An enemy sent after the village keeps going there, however far the player is.
+            let sieging = siege.owns(e.id);
+            if d > far && drive.is_none() && marked.is_none() && !sieging {
                 // Left far behind: bring it back to the spawn ring on the
                 // other side so the crowd keeps closing in.
                 e.x = px + dx / d * ring;
@@ -741,7 +1006,16 @@ impl Game {
                     hold.gnaw(hd, k.r, k.dmg * dt);
                     (ax, ay, hd.max(0.001), ax)
                 }
-                None => (cx, cy, cd, dx),
+                // Likewise for the village of a commission in endless.
+                None => match siege.target(e.id) {
+                    Some((qx, qy)) => {
+                        let (ax, ay) = (qx - e.x, qy - e.y);
+                        let hd = (ax * ax + ay * ay).sqrt();
+                        siege.gnaw(hd, k.r, k.dmg * dt);
+                        (ax, ay, hd.max(0.001), ax)
+                    }
+                    None => (cx, cy, cd, dx),
+                },
             };
             // The boss and the marked enemies bring their own velocity.
             let (vx, vy) = match (drive, marked) {
@@ -753,6 +1027,7 @@ impl Game {
                 (None, Some(v)) => v,
                 // Rooted by an element: it stands where the blow threw it.
                 (None, None) if e.tags.rooted() => (0.0, 0.0),
+                (None, None) if still[..n_still].contains(&e.id) => (0.0, 0.0),
                 (None, None) => (hx / hd * speed, hy / hd * speed),
             };
             e.x += (vx + e.kx) * dt;
@@ -770,6 +1045,7 @@ impl Game {
         }
         if let Some(dmg) = hit {
             if self.player.iframe <= 0.0 {
+                let dmg = self.soften(dmg);
                 self.player.hp -= self.guard_against(dmg);
                 self.player.iframe = 0.8;
                 self.shake = 1.0;
@@ -796,7 +1072,7 @@ impl Game {
                         top: true,
                     });
                 }
-                if self.player.hp <= 0.0 {
+                if self.player.hp <= 0.0 && !self.last_stand() {
                     self.player.hp = 0.0;
                     self.over = true;
                     self.event(EV_DEATH, px, py, 0.0);
@@ -897,11 +1173,21 @@ impl Game {
                 let element = self.arts[self.shots[s].art as usize].element;
                 self.shots[s].last = self.enemies[i].id;
                 self.shots[s].pierce -= 1;
+                self.shots[s].dmg *= 1.0 + self.shots[s].grow;
+                // A wave of an ultimate at its height lands at its height (`zenith.rs`).
+                self.zenith = self.shots[s].zen;
+                self.striking = self.shots[s].art + 1;
                 self.strike(i, dmg, vx * push, vy * push, element);
+                self.zenith = 0;
+                self.striking = 0;
             } else if self.formation_hit_shot(x, y, dmg) {
                 self.shots[s].pierce = 0;
             }
             if self.shots[s].life <= 0.0 || self.shots[s].pierce <= 0 {
+                // A shot that flew its whole way bursts into smaller ones, if it is made to.
+                if self.shots[s].life <= 0.0 && self.shots[s].split > 0 {
+                    self.burst_shot(s);
+                }
                 self.shots.swap_remove(s);
             } else {
                 s += 1;
@@ -926,7 +1212,19 @@ impl Game {
             if heart {
                 self.drop_gem(e.x + 14.0, e.y, 0.0, true);
             }
-            let n = if e.kind >= K_BRUTE { 9 } else { 4 };
+            self.note_kill();
+            // A disciple of a school falling teaches its stolen routes; a master drops a manual too.
+            if k.school < N_SCHOOLS {
+                self.steal(k.school);
+                if k.manual {
+                    self.gain_manual(k.school);
+                }
+            }
+            // The second layer of the sleeve: an elite falling brings every jade in.
+            if e.kind == K_ELITE && self.layer(U_LURE) >= 2 {
+                self.gather_jade();
+            }
+            let n = if k.heavy { 9 } else { 4 };
             for _ in 0..n {
                 let a = self.rng.range(0.0, TAU);
                 let s = self.rng.range(20.0, 150.0);
@@ -950,6 +1248,39 @@ impl Game {
                     top: false,
                 });
             }
+            self.tear(&e);
+        }
+    }
+
+    /// The paper of a fallen enemy tears into a few pieces that spin away.
+    /// Drawing only: the pieces come from the enemy's id, not the run's random
+    /// numbers, so they change nothing about how the run goes.
+    fn tear(&mut self, e: &Enemy) {
+        let k = &KINDS[e.kind as usize];
+        let pieces = if k.heavy { 3 } else { 2 };
+        for p in 0..pieces {
+            let h = hash2(e.id as i32, p);
+            let r = |shift: u32| ((h >> shift) & 255) as f32 / 255.0;
+            // Each piece flies off to its own side, up and out.
+            let side = if p % 2 == 0 { -1.0 } else { 1.0 };
+            let (vx, vy) = (side * (60.0 + 90.0 * r(0)), -90.0 - 80.0 * r(8));
+            self.add_fx(Fx {
+                x: e.x + side * k.hw * 0.3,
+                y: e.y - k.hh,
+                vx,
+                vy,
+                life: 0.45,
+                max: 0.45,
+                part: P_SCRAP,
+                hw: k.hw * (0.35 + 0.15 * r(16)),
+                hh: k.hh * (0.3 + 0.15 * r(24)),
+                rot: r(4) * TAU,
+                vr: side * (6.0 + 6.0 * r(12)),
+                grow: -6.0,
+                color: [k.color[0], k.color[1], k.color[2], 0.95],
+                seed: r(20),
+                top: true,
+            });
         }
     }
 
@@ -968,7 +1299,7 @@ impl Game {
 
     fn move_gems(&mut self, dt: f32) {
         let (px, py) = (self.player.x, self.player.y);
-        let lure = 95.0 * (1.0 + 0.3 * self.lvl(U_LURE));
+        let lure = 95.0 * self.stat(ST_PICKUP_RANGE);
         let mut i = 0;
         while i < self.gems.len() {
             let g = &mut self.gems[i];
@@ -993,6 +1324,67 @@ impl Game {
                 }
             } else {
                 i += 1;
+            }
+        }
+    }
+
+    /// Show damage over an enemy: added to its fresh number of the same colour, or a new one.
+    fn add_num(&mut self, id: u32, x: f32, y: f32, value: f32, color: [f32; 3]) {
+        // Also leaves out a value that is not a number.
+        if !self.show_numbers || value.partial_cmp(&0.0) != Some(core::cmp::Ordering::Greater) {
+            return;
+        }
+        if let Some(n) = self.nums.iter_mut().find(|n| n.id == id && n.color == color && n.life > NUM_LIFE * 0.25) {
+            n.value += value;
+            n.life = NUM_LIFE;
+            return;
+        }
+        if self.nums.len() >= MAX_NUMS {
+            return;
+        }
+        // A little sideways spread, from the enemy's id rather than the run's random numbers.
+        let jitter = ((hash2(id as i32, self.nums.len() as i32) & 255) as f32 / 255.0 - 0.5) * 18.0;
+        self.nums.push(Num { x: x + jitter, y, value, life: NUM_LIFE, id, color });
+    }
+
+    fn move_nums(&mut self, dt: f32) {
+        self.nums.retain_mut(|n| {
+            n.life -= dt;
+            n.y -= 38.0 * dt;
+            n.life > 0.0
+        });
+    }
+
+    /// Damage numbers: one brush digit per figure, popping in and fading out.
+    fn draw_nums(&mut self) {
+        for i in 0..self.nums.len() {
+            let n = &self.nums[i];
+            let (x, y, life, color) = (n.x, n.y, n.life, n.color);
+            let value = n.value.round().clamp(1.0, 99_999.0) as u32;
+            let t = life / NUM_LIFE;
+            let alpha = (t / 0.35).min(1.0);
+            let digits = if value >= 10_000 {
+                5
+            } else if value >= 1000 {
+                4
+            } else if value >= 100 {
+                3
+            } else if value >= 10 {
+                2
+            } else {
+                1
+            };
+            // Big for a moment when it appears, and bigger for larger hits.
+            let size = (1.0 + 0.35 * ((t - 0.85) / 0.15).max(0.0)) * (1.0 + 0.12 * (digits as f32 - 1.0).min(3.0));
+            let (hw, hh) = (6.0 * size, 9.5 * size);
+            let step = hw * 2.15;
+            let mut v = value;
+            for k in 0..digits {
+                let d = v % 10;
+                v /= 10;
+                let dx = (digits as f32 - 1.0) * 0.5 * step - k as f32 * step;
+                let c = [color[0], color[1], color[2], alpha];
+                self.put(x + dx, y, hw, hh, 0.0, P_DIGIT, 0.0, d as f32 * 0.1, c);
             }
         }
     }
@@ -1027,13 +1419,24 @@ impl Game {
     // ------------------------------------------------------------ upgrades
 
     fn offer(&mut self) {
+        // With the decks on, the player first picks where to draw from (`decks.rs`).
+        if self.decks_on() {
+            if !self.offer_decks() {
+                // Everything maxed: heal instead.
+                self.player.hp = (self.player.hp + 30.0 * self.pending as f32).min(self.player.max_hp);
+                self.pending = 0;
+            }
+            return;
+        }
         let mut pool = [0usize; N_UPGRADES];
         let mut n = 0;
         // With every slot for a martial art taken, the ones not held are not offered.
         let full = self.arts_held() >= MAX_ARTS;
         for id in 0..N_UPGRADES {
             let new_art = self.up[id] == 0 && ARTS.iter().any(|a| a.upgrade == id);
-            if self.up[id] < UPGRADE_MAX[id] && !(full && new_art) {
+            // The newest inner arts are only offered while inner arts are on.
+            let hidden = self.upgrade_hidden(id);
+            if self.up[id] < self.upgrade_top(id) && !(full && new_art) && !hidden {
                 pool[n] = id;
                 n += 1;
             }
@@ -1071,7 +1474,21 @@ impl Game {
         if !self.choosing {
             return;
         }
-        if self.attach > 0 {
+        self.replay_pick(i);
+        if self.deck_pick {
+            // The decks are offered: `i` is the deck, and its cards come next.
+            self.pick_deck(i);
+            return;
+        }
+        if self.route_pick > 0 {
+            if i >= 3 || self.choices[i] < 0 {
+                return;
+            }
+            let a = self.route_pick as usize - 1;
+            self.take_route(a, self.choices[i] as usize);
+            self.up[ARTS[a].upgrade] = 3;
+            self.route_pick = 0;
+        } else if self.attach > 0 {
             if i >= N_ARTS || self.art_level(i) == 0 {
                 return;
             }
@@ -1083,20 +1500,48 @@ impl Game {
                 return;
             }
             let id = self.choices[i] as usize;
-            if id >= N_UPGRADES {
-                self.attach = (id - N_UPGRADES + 1).min(N_ELEMENTS) as u8;
-                self.choices = [-1; 3];
-                return;
-            }
-            if self.up[id] < UPGRADE_MAX[id] {
-                self.up[id] += 1;
-                if id == U_VITALITY {
-                    self.player.max_hp += 20.0;
-                    self.player.hp += 20.0;
+            if id >= kinds::CARD_WEAPON0 {
+                // A weapon kind card: a new art in that kind, or a held art changed to it.
+                self.take_weapon((id - kinds::CARD_WEAPON0).min(N_WEAPONS.saturating_sub(1)), self.ranks[i]);
+            } else {
+                if id >= N_UPGRADES {
+                    self.attach = (id - N_UPGRADES + 1).min(N_ELEMENTS) as u8;
+                    self.choices = [-1; 3];
+                    return;
+                }
+                // An art at level 2 first takes a route: the choice stays open and
+                // the cards become the routes it can take.
+                if let Some(a) = self.route_needed(id) {
+                    self.route_pick = a as u8 + 1;
+                    let mut found = [-1i32; 3];
+                    for (slot, r) in self.routes_of(a).enumerate() {
+                        found[slot] = r as i32;
+                    }
+                    self.choices = found;
+                    return;
+                }
+                // A fine card (from the decks) brings two levels at once.
+                for _ in 0..1 + self.ranks[i] as usize {
+                    if self.up[id] < self.upgrade_top(id) {
+                        let before = self.passive_level(id);
+                        self.up[id] += 1;
+                        // A passive that raises the most health does it once, when picked,
+                        // by as many levels as the pick counts for.
+                        let gained = self.passive_level(id).saturating_sub(before) as f32;
+                        for p in PASSIVES.iter().filter(|p| p.upgrade == id && p.stat == ST_MAX_HP) {
+                            self.player.max_hp += p.amount * gained;
+                            self.player.hp += p.amount * gained;
+                        }
+                    }
+                }
+                // A new art comes in its start kind.
+                if let Some(a) = Self::art_of_upgrade(id) {
+                    self.hold_kind(a);
                 }
             }
         }
         self.choices = [-1; 3];
+        self.ranks = [0; 3];
         self.choosing = false;
         self.pending = self.pending.saturating_sub(1);
         if self.pending > 0 {
@@ -1134,8 +1579,10 @@ impl Game {
         self.inst.clear();
         self.pointers.clear();
         self.draw_ground();
+        self.draw_wall();
         self.draw_hold_ground();
         self.accept_draw_ground();
+        self.commission_draw_ground();
         if self.mission == M_ESCAPE {
             self.escape_draw();
         }
@@ -1147,9 +1594,21 @@ impl Game {
                 self.draw_fx(i);
             }
         }
+        let lure = 95.0 * self.stat(ST_PICKUP_RANGE);
         for i in 0..self.gems.len() {
             let g = &self.gems[i];
-            let (x, y, seed, heart) = (g.x, g.y, g.seed, g.heart);
+            let (mut x, mut y, seed, heart) = (g.x, g.y, g.seed, g.heart);
+            // A gem being pulled in is drawn on a curve rather than a straight line:
+            // pushed sideways most halfway in, not at all at either end. Drawing only.
+            if g.pull {
+                let (dx, dy) = (self.player.x - x, self.player.y - y);
+                let d = (dx * dx + dy * dy).sqrt().max(0.001);
+                let t = (d / lure).min(1.0);
+                let side = if seed < 0.5 { 1.0 } else { -1.0 };
+                let bulge = 22.0 * fmath::sin(t * core::f32::consts::PI) * side;
+                x += -dy / d * bulge;
+                y += dx / d * bulge;
+            }
             // Two-pose rock, like a paper tag on a string.
             let pose = (((self.anim * 4.0 + seed * 9.0).floor() as i32) & 1) as f32;
             let rot = pose * 0.3 - 0.15;
@@ -1199,12 +1658,14 @@ impl Game {
 
         // Things in the air.
         self.draw_arts();
+        self.draw_turrets();
         self.boss_draw_air();
         for i in 0..self.fx.len() {
             if self.fx[i].top {
                 self.draw_fx(i);
             }
         }
+        self.draw_nums();
         self.draw_formation_marker();
         let mut canvas = Canvas {
             inst: &mut self.inst,
@@ -1217,6 +1678,7 @@ impl Game {
         self.draw_escort_markers();
         self.draw_hold_marker();
         self.accept_draw_marker();
+        self.commission_draw_marker();
         // The host shows how far away each marked thing is.
         let (px, py) = (self.player.x, self.player.y);
         for p in self.pointers.iter_mut() {
@@ -1286,6 +1748,32 @@ impl Game {
         }
     }
 
+    /// The edge of a walled field (the `arena_radius` tune): a ring of stones around the origin.
+    fn draw_wall(&mut self) {
+        let wall = self.tune[T_ARENA_RADIUS];
+        if wall <= 0.0 {
+            return;
+        }
+        // One stone about every 70 units; `put` drops the ones out of view.
+        let n = ((TAU * wall / 70.0) as usize).clamp(12, 400);
+        for k in 0..n {
+            let a = k as f32 * TAU / n as f32;
+            let (x, y) = (fmath::cos(a) * (wall + 34.0), fmath::sin(a) * (wall + 34.0));
+            let seed = (hash2(k as i32, 77) & 255) as f32 / 255.0;
+            self.put(
+                x,
+                y,
+                22.0 + seed * 8.0,
+                12.0 + seed * 5.0,
+                0.0,
+                P_STONE,
+                0.0,
+                seed,
+                [INK[0], INK[1], INK[2], 0.6],
+            );
+        }
+    }
+
     fn draw_enemy(&mut self, i: usize) {
         let e = self.enemies[i];
         let k = &KINDS[e.kind as usize];
@@ -1303,7 +1791,7 @@ impl Game {
         let c = [k.color[0], k.color[1], k.color[2], 1.0];
         let shadow = [INK[0], INK[1], INK[2], 0.2];
         self.put(e.x, e.y, k.r * 0.95, k.r * 0.36, 0.0, P_GROUND_SHADOW, 0.0, 0.0, shadow);
-        if e.kind == K_WISP {
+        if k.hover {
             // Wisps hover and flap by squeezing their width.
             let hw = if pose == 0 { k.hw } else { k.hw * 0.7 };
             let bob = fmath::sin(self.anim * 5.0 + e.seed * 20.0) * 3.0;
@@ -1338,10 +1826,15 @@ impl Game {
         self.put(px, py, 20.0, 7.0, 0.0, P_GROUND_SHADOW, 0.0, 0.0, shadow);
 
         let scythe = [0.36, 0.66, 0.52, a];
+        let (part, w, h, two) = self.held_weapon();
         let swinging = attack > 0.0;
         if !swinging {
             // Resting over the shoulder, behind the body.
-            self.put(px - f * 15.0, py - 46.0 + bob, 20.0 * f, 34.0, -f * 0.45 + tilt, P_SCYTHE, flash, 0.21, scythe);
+            let rest = -f * 0.45 + tilt;
+            self.put(px - f * 15.0, py - 46.0 + bob, w * f, h, rest, part, flash, 0.21, scythe);
+            if two {
+                self.put(px - f * 21.0, py - 44.0 + bob, w * f, h, rest - f * 0.3, part, flash, 0.23, scythe);
+            }
         }
         let top_x = px + 26.0 * fmath::sin(tilt);
         self.put(px, py - 26.0 + bob, 20.0 * f, 26.0, tilt, P_PLAYER_BODY, flash, 0.37, [0.20, 0.42, 0.36, a]);
@@ -1360,9 +1853,26 @@ impl Game {
             let t = 1.0 - attack / 0.25;
             let ease = t * t * (3.0 - 2.0 * t);
             let ang = (-1.3 + 2.8 * ease) * f;
-            self.put(px + f * 12.0, py - 42.0 + bob, 20.0 * f, 34.0, ang, P_SCYTHE, flash, 0.21, scythe);
+            self.put(px + f * 12.0, py - 42.0 + bob, w * f, h, ang, part, flash, 0.21, scythe);
+            if two {
+                // The second blade follows a little behind the first.
+                let late = (-1.3 + 2.8 * (ease * 0.8)) * f;
+                self.put(px - f * 4.0, py - 40.0 + bob, w * f, h, late, part, flash, 0.23, scythe);
+            }
         }
         self.draw_guard();
+    }
+
+    /// What the player holds: the part, its half width and height, and
+    /// whether there are two of it. It follows the scythe art's weapon kind;
+    /// without kinds it is the scythe.
+    fn held_weapon(&self) -> (f32, f32, f32, bool) {
+        match self.kind_of(A_SCYTHE) {
+            Some(W_DANDAO) => (P_DAO, 14.0, 30.0, false),
+            Some(W_SHUANGDAO) => (P_DAO, 12.0, 26.0, true),
+            Some(W_DADAO) => (P_DADAO, 24.0, 42.0, false),
+            _ => (P_SCYTHE, 20.0, 34.0, false),
+        }
     }
 
     // --------------------------------------------------------------- state
@@ -1373,6 +1883,7 @@ impl Game {
         let (goal, progress) = (self.goal(), self.progress());
         let boss_wait = self.boss_wait();
         let guard_cap = self.guard_cap();
+        let band = self.commission_band_left();
         let p = &self.player;
         let s = &mut self.state;
         s[S_HP] = p.hp;
@@ -1410,11 +1921,44 @@ impl Game {
             s[S_UPGRADE0 + id] = self.up[id] as f32;
         }
         s[S_ATTACH] = self.attach as f32;
+        let c = &self.commission;
+        let shown = self.mission == M_ENDLESS && self.tune[T_COMMISSIONS] > 0.5;
+        s[S_COMMISSION] = if shown { c.phase as f32 } else { 0.0 };
+        s[S_COMMISSION_LEFT] = c.left.max(0.0);
+        s[S_COMMISSION_NEED] = c.need();
+        s[S_COMMISSION_HELD] = c.held;
+        s[S_COMMISSION_HP] = c.hp;
+        s[S_COMMISSION_MAX] = c.max_hp();
+        s[S_COMMISSION_DONE] = c.done as f32;
+        s[S_COMMISSION_KIND] = c.kind as f32;
+        s[S_COMMISSION_BAND] = band as f32;
+        s[S_COMMISSION_WALKED] = c.walked(c.start);
         s[S_GUARD] = p.guard;
         s[S_GUARD_MAX] = guard_cap;
         s[S_REGROW] = p.regrow;
         for (a, art) in self.arts.iter().enumerate() {
             s[S_ART_ELEMENT0 + a] = art.element as f32;
+            s[S_ART_ROUTE0 + a] = art.route as f32;
+            s[S_ART_KIND0 + a] = art.kind as f32;
+            s[S_ART_QUALITY0 + a] = art.quality as f32;
+        }
+        s[S_ROUTE_PICK] = self.route_pick as f32;
+        s[S_ROUTES_ON] = (self.tune[T_ROUTES] > 0.5) as u8 as f32;
+        s[S_DECK_PICK] = self.deck_pick as u8 as f32;
+        s[S_STOLEN] = self.stolen as f32;
+        s[S_MANUALS] = self.manuals as f32;
+        s[S_LAST_DECK] = self.last_deck as f32;
+        for c in 0..3 {
+            s[S_CHOICE_RANK0 + c] = self.ranks[c] as f32;
+        }
+        for d in 0..decks::N_DECKS {
+            self.state[S_DECK_OPEN0 + d] = (self.deck_pick && self.deck_open(d)) as u8 as f32;
+        }
+        for a in 0..N_ARTS {
+            let (_, len) = self.move_order(a);
+            let step = if len > 0 { self.arts[a].step as usize % len } else { 0 };
+            self.state[S_ART_STEP0 + a] = step as f32;
+            self.state[S_ART_ORDER0 + a] = len as f32;
         }
         self.pursuit_write_state();
         self.escort_state();
@@ -1423,8 +1967,18 @@ impl Game {
 
 #[path = "arts.rs"]
 pub mod arts;
+#[path = "commission.rs"]
+pub mod commission;
+#[path = "decks.rs"]
+pub mod decks;
 #[path = "elements.rs"]
 pub mod elements;
+#[path = "foes.rs"]
+pub mod foes;
+#[path = "inner.rs"]
+pub mod inner;
+#[path = "kinds.rs"]
+pub mod kinds;
 #[path = "mission_boss.rs"]
 mod mission_boss;
 #[path = "mission_escort.rs"]
@@ -1433,6 +1987,14 @@ pub mod mission_escort;
 mod mission_pursuit;
 #[path = "mission_vendetta.rs"]
 mod mission_vendetta;
+#[path = "replay.rs"]
+pub mod replay;
+#[path = "routes.rs"]
+pub mod routes;
+#[path = "turrets.rs"]
+pub mod turrets;
+#[path = "zenith.rs"]
+pub mod zenith;
 
 #[cfg(test)]
 #[path = "game_tests.rs"]
@@ -1441,3 +2003,27 @@ mod game_tests;
 #[cfg(test)]
 #[path = "element_tests.rs"]
 mod element_tests;
+
+#[cfg(test)]
+#[path = "route_tests.rs"]
+mod route_tests;
+
+#[cfg(test)]
+#[path = "inner_tests.rs"]
+mod inner_tests;
+
+#[cfg(test)]
+#[path = "deck_tests.rs"]
+mod deck_tests;
+
+#[cfg(test)]
+#[path = "foe_tests.rs"]
+mod foe_tests;
+
+#[cfg(test)]
+#[path = "zenith_tests.rs"]
+mod zenith_tests;
+
+#[cfg(test)]
+#[path = "trait_tests.rs"]
+mod trait_tests;

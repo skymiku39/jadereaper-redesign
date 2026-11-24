@@ -12,6 +12,14 @@ export function createAudio() {
   let muted = false;
   const lastPlayed = {};
   let pickupStep = 0;
+  // Music: its own gain under the master volume, on unless switched off.
+  let musicGain = null;
+  // The music's level: 1 full, 0.5 soft, 0 off. Older saves hold true or false.
+  let musicLevel = 1;
+  let ducked = false;
+  let nextNote = 0;
+  let phrase = 0;
+  let musicStep = 0;
 
   /** Browsers only allow audio after a user gesture, so this is called from one. */
   function unlock() {
@@ -21,6 +29,10 @@ export function createAudio() {
       ctx = new AC();
       master = ctx.createGain();
       master.connect(ctx.destination);
+      musicGain = ctx.createGain();
+      musicGain.connect(master);
+      applyMusic();
+      setInterval(scheduleMusic, 200);
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -31,6 +43,72 @@ export function createAudio() {
 
   function applyVolume() {
     if (master) master.gain.value = muted ? 0 : volume * 0.5;
+  }
+
+  function applyMusic() {
+    if (!musicGain) return;
+    const level = musicLevel * (ducked ? 0.08 : 0.22);
+    musicGain.gain.setTargetAtTime(level, ctx.currentTime, 0.25);
+  }
+
+  /** One plucked string of the music, like a guqin: a quick attack and a long, darkening fade. */
+  function pluck(f, t, gain) {
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = f;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(f * 6, t);
+    filter.frequency.exponentialRampToValueAtTime(f * 1.2, t + 1.6);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0005, t + 2.2);
+    osc.connect(filter).connect(g).connect(musicGain);
+    osc.start(t);
+    osc.stop(t + 2.3);
+  }
+
+  /** A low drone under each phrase: two sines a fifth apart, slowly swelling. */
+  function drone(t, dur) {
+    for (const f of [65.41, 98.0]) {
+      const osc = ctx.createOscillator();
+      osc.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.18, t + dur * 0.4);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(g).connect(musicGain);
+      osc.start(t);
+      osc.stop(t + dur + 0.05);
+    }
+  }
+
+  /**
+   * Keep a little music scheduled ahead: phrases of a few plucks wandering
+   * over the pentatonic scale an octave down, with rests, over the drone.
+   * Nothing plays while the music is off or the sound is muted.
+   */
+  function scheduleMusic() {
+    if (!ctx || ctx.state !== 'running' || !musicLevel || muted) {
+      nextNote = 0;
+      return;
+    }
+    const now = ctx.currentTime;
+    if (nextNote < now) nextNote = now + 0.1;
+    while (nextNote < now + 1.0) {
+      if (phrase <= 0) {
+        // A new phrase after a rest, with its drone.
+        phrase = 4 + Math.floor(Math.random() * 5);
+        nextNote += 1.2 + Math.random() * 1.6;
+        drone(nextNote, phrase * 0.6 + 2.5);
+        musicStep = Math.floor(Math.random() * 5);
+      }
+      musicStep = Math.max(0, Math.min(PENTATONIC.length - 1, musicStep + [-2, -1, -1, 1, 1, 2][Math.floor(Math.random() * 6)]));
+      pluck(PENTATONIC[musicStep] / 2, nextNote, 0.12 + Math.random() * 0.08);
+      nextNote += [0.45, 0.6, 0.6, 0.9][Math.floor(Math.random() * 4)];
+      phrase--;
+    }
   }
 
   function noise({ dur, type = 'bandpass', f0, f1 = f0, q = 1, gain = 0.5 }) {
@@ -97,6 +175,21 @@ export function createAudio() {
       tone({ dur: 0.7, type: 'sawtooth', f0: 90, f1: 60, gain: 0.3 });
       tone({ dur: 0.7, type: 'sawtooth', f0: 95, f1: 63, gain: 0.3 });
     },
+    // A commission turned up, was done, or failed.
+    [EVENT.COMMISSION]: () => {
+      [2, 4].forEach((n, i) => tone({ dur: 0.35, type: 'triangle', f0: PENTATONIC[n], gain: 0.22, delay: i * 0.12 }));
+    },
+    [EVENT.COMMISSION_DONE]: () => {
+      [0, 2, 4, 7].forEach((n, i) => tone({ dur: 0.4, type: 'triangle', f0: PENTATONIC[n], gain: 0.26, delay: i * 0.1 }));
+    },
+    [EVENT.COMMISSION_FAILED]: () => {
+      [4, 2, 0].forEach((n, i) => tone({ dur: 0.4, type: 'triangle', f0: PENTATONIC[n] / 2, gain: 0.24, delay: i * 0.14 }));
+    },
+    // Played by the host while health is low.
+    heartbeat: () => {
+      tone({ dur: 0.12, f0: 70, f1: 45, gain: 0.5 });
+      tone({ dur: 0.14, f0: 62, f1: 40, gain: 0.35, delay: 0.18 });
+    },
     [EVENT.WIN]: () => {
       [0, 2, 4, 5, 4, 5].forEach((n, i) => tone({ dur: 0.5, type: 'triangle', f0: PENTATONIC[n], gain: 0.28, delay: i * 0.13 }));
     },
@@ -108,6 +201,21 @@ export function createAudio() {
     // An element was put on an art: a short rising run.
     [EVENT.ATTACH]: () => {
       [1, 3, 5].forEach((n, i) => tone({ dur: 0.16, type: 'triangle', f0: PENTATONIC[n], gain: 0.2, delay: i * 0.05 }));
+    },
+    // Played by the host when a route's ultimate is used: a temple drum under a low gong.
+    ultimate: () => {
+      tone({ dur: 0.22, f0: 110, f1: 55, gain: 0.55 });
+      noise({ dur: 0.18, type: 'lowpass', f0: 420, f1: 160, gain: 0.35 });
+      tone({ dur: 0.9, type: 'triangle', f0: PENTATONIC[0] / 2, gain: 0.12, delay: 0.05 });
+    },
+    // Played by the host when a school elite winds up a move: a sharp clack and a low hum.
+    warn: () => {
+      noise({ dur: 0.05, type: 'highpass', f0: 3000, f1: 1500, gain: 0.3 });
+      tone({ dur: 0.5, type: 'triangle', f0: 98, f1: 110, gain: 0.18, delay: 0.04 });
+    },
+    // Played by the host when a route move is learned.
+    learn: () => {
+      [0, 2, 4].forEach((n, i) => tone({ dur: 0.22, type: 'triangle', f0: PENTATONIC[n], gain: 0.2, delay: i * 0.07 }));
     },
     ui: () => noise({ dur: 0.035, f0: 2600, q: 4, gain: 0.2 }),
     confirm: () => {
@@ -132,6 +240,13 @@ export function createAudio() {
     play,
     setVolume(v) { volume = Math.min(1, Math.max(0, v)); applyVolume(); },
     setMuted(m) { muted = !!m; applyVolume(); },
+    /** Set the music's level: 1 full, 0.5 soft, 0 off (true and false also work). */
+    setMusic(level) {
+      musicLevel = level === true ? 1 : level === false ? 0 : Math.min(1, Math.max(0, Number(level) || 0));
+      if (ctx) applyMusic();
+    },
+    /** Turn the music down while a menu is open. */
+    duck(on) { if (ducked !== !!on) { ducked = !!on; if (ctx) applyMusic(); } },
     get muted() { return muted; },
     get volume() { return volume; },
   };
