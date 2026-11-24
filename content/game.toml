@@ -301,6 +301,12 @@ amount = 0.15
 #   tune    the name of a tune that holds its share instead of `share`
 #   every   above 0, one comes every this many seconds with an announcement,
 #           and none with the horde
+# What a school's enemy does besides charging (core/src/foes.rs):
+#   strike  a `[[move]]` it uses with a warning first; a master (`manual`) goes
+#           through the whole route of that move
+#   strike2 a second move an elite takes turns with
+#   throw   above 0, it throws a dart at the player every this many seconds
+#           from afar as it comes on
 # Enemy 0 takes none of these: it is whatever the others leave of the horde.
 # Missions that place their own enemies name the kinds in their own code.
 
@@ -389,8 +395,8 @@ tune = "chasers"
 
 # Disciples of the schools (docs/design.md 4.8.6): they join the horde at the
 # share of the `school_share` tune each, and the first one the player fells
-# teaches him that school's stolen routes (偷師). For now they only charge;
-# the elites that use a school's moves with a warning are still to come.
+# teaches him that school's stolen routes (偷師). They charge, except the Tang
+# clan's, who throw.
 [[enemy]]
 id = 5
 name = "bandit"
@@ -458,8 +464,9 @@ tune = "school_share"
 school = "jiuyou"
 
 # School elites (core/src/foes.rs): one of each comes alone on its clock while
-# `school_share` is above 0, and uses its school's move named by `strike`,
-# warned of on the ground first and called out in red.
+# `school_share` is above 0, and uses its school's one or two moves (`strike`,
+# `strike2`), warned of on the ground first and called out in red. An elite
+# falling drops a manual of its school now and then.
 [[enemy]]
 id = 9
 name = "bandit_chief"
@@ -477,7 +484,8 @@ heavy = true
 every = 75
 tune = "school_share"
 school = "heifeng"
-strike = "kaitang"
+strike = "menghu"
+strike2 = "kaitang"
 
 [[enemy]]
 id = 10
@@ -497,6 +505,7 @@ every = 105
 tune = "school_share"
 school = "liushanmen"
 strike = "qianyang"
+strike2 = "dacao"
 
 [[enemy]]
 id = 11
@@ -583,8 +592,8 @@ school = "jiuyou"
 strike = "wangui"
 manual = true
 
-# A Tang clan disciple, who throws from afar; felling one teaches the clan's
-# mechanism route (唐門九機匣).
+# A Tang clan disciple, who throws coin darts (金錢鏢) from afar; felling one
+# teaches the clan's mechanism route (唐門九機匣).
 [[enemy]]
 id = 15
 name = "tang_disciple"
@@ -601,6 +610,7 @@ pose_rate = 8
 hover = true
 tune = "school_share"
 school = "tangmen"
+throw = 3.0
 
 # A soldier of the frontier army, in a line with a spear; felling one teaches
 # 破軍槍. Its general drops the army's manuals.
@@ -637,7 +647,89 @@ heavy = true
 every = 280
 tune = "school_share"
 school = "bianjun"
-strike = "hengqiang"
+strike = "huangsha"
+manual = true
+
+# The second elites and masters of docs/martial-arts.md "門派的敵人": the
+# needle thrower of the Nine Nether sect, the Tang clan's mechanist and its
+# master, who set down mechanism stakes that shoot at the player (the master's
+# ring of them stretches a net that slows him), and the army's captain.
+[[enemy]]
+id = 18
+name = "needle_hand"
+part = "wisp"
+color = [0.36, 0.20, 0.42]
+hp = 180
+speed = 70
+radius = 20
+damage = 6
+xp = 12
+half_width = 30
+half_height = 18
+pose_rate = 7
+hover = true
+every = 120
+tune = "school_share"
+school = "jiuyou"
+strike = "huangquan"
+strike2 = "yanwang"
+
+[[enemy]]
+id = 19
+name = "mechanist"
+part = "brute"
+color = [0.26, 0.32, 0.26]
+hp = 220
+speed = 50
+radius = 24
+damage = 8
+xp = 12
+half_width = 28
+half_height = 28
+pose_rate = 3
+heavy = true
+every = 150
+tune = "school_share"
+school = "tangmen"
+strike = "jiugong"
+
+[[enemy]]
+id = 20
+name = "captain"
+part = "brute"
+color = [0.44, 0.36, 0.18]
+hp = 260
+speed = 54
+radius = 26
+damage = 9
+xp = 12
+half_width = 30
+half_height = 30
+pose_rate = 3
+heavy = true
+every = 125
+tune = "school_share"
+school = "bianjun"
+strike = "huangsha"
+
+[[enemy]]
+id = 21
+name = "tang_master"
+part = "brute"
+color = [0.18, 0.24, 0.18]
+hp = 1000
+speed = 50
+radius = 38
+damage = 12
+xp = 40
+half_width = 46
+half_height = 46
+pose_rate = 2.5
+heavy = true
+every = 330
+tune = "school_share"
+school = "tangmen"
+strike = "gongshu"
 manual = true
 
 # ------------------------------------------------------------------ arts

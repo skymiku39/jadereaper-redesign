@@ -143,6 +143,18 @@ async function boot() {
     }
   }
 
+  /** An enemy of a school came alone (an elite or a master): say who, and of which school. */
+  function onLone(kind) {
+    const k = KINDS[kind];
+    const school = k && SCHOOLS[k.school];
+    if (!school) return;
+    notice = {
+      key: 'foe.arrive',
+      vars: { name: t(`enemy.${k.name}`), school: t(`school.${school.name}`) },
+      until: clock + 3,
+    };
+  }
+
   /** A run ended: keep the highest layer each inner art (心法) reached, for the martial record. */
   function keepInner(s) {
     if (s[STATE.ROUTES_ON] !== 1) return;
@@ -628,6 +640,7 @@ async function boot() {
           if (type === EVENT.MOVE) onMove(ev[i * 4 + 3]);
           if (type === EVENT.STEAL) onSteal(ev[i * 4 + 3]);
           if (type === EVENT.MANUAL) onManual(ev[i * 4 + 3]);
+          if (type === EVENT.ELITE) onLone(ev[i * 4 + 3]);
           if (type === EVENT.ZENITH) onZenith(ev[i * 4 + 3]);
           // A school elite winds up a move: its name in red, so the player knows what is coming.
           if (type === EVENT.FOE && MOVES[ev[i * 4 + 3]]) {
