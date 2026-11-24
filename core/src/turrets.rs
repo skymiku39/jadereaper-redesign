@@ -9,6 +9,8 @@
 //! seconds (`speed`, `pierce` and `power` as a wave's), follows the player
 //! with `seek = 1`, and bursts into `split` shots all round when it ends. At
 //! most `MAX_TURRETS` stand at once; a new one takes the place of the oldest.
+//! A move with `most` keeps at most that many of its own: a new one takes the
+//! place of its own oldest.
 
 use super::{Game, Shot, MAX_SHOTS};
 use crate::defs::*;
@@ -74,6 +76,12 @@ impl Game {
                 let r = def.offset * 100.0;
                 (px + fmath::cos(angle) * r, py + fmath::sin(angle) * r * 0.8)
             };
+            // A move with a limit of its own (九攻九距) takes the place of its own oldest.
+            if def.most > 0 && self.turrets.iter().filter(|t| t.mv as usize == m).count() >= def.most as usize {
+                if let Some(old) = self.turrets.iter().position(|t| t.mv as usize == m) {
+                    self.turrets.remove(old);
+                }
+            }
             if self.turrets.len() >= MAX_TURRETS {
                 self.turrets.remove(0);
             }
@@ -209,6 +217,7 @@ impl Game {
             grow: 0.0,
             size: 0.7,
             zen: 0,
+            home: 0.0,
         });
     }
 

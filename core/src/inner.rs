@@ -232,6 +232,7 @@ impl Game {
             grow: 0.0,
             size: 1.0,
             zen: 0,
+            home: 0.0,
         });
     }
 

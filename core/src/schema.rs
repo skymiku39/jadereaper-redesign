@@ -49,6 +49,8 @@ pub const MS_RING: u8 = 3;
 pub const MS_TURRET: u8 = 4;
 /// Straight thrusts from the player (`routes.rs`).
 pub const MS_THRUST: u8 = 5;
+/// The staff (棍) stretching out and back while it circles (`staff.rs`).
+pub const MS_STRETCH: u8 = 6;
 
 /// Form tags of a weapon kind, as bits (docs/design.md 4.8.2). `kinds.rs` says what each does.
 pub const FORM_LONG: u8 = 1;
@@ -133,15 +135,29 @@ pub struct MoveDef {
     /// arc and ring: how much each later sweep or ring reaches further, as a share of the first;
     /// wave: how much more damage a wave does with each enemy it passes through.
     pub grow: f32,
-    /// ring: how far ahead along the aim the rings are centred, as a share of the basic reach.
+    /// ring: how far ahead along the aim the rings are centred, as a share of the basic reach;
+    /// thrust: the radius of the ring an enemy it fells bursts in; stretch: the radius of
+    /// the ring its tip lands at the height of the stretch.
     pub offset: f32,
     /// wave: 1 to aim at the nearest enemy instead of along the aim.
     pub seek: u32,
-    /// wave: small waves a wave bursts into where its flight ends.
+    /// wave: small waves a wave bursts into where its flight ends;
+    /// ring: shards each enemy it hits throws at the nearest other enemy.
     pub split: u32,
     /// turret: a share taken off the speed of enemies inside the ring the
     /// mechanisms stand on, while they stand (a net).
+    /// Other shapes: a share taken off the speed of the enemies it hits, for a second.
     pub slow: f32,
+    /// stretch: the share of its knockback that pushes along the staff's turn instead of outward.
+    pub side: f32,
+    /// A share more damage the enemies it hits take from every blow, for a second (a lock, 欲擒故縱).
+    pub lock: f32,
+    /// wave: radians a second its waves turn toward the nearest enemy in flight.
+    pub home: f32,
+    /// thrust: below this many stacks of momentum, only one of its thrusts.
+    pub rage: u32,
+    /// turret: at most this many of its own mechanisms stand at once; 0 for no limit of its own.
+    pub most: u32,
     pub ultimate: bool,
     pub stop: bool,
 }

@@ -371,10 +371,10 @@ pub struct Route {
 }
 
 /// How a move hits. The core has one piece of code per shape.
-pub const MOVE_SHAPES: [&str; 6] = ["arc", "wave", "marks", "ring", "turret", "thrust"];
+pub const MOVE_SHAPES: [&str; 7] = ["arc", "wave", "marks", "ring", "turret", "thrust", "stretch"];
 
 /// The optional numbers of a move, in the order of `Move::numbers`. Each defaults to 0.
-pub const MOVE_KEYS: [&str; 15] = [
+pub const MOVE_KEYS: [&str; 20] = [
     "power",
     "reach",
     "width",
@@ -390,10 +390,15 @@ pub const MOVE_KEYS: [&str; 15] = [
     "seek",
     "split",
     "slow",
+    "side",
+    "lock",
+    "home",
+    "rage",
+    "most",
 ];
 
 /// The move keys that are whole numbers.
-const MOVE_WHOLE_KEYS: [&str; 4] = ["count", "pierce", "seek", "split"];
+const MOVE_WHOLE_KEYS: [&str; 6] = ["count", "pierce", "seek", "split", "rage", "most"];
 
 /// One move (式) of a route.
 #[derive(Clone, Debug)]
