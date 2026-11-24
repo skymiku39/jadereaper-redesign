@@ -44,12 +44,13 @@ const JADE_LIGHT: [f32; 4] = [0.42, 0.86, 0.64, 0.7];
 /// Weapon cards in a row without fine steel or better before the next is sure to be.
 const PITY: u8 = 3;
 /// The most second blows waiting at once.
-pub const MAX_ECHOES: usize = 8;
+pub const MAX_ECHOES: usize = 16;
 /// How long after the first blow of a paired kind the second lands.
 const SECOND_HAND: f32 = 0.12;
 
-/// The second blow of a paired kind (雙刀, 雙劍): the art's basic blow is two
-/// of half the damage each, the other hand's a moment after the first.
+/// The second blow of a paired kind (雙刀, 雙劍): the art's basic blow, and
+/// every arc and thrust of its route moves, is two of half the damage each,
+/// the other hand's a moment after the first.
 #[derive(Clone, Copy)]
 pub struct Echo {
     pub left: f32,
@@ -60,6 +61,12 @@ pub struct Echo {
     pub knock: f32,
     pub ax: f32,
     pub ay: f32,
+    /// A thrust (a straight line) rather than a sweep.
+    pub line: bool,
+    /// The route move it belongs to (`routes::NO_MOVE` for the basic blow), and
+    /// the element of the ultimate at its height it lands with; 0 for none.
+    pub mv: u16,
+    pub zen: u8,
 }
 
 impl Game {
@@ -237,8 +244,9 @@ impl Game {
         x
     }
 
-    /// The basic blow of art `a` lands for `dmg`: with a paired kind it is
-    /// two blows of half that, the second a moment later along the same aim.
+    /// A blow of art `a` (a sweep, or a thrust when `line`) lands for `dmg`:
+    /// with a paired kind it is two blows of half that, the second a moment
+    /// later along the same aim, for the same route move as the first.
     /// Returns the damage of the first.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn second_hand(
@@ -250,12 +258,26 @@ impl Game {
         knock: f32,
         ax: f32,
         ay: f32,
+        line: bool,
     ) -> f32 {
         if self.forms(a) & FORM_PAIRED == 0 || self.echoes.len() >= MAX_ECHOES {
             return dmg;
         }
         let half = dmg * 0.5;
-        self.echoes.push(Echo { left: SECOND_HAND, art: a as u8, dmg: half, reach, width, knock, ax, ay });
+        let (mv, zen) = (self.hit_move, self.zenith);
+        self.echoes.push(Echo {
+            left: SECOND_HAND,
+            art: a as u8,
+            dmg: half,
+            reach,
+            width,
+            knock,
+            ax,
+            ay,
+            line,
+            mv,
+            zen,
+        });
         half
     }
 
@@ -275,12 +297,16 @@ impl Game {
             let a = e.art as usize;
             let (px, py) = (self.player.x, self.player.y);
             self.striking = e.art + 1;
-            if ARTS[a].behaviour == B_THRUST {
+            self.hit_move = e.mv;
+            self.zenith = e.zen;
+            if e.line {
                 self.line(a, px, py, e.ax, e.ay, e.reach, e.width, e.dmg, e.knock);
             } else {
                 self.sweep(a, e.dmg, e.reach, e.width, e.knock, e.ax, e.ay);
             }
             self.striking = 0;
+            self.hit_move = super::routes::NO_MOVE;
+            self.zenith = 0;
             self.event(EV_SLASH, px, py, 0.0);
         }
     }

@@ -64,6 +64,8 @@ pub struct Shot {
     size: f32,
     /// The element of the ultimate at its height it came from; 0 for none (`zenith.rs`).
     zen: u8,
+    /// Radians a second it turns toward the nearest enemy in flight (a route move); 0 for none.
+    home: f32,
 }
 
 pub struct Gem {
@@ -227,6 +229,15 @@ pub struct Game {
     pub net: Option<turrets::Net>,
     /// The art whose hits are landing now, plus 1; 0 for none or not a route's (`routes.rs`).
     pub striking: u8,
+    /// The route move whose hits are landing now, for what they leave on the
+    /// enemies (`routes::NO_MOVE` for none).
+    pub hit_move: u16,
+    /// Rings still to burst where enemies felled by a route move fell (`routes.rs`).
+    pub blooms: Vec<routes::Bloom>,
+    /// The staff stretching out and back, while it does (`staff.rs`).
+    pub stretch: Option<staff::Stretch>,
+    /// How far the staff has turned beyond its clock, from spinning faster (`staff.rs`).
+    pub staff_turn: f32,
     /// Kills of the last few seconds while a route with momentum is followed, and the seconds before they go.
     pub momentum: u8,
     pub momentum_left: f32,
@@ -416,6 +427,10 @@ impl Game {
             turrets: Vec::with_capacity(turrets::MAX_TURRETS),
             net: None,
             striking: 0,
+            hit_move: routes::NO_MOVE,
+            blooms: Vec::with_capacity(routes::MAX_BLOOMS),
+            stretch: None,
+            staff_turn: 0.0,
             momentum: 0,
             momentum_left: 0.0,
             pending: 0,
@@ -680,6 +695,12 @@ impl Game {
             if e.tags.opening {
                 mix(1);
             }
+            if e.tags.locked > 0.0 {
+                mix(e.tags.locked.to_bits());
+            }
+            if e.tags.slowed > 0.0 {
+                mix(e.tags.slowed.to_bits());
+            }
         }
         mix(self.shots.len() as u32);
         for s in &self.shots {
@@ -817,6 +838,8 @@ impl Game {
         self.move_shots(dt);
         self.tick_delayed(dt);
         self.tick_echoes(dt);
+        self.tick_stretch(dt);
+        self.tick_blooms();
         self.tick_turrets(dt);
         self.tick_net(dt);
         self.land_splash();
@@ -992,6 +1015,8 @@ impl Game {
             }
             let k = &KINDS[e.kind as usize];
             let speed = if net.is_some() { k.speed * pace * Self::net_pace(&net, e.x, e.y) } else { k.speed * pace };
+            // Slowed by a route move (逆水行舟).
+            let speed = if e.tags.slowed > 0.0 { speed * (1.0 - e.tags.slow) } else { speed };
             let (dx, dy) = (px - e.x, py - e.y);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             // The boss of the boss mission steers itself.
@@ -1164,6 +1189,9 @@ impl Game {
     fn move_shots(&mut self, dt: f32) {
         let mut s = 0;
         while s < self.shots.len() {
+            if self.shots[s].home > 0.0 {
+                self.home_shot(s, dt);
+            }
             let (x, y, dmg, last) = {
                 let sh = &mut self.shots[s];
                 sh.x += sh.vx * dt;
@@ -2009,6 +2037,8 @@ mod mission_vendetta;
 pub mod replay;
 #[path = "routes.rs"]
 pub mod routes;
+#[path = "staff.rs"]
+pub mod staff;
 #[path = "turrets.rs"]
 pub mod turrets;
 #[path = "zenith.rs"]

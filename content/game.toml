@@ -854,7 +854,9 @@ knockback = 260
 # A `trait` is what the kind does of its own: `hook` pulls in the last enemy a
 # sweep hits, `pierce` lets shots pass one enemy more, `swarm` throws twice the
 # shots at half the damage, `tip` sweeps round the tip of a thrust, `bend`
-# whips on from the tip of a thrust to the nearest enemy there.
+# whips on from the tip of a thrust to the second-nearest enemy, when it is
+# within reach of the tip. A `paired` kind lands its basic blow and every arc
+# and thrust of its route moves as two blows of half the damage.
 # `famous` is what the kind's famous blade (名器, docs/martial-arts.md) does of
 # its own while the art's weapon is famous: `reach` sweeps 10% further with a
 # jade blade light (玉鐮), `stop` the first move of each round of the route
@@ -1320,6 +1322,21 @@ zenith = "might"
 # waves burst from where each one's flight ends; `grow` adds that share of
 # damage with each enemy it passes through. A `spread` of 1 or more sets the
 # waves evenly all round.
+#   stretch  the staff (orbit) stretches to `reach` times its length and back
+#          over `life` seconds, every bead the tip of a staff that hits along
+#          its whole length, once an enemy; `speed` above 1 turns it that many
+#          times faster meanwhile; `offset` lands a ring of that many reaches
+#          at the tip nearest the aim at the height of the stretch; `side`
+#          is the share of its push that goes along its turn, not outward
+# A ring with `split` makes each enemy it hits throw that many shards at the
+# nearest other enemy (at `speed` for `life` seconds, hitting `pierce`).
+# A thrust with `offset` makes an enemy it fells burst in a ring of that many
+# reaches; with `rage`, it is one thrust until momentum has that many stacks.
+# A wave with `home` keeps turning toward the nearest enemy in flight, that
+# many radians a second.
+# Any shape but a turret: `slow` takes that share off the speed of the enemies
+# it hits for a second, and `lock` makes them take that share more damage
+# from every blow for a second (欲擒故縱; not an element tag).
 # `stop` asks the host for a moment of hit-stop when the move is used.
 # Text is `move.<name>.name` and `.desc` (the card's line) in src/i18n.js.
 
@@ -1479,6 +1496,7 @@ power = 1.8
 reach = 1.45
 count = 1
 knockback = 0.5
+slow = 0.5
 
 [[move]]
 id = 13
@@ -1499,56 +1517,54 @@ stop = true
 id = 14
 name = "chaosheng"
 route = "fanjiang"
-shape = "arc"
+shape = "stretch"
 power = 1.6
 reach = 2.0
-width = -2
-count = 1
+life = 0.5
 knockback = 1.0
 
 [[move]]
 id = 15
 name = "jingtao"
 route = "fanjiang"
-shape = "ring"
-power = 2.4
-reach = 0.8
-offset = 2.0
-count = 1
+shape = "stretch"
+power = 1.5
+reach = 2.0
+life = 0.5
+offset = 0.78
 knockback = 1.0
 
 [[move]]
 id = 16
 name = "nishui"
 route = "fanjiang"
-shape = "arc"
+shape = "stretch"
 power = 1.4
 reach = 2.0
-width = -2
-count = 1
+life = 0.5
+side = 1.0
+slow = 0.3
 knockback = 2.0
 
 [[move]]
 id = 17
 name = "dajiang"
 route = "fanjiang"
-shape = "arc"
+shape = "stretch"
 power = 1.8
-reach = 2.2
-width = -2
-count = 2
-delay = 0.12
+reach = 2.0
+life = 0.6
+speed = 2.0
 knockback = 2.0
 
 [[move]]
 id = 18
 name = "changhe"
 route = "fanjiang"
-shape = "arc"
+shape = "stretch"
 power = 4.0
 reach = 4.0
-width = -2
-count = 1
+life = 0.7
 knockback = 2.5
 ultimate = true
 stop = true
@@ -1602,9 +1618,8 @@ name = "xingluo"
 route = "ershiba"
 shape = "wave"
 seek = 1
-power = 0.8
-count = 3
-spread = 0.12
+power = 1.0
+count = 1
 pierce = 1
 split = 3
 speed = 560
@@ -1755,11 +1770,11 @@ knockback = 0.3
 id = 34
 name = "tashan"
 route = "zhuoyu"
-shape = "wave"
-seek = 1
+shape = "ring"
 power = 0.5
-count = 3
-spread = 0.33
+reach = 0.6
+count = 1
+split = 1
 pierce = 2
 speed = 500
 life = 0.5
@@ -1849,7 +1864,8 @@ shape = "ring"
 power = 1.6
 reach = 1.2
 count = 1
-knockback = 0.3
+knockback = -0.8
+lock = 0.25
 
 [[move]]
 id = 42
@@ -1928,6 +1944,7 @@ spread = 0.4
 pierce = 2
 speed = 600
 life = 1.0
+home = 6.0
 knockback = 0.1
 
 [[move]]
@@ -1936,11 +1953,12 @@ name = "shidian"
 route = "yinhun"
 shape = "wave"
 power = 0.5
-count = 32
+count = 40
 spread = 1.0
 pierce = 2
 speed = 500
 life = 1.1
+home = 3.0
 knockback = 0.1
 ultimate = true
 stop = true
@@ -1987,7 +2005,9 @@ stop = true
 #           him, or circling him at radius `width`; each lives `life` s,
 #           shoots every `delay` s, follows with `seek = 1`, bursts into
 #           `split` shots when it ends; with `slow`, a ring of them is a net
-#           that takes that share off the speed of the enemies inside
+#           that takes that share off the speed of the enemies inside; with
+#           `most`, at most that many of the move's own mechanisms stand at
+#           once (the oldest goes)
 [[move]]
 id = 52
 name = "gongshu"
@@ -2012,6 +2032,7 @@ life = 4
 delay = 0.5
 speed = 620
 pierce = 1
+most = 3
 
 [[move]]
 id = 54
@@ -2182,6 +2203,7 @@ shape = "thrust"
 seek = 1
 power = 0.9
 reach = 1.0
+offset = 0.25
 count = 1
 knockback = 0.6
 
@@ -2195,6 +2217,7 @@ power = 0.8
 reach = 1.0
 count = 2
 delay = 0.1
+rage = 5
 knockback = 0.6
 
 [[move]]

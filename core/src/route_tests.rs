@@ -162,6 +162,10 @@ fn a_route_uses_its_moves_in_turn_and_they_land() {
                 g.move_shots(TICK);
                 g.tick_delayed(TICK);
                 g.tick_turrets(TICK);
+                g.tick_stretch(TICK);
+                for e in g.enemies.iter_mut() {
+                    e.bead_cd = (e.bead_cd - TICK).max(0.0);
+                }
             }
             if m != BASIC {
                 assert!(
@@ -282,16 +286,22 @@ fn mechanisms_shoot_by_themselves_and_end() {
         g.tick_turrets(TICK);
     }
     assert!(g.turrets.is_empty(), "it ends after its life");
-    // No more than the most at once.
+    // No more of its own than it may keep, and no more than the most at once.
     for _ in 0..20 {
         g.set_turrets(a, m, 1.0);
+    }
+    let own = if MOVES[m].most > 0 { MOVES[m].most as usize } else { turrets::MAX_TURRETS };
+    assert_eq!(g.turrets.len(), own.min(turrets::MAX_TURRETS));
+    let other = (ROUTES[r].first..ROUTES[r].first + ROUTES[r].n).find(|&o| MOVES[o].most == 0).unwrap();
+    for _ in 0..20 {
+        g.set_turrets(a, other, 1.0);
     }
     assert_eq!(g.turrets.len(), turrets::MAX_TURRETS);
 }
 
 #[test]
 fn a_net_slows_the_enemies_inside_until_it_comes_down() {
-    let m = (0..N_MOVES).find(|&m| MOVES[m].slow > 0.0).expect("a net move");
+    let m = (0..N_MOVES).find(|&m| MOVES[m].shape == MS_TURRET && MOVES[m].slow > 0.0).expect("a net move");
     let a = ROUTES[MOVES[m].route].art;
     let mut g = base();
     assert_eq!(Game::net_pace(&g.net, 0.0, 0.0), 1.0, "no net, no slowing");
@@ -364,4 +374,213 @@ fn a_run_on_routes_is_the_same_twice() {
         g.hash()
     };
     assert_eq!(run(), run());
+}
+
+/// An art on route `r` at its top level, aiming right, nothing else moving.
+fn on_route(r: usize) -> (Game, usize) {
+    let a = ROUTES[r].art;
+    let mut g = base();
+    g.take_route(a, r);
+    g.up[ARTS[a].upgrade] = (2 + ROUTES[r].n) as u8;
+    g.player.aim = (1.0, 0.0);
+    (g, a)
+}
+
+#[test]
+fn a_stretching_staff_reaches_out_and_back() {
+    let m = MV_CHAOSHENG;
+    let (mut g, a) = on_route(MOVES[m].route);
+    let count = g.art_numbers(a).unwrap().count;
+    let (x0, _) = g.orbit_at(a, 0);
+    // Beyond the staff's own reach, but within twice it, along bead 0.
+    let far = put(&mut g, x0 * 1.7, 0.0);
+    g.use_move(a, m, 1.0);
+    assert!(g.stretching(a));
+    let mut most: f32 = 1.0;
+    for _ in 0..((MOVES[m].life + 0.1) / TICK) as u32 {
+        g.tick_stretch(TICK);
+        most = most.max(g.stretch_factor(a));
+    }
+    assert!((most - MOVES[m].reach).abs() < 1e-3, "it reaches its full length");
+    assert!(!g.stretching(a) && g.stretch_factor(a) == 1.0, "and comes back");
+    assert!(g.enemies[far].hp < 100_000.0, "hitting what lies along it");
+    assert_eq!(g.orbit_count(a), count);
+}
+
+#[test]
+fn the_staff_tip_lands_a_ring_ahead_at_the_height() {
+    let m = MV_JINGTAO;
+    let (mut g, a) = on_route(MOVES[m].route);
+    let (x0, _) = g.orbit_at(a, 0);
+    // Just past the stretched tip, out of the staff's own line.
+    let tip = put(&mut g, x0 * MOVES[m].reach + 40.0, 0.0);
+    g.use_move(a, m, 1.0);
+    for _ in 0..((MOVES[m].life + 0.1) / TICK) as u32 {
+        g.tick_stretch(TICK);
+    }
+    assert!(g.enemies[tip].hp < 100_000.0, "the ring at the tip hit it");
+}
+
+#[test]
+fn against_the_water_pushes_sideways_and_slows() {
+    let m = MV_NISHUI;
+    let (mut g, a) = on_route(MOVES[m].route);
+    let (x0, _) = g.orbit_at(a, 0);
+    let e = put(&mut g, x0 * 0.8, 0.0);
+    g.use_move(a, m, 1.0);
+    g.tick_stretch(TICK);
+    let en = g.enemies[e];
+    assert!(en.hp < 100_000.0);
+    assert!(en.ky.abs() > en.kx.abs(), "pushed along the turn, not outward");
+    assert!(en.tags.slowed > 0.0 && (en.tags.slow - MOVES[m].slow).abs() < 1e-6);
+    for _ in 0..(1.1 / TICK) as u32 {
+        g.tick_tags(TICK);
+    }
+    assert_eq!(g.enemies[e].tags.slowed, 0.0, "the slow wears off");
+}
+
+#[test]
+fn the_great_river_spins_the_staff_faster() {
+    let m = MV_DAJIANG;
+    let (mut g, a) = on_route(MOVES[m].route);
+    assert_eq!(g.staff_turn, 0.0);
+    g.use_move(a, m, 1.0);
+    let steps = (MOVES[m].life / TICK) as u32;
+    for _ in 0..steps {
+        g.tick_stretch(TICK);
+    }
+    let want = (MOVES[m].speed - 1.0) * ARTS[a].speed * steps as f32 * TICK;
+    assert!((g.staff_turn - want).abs() < 1e-3, "turned {} beyond its clock, not {want}", g.staff_turn);
+}
+
+#[test]
+fn a_shard_flies_from_the_enemy_hit_to_the_next() {
+    let m = MV_TASHAN;
+    let (mut g, a) = on_route(MOVES[m].route);
+    let hit = put(&mut g, 40.0, 0.0);
+    let next = put(&mut g, 40.0, 200.0);
+    g.use_move(a, m, 1.0);
+    let shard = g.shots.iter().find(|s| s.last == g.enemies[hit].id).expect("a shard from the enemy hit");
+    assert!((shard.x - 40.0).abs() < 1e-3 && shard.y.abs() < 1e-3, "it starts on the enemy");
+    assert!(shard.vy > 0.0 && shard.vx.abs() < 1e-3, "toward the other one");
+    assert_eq!(g.enemies[next].hp, 100_000.0);
+    for _ in 0..60 {
+        g.move_shots(TICK);
+    }
+    assert!(g.enemies[next].hp < 100_000.0, "and hits it");
+}
+
+#[test]
+fn a_lock_makes_every_blow_land_harder_for_a_second() {
+    let m = MV_YUQIN;
+    let (mut g, a) = on_route(MOVES[m].route);
+    let e = put(&mut g, 40.0, 0.0);
+    g.use_move(a, m, 1.0);
+    let tags = g.enemies[e].tags;
+    assert!(tags.locked > 0.0 && (tags.lock - MOVES[m].lock).abs() < 1e-6);
+    assert!((1..=N_ELEMENTS).all(|k| tags.left[k] == 0.0), "not an element tag");
+    let before = g.enemies[e].hp;
+    g.strike(e, 10.0, 0.0, 0.0, 0);
+    assert!((before - g.enemies[e].hp - 10.0 * (1.0 + MOVES[m].lock)).abs() < 1e-3);
+    for _ in 0..(1.1 / TICK) as u32 {
+        g.tick_tags(TICK);
+    }
+    let before = g.enemies[e].hp;
+    g.strike(e, 10.0, 0.0, 0.0, 0);
+    assert!((before - g.enemies[e].hp - 10.0).abs() < 1e-3, "the lock wears off");
+}
+
+#[test]
+fn homing_needles_turn_in_the_air() {
+    let m = MV_YANWANG;
+    let (mut g, a) = on_route(MOVES[m].route);
+    let first = put(&mut g, 100.0, 0.0);
+    g.use_move(a, m, 1.0);
+    assert!(g.shots.iter().all(|s| s.home > 0.0));
+    // The enemy aimed at goes; another stands off to the side.
+    g.enemies[first].x = 5000.0;
+    let side = put(&mut g, 150.0, 150.0);
+    for _ in 0..60 {
+        g.move_shots(TICK);
+    }
+    assert!(g.enemies[side].hp < 100_000.0, "a needle found the other enemy");
+}
+
+#[test]
+fn a_bloody_thrust_bursts_where_its_enemy_falls() {
+    let m = MV_XUEJI;
+    let (mut g, a) = on_route(MOVES[m].route);
+    let weak = put(&mut g, 60.0, 0.0);
+    g.enemies[weak].hp = 1.0;
+    let beside = put(&mut g, 60.0, 40.0);
+    g.use_move(a, m, 1.0);
+    assert_eq!(g.blooms.len(), 1, "the enemy it felled bursts");
+    let before = g.enemies[beside].hp;
+    g.tick_blooms();
+    assert!(g.enemies[beside].hp < before, "hitting the one beside it");
+    assert!(g.blooms.is_empty());
+}
+
+#[test]
+fn many_kills_thrust_twice_only_at_five_stacks() {
+    let m = MV_SHAREN;
+    let (mut g, a) = on_route(MOVES[m].route);
+    put(&mut g, 60.0, 0.0);
+    g.use_move(a, m, 1.0);
+    assert!(g.delayed.is_empty(), "once below five stacks");
+    g.momentum = MOVES[m].rage as u8;
+    g.use_move(a, m, 1.0);
+    assert_eq!(g.delayed.len(), MOVES[m].count - 1, "twice at five");
+}
+
+#[test]
+fn falling_stars_is_one_dart_that_splits_in_three() {
+    let m = MV_XINGLUO;
+    let (mut g, a) = on_route(MOVES[m].route);
+    put(&mut g, 2000.0, 0.0);
+    g.use_move(a, m, 1.0);
+    assert_eq!(g.shots.len(), 1);
+    for _ in 0..((MOVES[m].life + 0.05) / TICK) as u32 {
+        g.move_shots(TICK);
+    }
+    assert_eq!(g.shots.len(), MOVES[m].split as usize);
+}
+
+#[test]
+fn the_long_river_stretches_the_staff_fourfold_all_round() {
+    let m = MV_CHANGHE;
+    assert!(MOVES[m].ultimate);
+    let (mut g, a) = on_route(MOVES[m].route);
+    let (x0, _) = g.orbit_at(a, 0);
+    // Far out on the other side, where only a staff four times as long reaches.
+    let far = put(&mut g, -x0 * 3.5, 0.0);
+    g.use_move(a, m, 1.0);
+    let mut most: f32 = 1.0;
+    for _ in 0..((MOVES[m].life + 0.1) / TICK) as u32 {
+        g.time += TICK;
+        g.tick_stretch(TICK);
+        most = most.max(g.stretch_factor(a));
+    }
+    assert!((most - 4.0).abs() < 1e-3, "four times as long");
+    assert!(g.enemies[far].hp < 100_000.0, "and round to the far side");
+}
+
+#[test]
+fn falling_leaves_slows_the_enemies_by_half() {
+    let m = MV_LUOYE;
+    let (mut g, a) = on_route(MOVES[m].route);
+    let e = put(&mut g, 60.0, 0.0);
+    g.use_move(a, m, 1.0);
+    let tags = g.enemies[e].tags;
+    assert!(tags.slowed > 0.0 && (tags.slow - 0.5).abs() < 1e-6);
+}
+
+#[test]
+fn the_ten_courts_throw_forty_homing_needles() {
+    let m = MV_SHIDIAN;
+    let (mut g, a) = on_route(MOVES[m].route);
+    put(&mut g, 300.0, 0.0);
+    g.use_move(a, m, 1.0);
+    assert_eq!(g.shots.len(), 40);
+    assert!(g.shots.iter().all(|s| s.home > 0.0));
 }

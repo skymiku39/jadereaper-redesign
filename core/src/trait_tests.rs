@@ -52,18 +52,55 @@ fn a_hook_pulls_the_farthest_enemy_in() {
 }
 
 #[test]
-fn a_soft_sword_bends_on_to_an_enemy_beside_its_tip() {
+fn a_soft_sword_bends_on_to_the_second_nearest_enemy() {
     let w = weapon_with(WT_BEND);
     let a = WEAPONS[w].art;
     let mut g = base();
     g.up[ARTS[a].upgrade] = 1;
-    // One enemy off to the side of the thrust's tip, out of the line itself.
-    let beside = put(&mut g, 100.0, 50.0);
+    // The nearest on the line; the second-nearest off to the side of the tip;
+    // a third nearer the tip than the second, but farther from the player.
+    put(&mut g, 40.0, 0.0);
+    let second = put(&mut g, 100.0, 50.0);
+    let third = put(&mut g, 135.0, -25.0);
     g.line(a, 0.0, 0.0, 1.0, 0.0, 100.0, 10.0, 10.0, 0.0);
-    assert_eq!(g.enemies[beside].hp, 100_000.0, "a stiff sword misses it");
+    assert_eq!(g.enemies[second].hp, 100_000.0, "a stiff sword misses it");
     g.arts[a].kind = w as u8 + 1;
     g.line(a, 0.0, 0.0, 1.0, 0.0, 100.0, 10.0, 10.0, 0.0);
-    assert!(g.enemies[beside].hp < 100_000.0, "the soft one bends to it");
+    assert!(g.enemies[second].hp < 100_000.0, "the soft one bends to the second-nearest");
+    assert_eq!(g.enemies[third].hp, 100_000.0, "not to the one nearest the tip");
+}
+
+#[test]
+fn a_paired_kind_lands_its_route_moves_as_two_blows() {
+    let w = (0..N_WEAPONS).find(|&w| WEAPONS[w].forms & FORM_PAIRED != 0).expect("a paired kind");
+    let a = WEAPONS[w].art;
+    let r = (0..N_ROUTES).find(|&r| ROUTES[r].art == a && ROUTES[r].start).expect("a route of the art");
+    let m = (ROUTES[r].first..ROUTES[r].first + ROUTES[r].n)
+        .find(|&m| matches!(MOVES[m].shape, MS_ARC | MS_THRUST) && MOVES[m].delay == 0.0)
+        .expect("an arc or thrust move");
+    let mut g = base();
+    g.take_route(a, r);
+    g.up[ARTS[a].upgrade] = 3;
+    let e = put(&mut g, 60.0, 0.0);
+    g.player.aim = (1.0, 0.0);
+    g.use_move(a, m, 1.0);
+    let whole_once = 100_000.0 - g.enemies[e].hp;
+    assert!(g.echoes.is_empty(), "one blow without the paired kind");
+    let mut g = base();
+    g.take_route(a, r);
+    g.up[ARTS[a].upgrade] = 3;
+    g.arts[a].kind = w as u8 + 1;
+    let e = put(&mut g, 60.0, 0.0);
+    g.player.aim = (1.0, 0.0);
+    g.use_move(a, m, 1.0);
+    assert!(!g.echoes.is_empty(), "the other hand is still to come");
+    let first = 100_000.0 - g.enemies[e].hp;
+    for _ in 0..(0.3 / TICK) as u32 {
+        g.tick_echoes(TICK);
+    }
+    let both = 100_000.0 - g.enemies[e].hp;
+    assert!((first * 2.0 - both).abs() < 1e-2, "two blows of half");
+    assert!((both - whole_once).abs() < 1e-2 * whole_once, "as much in all");
 }
 
 #[test]
@@ -72,12 +109,12 @@ fn a_paired_kind_lands_two_blows_of_half() {
     let a = WEAPONS[w].art;
     let mut g = base();
     g.up[ARTS[a].upgrade] = 1;
-    let first = g.second_hand(a, 10.0, 80.0, -2.0, 0.0, 1.0, 0.0);
+    let first = g.second_hand(a, 10.0, 80.0, -2.0, 0.0, 1.0, 0.0, false);
     assert_eq!(first, 10.0, "an art without a paired kind hits once, whole");
     assert!(g.echoes.is_empty());
     g.arts[a].kind = w as u8 + 1;
     let e = put(&mut g, 40.0, 0.0);
-    let first = g.second_hand(a, 10.0, 80.0, -2.0, 0.0, 1.0, 0.0);
+    let first = g.second_hand(a, 10.0, 80.0, -2.0, 0.0, 1.0, 0.0, false);
     assert_eq!(first, 5.0);
     assert_eq!(g.echoes.len(), 1);
     let hp = g.enemies[e].hp;
