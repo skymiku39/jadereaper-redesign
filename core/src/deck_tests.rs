@@ -180,12 +180,22 @@ fn a_famous_blade_not_bought_never_comes() {
     let mut g = Game::new(1);
     g.tune[T_FAMOUS_OWNED] = 0.0;
     g.start(M_ENDLESS);
-    let w = Game::start_kind(A_TALISMAN).unwrap();
+    // 玉鐮 and 斷雲: two named famous blades of one art.
+    let (w, other) = (W_LIAN, W_DADAO);
+    assert!(WEAPONS[w].famous != FM_NONE && WEAPONS[other].famous != FM_NONE);
     let a = WEAPONS[w].art;
     for seed in 1..2000u32 {
         g.rng = Rng(seed | 1);
         assert!(g.roll_quality(w, true) <= kinds::STEEL);
     }
+    // A kind without a named famous blade still comes famous, as only its quality.
+    let plain = Game::start_kind(A_TALISMAN).unwrap();
+    assert_eq!(WEAPONS[plain].famous, FM_NONE);
+    let famous = (1..2000u32).any(|seed| {
+        g.rng = Rng(seed | 1);
+        g.roll_quality(plain, true) == kinds::FAMOUS
+    });
+    assert!(famous, "an unnamed kind needs no purchase");
     // A held art of the kind at fine steel cannot get better, so the kind is not offered again.
     g.take_weapon(w, kinds::STEEL);
     assert!(!g.weapon_offerable(w));
@@ -196,8 +206,6 @@ fn a_famous_blade_not_bought_never_comes() {
     // A famous blade changed to a kind whose famous blade is not bought keeps fine steel.
     g.take_weapon(w, kinds::FAMOUS);
     assert_eq!(g.arts[a].quality, kinds::FAMOUS);
-    let other =
-        (0..N_WEAPONS).find(|&o| o != w && WEAPONS[o].art == a && WEAPONS[o].forms & FORM_MECHANISM == 0).unwrap();
     g.take_weapon(other, kinds::PLAIN);
     assert_eq!(g.arts[a].quality, kinds::STEEL);
 }

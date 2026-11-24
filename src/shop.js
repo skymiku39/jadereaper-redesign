@@ -35,7 +35,8 @@ export function kindsOwned(save) {
 
 /**
  * The `famous_owned` tune: the kinds whose famous blade was bought, as bits by weapon id.
- * A weapon card of any other kind is at most fine steel.
+ * A weapon card of another kind with a named famous blade is at most fine steel; the core
+ * lets a kind without one come famous regardless.
  */
 export function famousOwned(save) {
   const bought = new Set(Array.isArray(save.famousBought) ? save.famousBought : []);

@@ -8,7 +8,7 @@
 //! and a route that suits the kind (人器合一) hits harder. A famous blade
 //! (名器) of a kind that names one (`famous` on `[[weapon]]`) also does a
 //! thing of its own (`FM_*`), and only comes once bought at the weapon shop
-//! (the `famous_owned` tune). Off, no art has a kind and every factor here is
+//! (the `famous_owned` tune); other kinds come famous without buying. Off, no art has a kind and every factor here is
 //! exactly 1.
 
 use super::{Fx, Game};
@@ -130,13 +130,15 @@ impl Game {
         self.kind_of(a).map_or(FM_NONE, |w| WEAPONS[w].famous)
     }
 
-    /// Whether kind `w`'s famous blade was bought at the weapon shop (the `famous_owned` tune).
+    /// Whether kind `w`'s famous blade can come: a named one once it was bought
+    /// at the weapon shop (the `famous_owned` tune); a kind without a named one
+    /// always, as only its quality.
     fn famous_owned(&self, w: usize) -> bool {
-        (self.tune[T_FAMOUS_OWNED] as u32 >> w.min(31)) & 1 != 0
+        WEAPONS[w].famous == FM_NONE || (self.tune[T_FAMOUS_OWNED] as u32 >> w.min(31)) & 1 != 0
     }
 
-    /// The best quality a weapon card of kind `w` can bring: a famous blade
-    /// only once it is bought, else fine steel.
+    /// The best quality a weapon card of kind `w` can bring: a named famous
+    /// blade only once it is bought, else fine steel.
     pub(crate) fn top_quality(&self, w: usize) -> u8 {
         if self.famous_owned(w) {
             FAMOUS

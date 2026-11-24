@@ -768,8 +768,8 @@ knockback = 260
 # (烏金棍), `speed` shots fly 25% faster (柳葉飛刀), `turret` one more mechanism
 # is set down and may stand (the Tang box), `guard` every move adds 1 guard
 # without the metal element (玄鐵護手). Left out, a famous blade of the kind is
-# only its quality. A famous blade only comes once it is bought at the weapon
-# shop (the `famous_owned` tune).
+# only its quality and needs no buying; a named one only comes once it is
+# bought at the weapon shop (the `famous_owned` tune).
 # Names are `weapon.<name>` in src/i18n.js; a famous blade's are
 # `famous.<name>.name` and `famous.<name>.desc`.
 
@@ -3203,8 +3203,9 @@ max = 16777215
 step = 1
 
 # The famous blades (名器) bought at the weapon shop, as bits by weapon id. A
-# weapon card of a kind whose famous blade is not bought is at most fine
-# steel. Set by the host; the default has every one, as before the shop sold them.
+# weapon card of a kind with a named famous blade (`famous` on [[weapon]]) not
+# bought is at most fine steel; a kind without one comes famous as before,
+# without buying. Set by the host; the default has every one.
 [[tune]]
 id = 57
 name = "famous_owned"
