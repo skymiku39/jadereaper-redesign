@@ -270,6 +270,10 @@ pub struct Enemy {
     pub school: Option<String>,
     /// The `[[move]]` it uses with a warning first, if any.
     pub strike: Option<String>,
+    /// A second `[[move]]` an elite takes turns with, if any.
+    pub strike2: Option<String>,
+    /// Above 0, it throws at the player every this many seconds, as written ("0" for never).
+    pub throw: String,
     /// Drops a manual (秘笈) of its school when it falls.
     pub manual: bool,
 }
@@ -806,6 +810,15 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         f.used.push("strike");
                         None
                     };
+                    // A second move an elite takes turns with, if any.
+                    let strike2 = if t.entries.iter().any(|e| e.key == "strike2") {
+                        f.string("strike2")
+                    } else {
+                        f.used.push("strike2");
+                        None
+                    };
+                    // How often it throws at the player from afar; 0 for never.
+                    let throw = f.number_or_zero("throw").unwrap_or_else(|| "0".to_string());
                     // Whether it drops a manual (秘笈) of its school when it falls.
                     let manual = f.flag("manual").unwrap_or(false);
                     let enemy = Enemy {
@@ -821,6 +834,8 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         share_tune,
                         school,
                         strike,
+                        strike2,
+                        throw,
                         manual,
                     };
                     enemies.push((enemy, t.line));
@@ -1245,10 +1260,13 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                 errs.push(format!("line {line}: enemy `{}` names school `{s}`, which is not defined", e.name));
             }
         }
-        if let Some(m) = &e.strike {
+        for m in e.strike.iter().chain(e.strike2.iter()) {
             if !moves.iter().any(|(mv, _)| &mv.name == m) {
                 errs.push(format!("line {line}: enemy `{}` strikes with move `{m}`, which is not defined", e.name));
             }
+        }
+        if e.strike2.is_some() && e.strike.is_none() {
+            errs.push(format!("line {line}: enemy `{}` has `strike2` without `strike`", e.name));
         }
     }
 
@@ -1542,12 +1560,13 @@ pub fn render_rust(c: &Content) -> String {
         let tune = e.share_tune.as_ref().map_or("N_TUNES".to_string(), |t| format!("T_{}", upper(t)));
         let school = e.school.as_ref().map_or("N_SCHOOLS".to_string(), |s| format!("SC_{}", upper(s)));
         let strike = e.strike.as_ref().map_or("N_MOVES".to_string(), |m| format!("MV_{}", upper(m)));
+        let strike2 = e.strike2.as_ref().map_or("N_MOVES".to_string(), |m| format!("MV_{}", upper(m)));
         writeln!(
             o,
-            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {}, strike: {}, manual: {} }},",
+            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {}, strike: {}, strike2: {}, throw: {}, manual: {} }},",
             n("hp"), n("speed"), n("radius"), n("damage"), n("xp"), upper(&e.part), color.join(", "),
             n("half_width"), n("half_height"), n("pose_rate"), e.corpse, e.heavy, e.hover,
-            s("from"), s("share"), s("ramp"), s("every"), tune, school, strike, e.manual
+            s("from"), s("share"), s("ramp"), s("every"), tune, school, strike, strike2, float_lit(&e.throw), e.manual
         )
         .unwrap();
     }
@@ -1831,10 +1850,16 @@ pub fn render_js(c: &Content) -> String {
     }
     o.push_str("];\n\n");
 
-    o.push_str("/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall. */\n");
+    o.push_str("/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall.\n");
+    o.push_str(
+        " * `school` is the id of the school it belongs to, -1 for none; its name is enemy.<name> in src/i18n.js. */\n",
+    );
     o.push_str("export const KINDS = [\n");
     for e in &c.enemies {
-        writeln!(o, "  {{ id: {}, name: {}, heavy: {} }},", e.id, js_str(&e.name), e.heavy).unwrap();
+        let school =
+            e.school.as_ref().and_then(|s| c.schools.iter().find(|sc| &sc.name == s)).map_or(-1, |sc| sc.id as i64);
+        writeln!(o, "  {{ id: {}, name: {}, heavy: {}, school: {} }},", e.id, js_str(&e.name), e.heavy, school)
+            .unwrap();
     }
     o.push_str("];\n\n");
 

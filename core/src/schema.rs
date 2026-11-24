@@ -239,6 +239,10 @@ pub struct Kind {
     pub school: usize,
     /// The move it uses with a warning first (`foes.rs`); `N_MOVES` for none.
     pub strike: usize,
+    /// A second move an elite takes turns with (`foes.rs`); `N_MOVES` for none.
+    pub strike2: usize,
+    /// Above 0, it throws at the player every this many seconds as it comes on (`foes.rs`).
+    pub throw: f32,
     /// Drops a manual (秘笈) of its school when it falls (`routes.rs`).
     pub manual: bool,
 }

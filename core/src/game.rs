@@ -206,6 +206,11 @@ pub struct Game {
     pub stolen: u32,
     /// The school elites on the field and their moves (`foes.rs`).
     pub foes: Vec<foes::Foe>,
+    /// The shots foes threw at the player, their mechanism stakes and the net
+    /// of a ring of them; empty while no foe throws or sets them down (`foes.rs`).
+    pub foe_shots: Vec<foes::FoeShot>,
+    pub stakes: Vec<foes::Stake>,
+    pub foe_net: Option<foes::FoeNet>,
     /// The manuals (秘笈) gained, two bits per route id (`routes.rs`): from
     /// earlier runs (the `manuals` tune) and this one.
     pub manuals: u32,
@@ -401,6 +406,9 @@ impl Game {
             dry: 0,
             stolen: 0,
             foes: Vec::with_capacity(16),
+            foe_shots: Vec::new(),
+            stakes: Vec::with_capacity(foes::MAX_STAKES),
+            foe_net: None,
             manuals: 0,
             zenith: 0,
             bulwark: 0.0,
@@ -739,7 +747,11 @@ impl Game {
             my /= len;
             len = 1.0;
         }
-        let speed = 190.0 * self.stat(ST_MOVE_SPEED) * self.retrieval.speed_factor() * self.stride();
+        let mut speed = 190.0 * self.stat(ST_MOVE_SPEED) * self.retrieval.speed_factor() * self.stride();
+        // Inside a foe's net he walks slower (`foes.rs`).
+        if self.foe_net.is_some() {
+            speed *= self.foe_net_pace();
+        }
         let regen = self.stat(ST_REGEN) * self.mending();
         let p = &mut self.player;
         p.moving = len > 0.15;
@@ -947,7 +959,8 @@ impl Game {
             if KINDS[k].every > 0.0 && !off && t >= self.next_lone[k] {
                 self.next_lone[k] += KINDS[k].every;
                 self.spawn_enemy(k as u8);
-                self.event(EV_ELITE, self.player.x, self.player.y, 0.0);
+                // The kind comes with it, so the host can say who came.
+                self.event(EV_ELITE, self.player.x, self.player.y, k as f32);
             }
         }
     }
@@ -1213,10 +1226,11 @@ impl Game {
                 self.drop_gem(e.x + 14.0, e.y, 0.0, true);
             }
             self.note_kill();
-            // A disciple of a school falling teaches its stolen routes; a master drops a manual too.
+            // A disciple of a school falling teaches its stolen routes; a master
+            // drops a manual too, and an elite now and then (design 4.8.6).
             if k.school < N_SCHOOLS {
                 self.steal(k.school);
-                if k.manual {
+                if k.manual || (k.strike < N_MOVES && self.rng.f() < foes::ELITE_MANUAL) {
                     self.gain_manual(k.school);
                 }
             }
@@ -1659,6 +1673,7 @@ impl Game {
         // Things in the air.
         self.draw_arts();
         self.draw_turrets();
+        self.draw_foes();
         self.boss_draw_air();
         for i in 0..self.fx.len() {
             if self.fx[i].top {

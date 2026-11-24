@@ -46,26 +46,31 @@ export const UPGRADES = [
   { name: 'spear', glyph: '槍', max: 6 },
 ];
 
-/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall. */
+/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall.
+ * `school` is the id of the school it belongs to, -1 for none; its name is enemy.<name> in src/i18n.js. */
 export const KINDS = [
-  { id: 0, name: 'blot', heavy: false },
-  { id: 1, name: 'wisp', heavy: false },
-  { id: 2, name: 'brute', heavy: true },
-  { id: 3, name: 'elite', heavy: true },
-  { id: 4, name: 'hound', heavy: false },
-  { id: 5, name: 'bandit', heavy: false },
-  { id: 6, name: 'constable', heavy: false },
-  { id: 7, name: 'needler', heavy: false },
-  { id: 8, name: 'puppet', heavy: false },
-  { id: 9, name: 'bandit_chief', heavy: true },
-  { id: 10, name: 'constable_chief', heavy: true },
-  { id: 11, name: 'claw_crone', heavy: false },
-  { id: 12, name: 'bandit_master', heavy: true },
-  { id: 13, name: 'constable_master', heavy: true },
-  { id: 14, name: 'sect_master', heavy: false },
-  { id: 15, name: 'tang_disciple', heavy: false },
-  { id: 16, name: 'soldier', heavy: false },
-  { id: 17, name: 'general', heavy: true },
+  { id: 0, name: 'blot', heavy: false, school: -1 },
+  { id: 1, name: 'wisp', heavy: false, school: -1 },
+  { id: 2, name: 'brute', heavy: true, school: -1 },
+  { id: 3, name: 'elite', heavy: true, school: -1 },
+  { id: 4, name: 'hound', heavy: false, school: -1 },
+  { id: 5, name: 'bandit', heavy: false, school: 6 },
+  { id: 6, name: 'constable', heavy: false, school: 7 },
+  { id: 7, name: 'needler', heavy: false, school: 8 },
+  { id: 8, name: 'puppet', heavy: false, school: 8 },
+  { id: 9, name: 'bandit_chief', heavy: true, school: 6 },
+  { id: 10, name: 'constable_chief', heavy: true, school: 7 },
+  { id: 11, name: 'claw_crone', heavy: false, school: 8 },
+  { id: 12, name: 'bandit_master', heavy: true, school: 6 },
+  { id: 13, name: 'constable_master', heavy: true, school: 7 },
+  { id: 14, name: 'sect_master', heavy: false, school: 8 },
+  { id: 15, name: 'tang_disciple', heavy: false, school: 3 },
+  { id: 16, name: 'soldier', heavy: false, school: 11 },
+  { id: 17, name: 'general', heavy: true, school: 11 },
+  { id: 18, name: 'needle_hand', heavy: false, school: 8 },
+  { id: 19, name: 'mechanist', heavy: true, school: 3 },
+  { id: 20, name: 'captain', heavy: true, school: 11 },
+  { id: 21, name: 'tang_master', heavy: true, school: 3 },
 ];
 
 /** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and
