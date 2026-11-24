@@ -2,7 +2,7 @@
 import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, WEAPONS, ELEMENTS, SCHOOLS, ROUTES, MOVES } from './data.js';
 import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
-import { KIND_PRICE, INNER_PRICE, kindFree, innerArts, innerFree } from './shop.js';
+import { KIND_PRICE, FAMOUS_PRICE, INNER_PRICE, kindFree, kindHeld, famousKinds, innerArts, innerFree } from './shop.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['title', 'setup', 'settings', 'record', 'shop', 'levelup', 'pause', 'over', 'won', 'error'];
@@ -27,6 +27,13 @@ function manualSlot(route) {
 
 /** The martial art an upgrade levels, or undefined for a plain stat upgrade. */
 const artOfUpgrade = (upgradeId) => ARTS.find((art) => art.upgrade === upgradeId);
+
+/** Whether a weapon kind at this quality is its named famous blade (名器). */
+const famousOf = (weapon, quality) => quality === 2 && weapon.famous && weapon.famous !== 'none';
+
+/** A weapon's name with its quality: a named famous blade by its own name, as 名器・玉鐮. */
+const weaponName = (weapon, quality) =>
+  `${t(`quality.${quality}`)}${t(famousOf(weapon, quality) ? `famous.${weapon.name}.name` : `weapon.${weapon.name}`)}`;
 
 /** A card face: one span per [class, text] pair. */
 function cardParts(card, parts) {
@@ -269,7 +276,7 @@ export function createUI({ onAction }) {
         // An art in a weapon kind shows the kind's mark and name.
         const kind = art ? WEAPONS[(artKinds[art.id] || 0) - 1] : null;
         const quality = art ? artQualities[art.id] || 0 : 0;
-        if (kind) chip.title = `${t(`quality.${quality}`)}${t(`weapon.${kind.name}`)} · ${chip.title}`;
+        if (kind) chip.title = `${weaponName(kind, quality)} · ${chip.title}`;
         if (quality === 1) chip.classList.add('chip-steel');
         if (quality === 2) chip.classList.add('chip-famous');
         const glyph = document.createElement('b');
@@ -527,11 +534,32 @@ export function createUI({ onAction }) {
       }
       return [box];
     });
-    $('recordBody').replaceChildren(...parts, innerHead, ...inners);
+    // The famous blades (名器): the ones bought by name, kind and what they do; the rest only outlined.
+    const famousHead = el('h3', 'record-art', t('record.famous'));
+    const famousBought = new Set(Array.isArray(save.famousBought) ? save.famousBought : []);
+    const famous = famousKinds().map((w) => {
+      const owned = famousBought.has(w.name);
+      const name = t(`famous.${w.name}.name`);
+      const box = el('div', owned ? 'record-route' : 'record-route unknown');
+      const title = el('div', 'record-route-title');
+      title.append(
+        el('b', '', owned ? `${w.glyph} ${name}` : hidden(name)),
+        el('span', 'record-tag', t(`weapon.${w.name}`)),
+        el('span', 'record-tag', t(owned ? 'record.famousOwned' : 'record.famousNot')),
+      );
+      box.append(title);
+      if (owned) {
+        const row = el('div', 'record-move');
+        row.append(el('span', '', t(`famous.${w.name}.desc`)));
+        box.append(row);
+      }
+      return box;
+    });
+    $('recordBody').replaceChildren(...parts, innerHead, ...inners, famousHead, ...famous);
   }
 
   /**
-   * The weapon shop (兵器鋪, docs/design.md 4.12): the weapon kinds and inner arts not yet owned,
+   * The weapon shop (兵器鋪, docs/design.md 4.12): the weapon kinds, famous blades and inner arts not yet owned,
    * each with its price and a button to buy it with silver; the ones owned are listed as such.
    * `onBuy(what, name)` buys and returns whether it could.
    */
@@ -546,13 +574,16 @@ export function createUI({ onAction }) {
     const kindsBought = new Set(save.kindsBought || []);
     const innerBought = new Set(save.innerBought || []);
     $('shopSilver').textContent = t('shop.silver', { n: silver });
-    const row = (glyph, name, line, owned, price, what, key) => {
+    // `blocked`, when set, says why it cannot be bought yet.
+    const row = (glyph, name, line, owned, price, what, key, blocked = '') => {
       const box = el('div', owned ? 'record-route' : 'record-route unknown');
       const title = el('div', 'record-route-title');
       title.append(el('b', '', `${glyph} ${name}`), el('span', 'record-tag', line));
       box.append(title);
       if (owned) {
         title.append(el('span', 'record-tag', t('shop.owned')));
+      } else if (blocked) {
+        title.append(el('span', 'record-tag', blocked));
       } else {
         const btn = el('button', 'record-give', t('shop.buy', { n: price }));
         btn.disabled = silver < price;
@@ -571,6 +602,15 @@ export function createUI({ onAction }) {
         const line = `${t(`upgrade.${art.upgrade}.name`)}${forms ? `・${forms}` : ''}${w.trait !== 'none' ? `・${t(`trait.${w.trait}`)}` : ''}`;
         parts.push(row(w.glyph, t(`weapon.${w.name}`), line, free || kindsBought.has(w.name), KIND_PRICE, 'kind', w.name));
       }
+    }
+    // Famous blades (名器): once bought, a weapon card of the kind can come famous. The kind comes first.
+    parts.push(el('h3', 'record-art', t('shop.famous')));
+    const famousBought = new Set(save.famousBought || []);
+    for (const w of famousKinds()) {
+      const kind = t(`weapon.${w.name}`);
+      const blocked = kindHeld(save, w) ? '' : t('shop.needKind', { kind });
+      parts.push(row(w.glyph, t(`famous.${w.name}.name`), `${kind}・${t(`famous.${w.name}.desc`)}`,
+        famousBought.has(w.name), FAMOUS_PRICE, 'famous', w.name, blocked));
     }
     parts.push(el('h3', 'record-art', t('record.inner')));
     for (const u of innerArts()) {
@@ -626,9 +666,10 @@ export function createUI({ onAction }) {
         cardParts(card, [
           ['key', String(slot + 1)],
           ['glyph', weapon.glyph],
-          ['name', `${t(`quality.${quality}`)}${name}`],
+          ['name', weaponName(weapon, quality)],
           ['rank', rank],
           ['desc', [
+            famousOf(weapon, quality) ? t(`famous.${weapon.name}.desc`) : '',
             forms,
             weapon.trait && weapon.trait !== 'none' ? t(`trait.${weapon.trait}`) : '',
             suits ? t('levelup.suits', { routes: suits }) : '',

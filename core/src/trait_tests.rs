@@ -132,6 +132,100 @@ fn a_halberd_sweeps_round_its_tip() {
     assert!(g.enemies[beside_tip].hp < 100_000.0);
 }
 
+/// The art of the kind with famous blade `f`, held in that kind at `quality`.
+fn famous_with(g: &mut Game, f: u8, quality: u8) -> (usize, usize) {
+    let w = (0..N_WEAPONS).find(|&w| WEAPONS[w].famous == f).expect("a kind with the famous blade");
+    let a = WEAPONS[w].art;
+    g.up[ARTS[a].upgrade] = 1;
+    g.arts[a].kind = w as u8 + 1;
+    g.arts[a].quality = quality;
+    (w, a)
+}
+
+#[test]
+fn a_famous_blade_does_nothing_more_below_famous() {
+    for f in [FM_REACH, FM_STOP, FM_KNOCK, FM_SPEED, FM_TURRET, FM_GUARD] {
+        let mut g = base();
+        let (_, a) = famous_with(&mut g, f, kinds::STEEL);
+        assert_eq!(g.famous(a), FM_NONE);
+        assert_eq!((g.kind_speed(a), g.kind_turrets(a)), (1.0, 0));
+        g.famous_move(a, true);
+        assert_eq!(g.player.guard, 0.0);
+        assert!(g.events.is_empty());
+        g.arts[a].quality = kinds::FAMOUS;
+        assert_eq!(g.famous(a), f);
+    }
+}
+
+#[test]
+fn jade_reaches_further_and_black_gold_throws_harder() {
+    let mut g = base();
+    let (_, a) = famous_with(&mut g, FM_REACH, kinds::STEEL);
+    let steel = g.kind_reach(a);
+    g.arts[a].quality = kinds::FAMOUS;
+    let famous = g.kind_reach(a);
+    // Quality alone goes 1.05 to 1.1; the jade blade adds 10% on top.
+    assert!((famous / steel - 1.1 / 1.05 * 1.1).abs() < 1e-4, "{steel} {famous}");
+    let fx = g.fx.len();
+    g.jade_light(a, 0.0, 0.0, 100.0, 0.0);
+    assert_eq!(g.fx.len(), fx + 1, "the jade blade light");
+
+    let mut g = base();
+    let (_, a) = famous_with(&mut g, FM_KNOCK, kinds::STEEL);
+    let steel = g.kind_knock(a);
+    g.arts[a].quality = kinds::FAMOUS;
+    assert!((g.kind_knock(a) / steel - 1.3).abs() < 1e-5);
+}
+
+#[test]
+fn willow_leaf_knives_fly_faster() {
+    let mut g = base();
+    let (_, a) = famous_with(&mut g, FM_SPEED, kinds::STEEL);
+    put(&mut g, 100.0, 0.0);
+    let n = &ARTS[a].levels[0];
+    g.shoot_nearest(a, n, 1.0);
+    let slow = g.shots[0].vx;
+    g.shots.clear();
+    g.arts[a].quality = kinds::FAMOUS;
+    g.shoot_nearest(a, n, 1.0);
+    assert!((g.shots[0].vx / slow - 1.25).abs() < 1e-4);
+}
+
+#[test]
+fn the_famous_tang_box_sets_one_more_mechanism() {
+    let m = (0..N_MOVES)
+        .find(|&m| MOVES[m].shape == MS_TURRET && MOVES[m].count >= turrets::MAX_TURRETS)
+        .expect("a ring of mechanisms");
+    let mut g = base();
+    let (_, a) = famous_with(&mut g, FM_TURRET, kinds::STEEL);
+    g.set_turrets(a, m, 1.0);
+    assert_eq!(g.turrets.len(), turrets::MAX_TURRETS);
+    g.turrets.clear();
+    g.arts[a].quality = kinds::FAMOUS;
+    g.set_turrets(a, m, 1.0);
+    assert_eq!(g.turrets.len(), turrets::MAX_TURRETS + 1);
+}
+
+#[test]
+fn black_iron_gauntlets_add_guard_and_duanyun_stops() {
+    let mut g = base();
+    let (_, a) = famous_with(&mut g, FM_GUARD, kinds::FAMOUS);
+    assert_eq!(g.arts[a].element, 0, "no metal on the art");
+    g.famous_move(a, false);
+    g.famous_move(a, false);
+    assert_eq!(g.player.guard, 2.0);
+    assert!(g.guard_cap() > 0.0);
+    assert!(g.events.is_empty());
+
+    let mut g = base();
+    let (_, a) = famous_with(&mut g, FM_STOP, kinds::FAMOUS);
+    g.famous_move(a, false);
+    assert!(g.events.is_empty(), "only the first move of a round");
+    g.famous_move(a, true);
+    assert_eq!(g.events.len(), 1);
+    assert_eq!((g.events[0][0], g.events[0][3]), (EV_STOP, a as f32));
+}
+
 #[test]
 fn the_crowd_rule_grows_with_the_enemies_near() {
     let r = route_with(RL_CROWD);

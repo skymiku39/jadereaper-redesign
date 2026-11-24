@@ -109,14 +109,14 @@ fn weapon_quality_has_a_pity_and_never_goes_down() {
     for seed in 1..400u32 {
         g.rng = Rng(seed | 1);
         g.dry = 3;
-        assert!(g.roll_quality(w) >= kinds::STEEL);
+        assert!(g.roll_quality(w, false) >= kinds::STEEL);
         assert_eq!(g.dry, 0);
     }
     // A card of the kind an art already is brings a better one.
     let a = WEAPONS[w].art;
     g.take_weapon(w, kinds::PLAIN);
     for _ in 0..20 {
-        let q = g.roll_quality(w);
+        let q = g.roll_quality(w, false);
         assert!(q > g.arts[a].quality || g.arts[a].quality == kinds::FAMOUS);
         g.take_weapon(w, q);
     }
@@ -127,6 +127,79 @@ fn weapon_quality_has_a_pity_and_never_goes_down() {
     g.take_weapon(other, kinds::PLAIN);
     assert_eq!(g.arts[a].quality, kinds::FAMOUS);
     assert!(g.kind_power(a) > 1.0);
+}
+
+#[test]
+fn fate_holds_weapon_cards_in_place_of_new_arts() {
+    let g = levelled(1);
+    let (pool, n) = g.deck_pool(DECK_FATE);
+    let cards = &pool[..n];
+    assert!(cards.iter().any(|&id| id >= kinds::CARD_WEAPON0), "weapon kind cards");
+    assert!(cards.iter().any(|&id| Game::is_passive(id)), "inner arts");
+    for &id in cards {
+        if id < N_UPGRADES {
+            let new_art = Game::art_of_upgrade(id).is_some() && g.up[id] == 0;
+            assert!(!new_art, "a new art comes as a weapon card, not as upgrade {id}");
+        }
+    }
+    // Every weapon card of the weapons deck is in fate too.
+    let (weapons, m) = g.deck_pool(DECK_WEAPONS);
+    for id in &weapons[..m] {
+        assert!(cards.contains(id));
+    }
+}
+
+#[test]
+fn fate_gives_better_weapons_and_leaves_the_pity_alone() {
+    let mut g = levelled(7);
+    let w = Game::start_kind(A_TALISMAN).unwrap();
+    let count = |g: &mut Game, fate: bool| {
+        let mut got = [0u32; 3];
+        for seed in 1..4001u32 {
+            g.rng = Rng(seed.wrapping_mul(2_654_435_761) | 1);
+            g.dry = 0;
+            got[g.roll_quality(w, fate) as usize] += 1;
+        }
+        got
+    };
+    let plain = count(&mut g, false);
+    let fate = count(&mut g, true);
+    assert!(fate[kinds::FAMOUS as usize] > plain[kinds::FAMOUS as usize] * 2, "{plain:?} {fate:?}");
+    assert!(fate[kinds::PLAIN as usize] < plain[kinds::PLAIN as usize], "{plain:?} {fate:?}");
+    // A fate card neither counts towards the pity nor spends it.
+    g.dry = 2;
+    for seed in 1..50u32 {
+        g.rng = Rng(seed | 1);
+        g.roll_quality(w, true);
+        assert_eq!(g.dry, 2);
+    }
+}
+
+#[test]
+fn a_famous_blade_not_bought_never_comes() {
+    let mut g = Game::new(1);
+    g.tune[T_FAMOUS_OWNED] = 0.0;
+    g.start(M_ENDLESS);
+    let w = Game::start_kind(A_TALISMAN).unwrap();
+    let a = WEAPONS[w].art;
+    for seed in 1..2000u32 {
+        g.rng = Rng(seed | 1);
+        assert!(g.roll_quality(w, true) <= kinds::STEEL);
+    }
+    // A held art of the kind at fine steel cannot get better, so the kind is not offered again.
+    g.take_weapon(w, kinds::STEEL);
+    assert!(!g.weapon_offerable(w));
+    // Bought: it can.
+    g.tune[T_FAMOUS_OWNED] = (1u32 << w) as f32;
+    assert!(g.weapon_offerable(w));
+    assert_eq!(g.roll_quality(w, false), kinds::FAMOUS);
+    // A famous blade changed to a kind whose famous blade is not bought keeps fine steel.
+    g.take_weapon(w, kinds::FAMOUS);
+    assert_eq!(g.arts[a].quality, kinds::FAMOUS);
+    let other =
+        (0..N_WEAPONS).find(|&o| o != w && WEAPONS[o].art == a && WEAPONS[o].forms & FORM_MECHANISM == 0).unwrap();
+    g.take_weapon(other, kinds::PLAIN);
+    assert_eq!(g.arts[a].quality, kinds::STEEL);
 }
 
 #[test]

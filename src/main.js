@@ -10,7 +10,7 @@ import {
   MISSIONS, MISSION_IDS, TUNES, STATE, STATE_FLOATS, UPGRADES, ARTS, MOVES, ROUTES, SCHOOLS, ELEMENTS, EVENT, KINDS,
 } from './data.js';
 import { pickLang, setLang, getLang, nextLang, t } from './i18n.js';
-import { kindsOwned, innerOwned, silverEarned, buy } from './shop.js';
+import { kindsOwned, famousOwned, innerOwned, silverEarned, buy } from './shop.js';
 import { packReplay, unpackReplay } from './replay.js';
 
 async function boot() {
@@ -258,11 +258,12 @@ async function boot() {
       if (value !== tune.def) testRun = true;
     }
     // Tunes the host sets itself: the stolen routes and the manuals gained in earlier runs,
-    // and the weapon kinds and inner arts bought with silver.
+    // and the weapon kinds, famous blades and inner arts bought with silver.
     const host = {
       stolen: Number(save.stolen) || 0,
       manuals: Number(save.manuals) || 0,
       kinds_owned: kindsOwned(save),
+      famous_owned: famousOwned(save),
       inner_owned: innerOwned(save),
     };
     for (const [name, value] of Object.entries(host)) {
@@ -518,6 +519,8 @@ async function boot() {
           // A heavy enemy falling, or two elements reacting, stops the game for a beat.
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) hitstop = Math.max(hitstop, 0.07);
           if (save.motion && type === EVENT.REACT) hitstop = Math.max(hitstop, 0.04);
+          // A famous blade asks for it (斷雲, the first move of each round).
+          if (save.motion && type === EVENT.STOP) hitstop = Math.max(hitstop, 0.05);
           // The gamepad shakes with the blows the player takes and the heavy ones he lands.
           if (save.motion && type === EVENT.HURT) input.rumble(140, 0.7);
           if (save.motion && type === EVENT.KILL && KINDS[ev[i * 4 + 3]]?.heavy) input.rumble(80, 0.35);

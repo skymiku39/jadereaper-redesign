@@ -5,7 +5,8 @@
 //! weapons (an art not yet held), martial arts (the next level of a held art,
 //! or its route), inner arts (the next layer of a passive, now and then two
 //! at once), magic (three different elements) or fate (any of those, with
-//! better odds of two layers at once). The kind is certain; what is drawn is
+//! better odds of two layers at once and of fine steel and famous blades on
+//! weapon cards: 50/35/15 against 70/25/5). The kind is certain; what is drawn is
 //! not. A deck with nothing to draw cannot be picked, and when only one can,
 //! its cards come at once. Off, the old mixed offer runs as before.
 
@@ -46,21 +47,25 @@ impl Game {
     }
 
     /// The cards a deck holds now (not magic, which holds elements): upgrade
-    /// ids, or with weapon kinds on, weapon kind cards for the weapons deck.
+    /// ids, or with weapon kinds on, weapon kind cards for the weapons deck,
+    /// and for fate, weapon kind cards in place of new arts beside the rest.
     pub(crate) fn deck_pool(&self, deck: usize) -> ([usize; 64], usize) {
         let mut pool = [0usize; 64];
         let mut n = 0;
-        if deck == DECK_WEAPONS && self.kinds_on() && N_WEAPONS > 0 {
+        let kinds = self.kinds_on() && N_WEAPONS > 0;
+        if kinds && (deck == DECK_WEAPONS || deck == DECK_FATE) {
             for w in 0..N_WEAPONS {
                 if self.weapon_offerable(w) && n < pool.len() {
                     pool[n] = CARD_WEAPON0 + w;
                     n += 1;
                 }
             }
-            return (pool, n);
+            if deck == DECK_WEAPONS {
+                return (pool, n);
+            }
         }
         for id in 0..N_UPGRADES {
-            if !self.offerable(id) {
+            if !self.offerable(id) || n >= pool.len() {
                 continue;
             }
             let art = Self::art_of_upgrade(id).is_some();
@@ -68,7 +73,8 @@ impl Game {
                 DECK_WEAPONS => art && self.up[id] == 0,
                 DECK_ARTS => art && self.up[id] > 0,
                 DECK_INNER => !art,
-                _ => true,
+                // With kinds on, a new art comes into fate as a weapon kind card instead.
+                _ => !(kinds && art && self.up[id] == 0),
             };
             if fits {
                 pool[n] = id;
@@ -151,9 +157,9 @@ impl Game {
             pool.swap(c, j);
             let id = pool[c];
             self.choices[c] = id as i32;
-            // A weapon card's rank is its quality.
+            // A weapon card's rank is its quality, with better odds from fate.
             if id >= CARD_WEAPON0 {
-                self.ranks[c] = self.roll_quality(id - CARD_WEAPON0);
+                self.ranks[c] = self.roll_quality(id - CARD_WEAPON0, d == DECK_FATE);
                 continue;
             }
             // An inner art with two layers left is now and then a fine card: both at once.

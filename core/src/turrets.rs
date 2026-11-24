@@ -63,7 +63,10 @@ impl Game {
     pub(crate) fn set_turrets(&mut self, a: usize, m: usize, might: f32) {
         let def = &MOVES[m];
         let n = &ARTS[a].levels[1.min(ARTS[a].levels.len() - 1)];
-        let count = def.count.clamp(1, MAX_TURRETS);
+        // The famous Tang box sets one more down, and one more may stand.
+        let extra = self.kind_turrets(a);
+        let cap = MAX_TURRETS + extra;
+        let count = (def.count + extra).clamp(1, cap);
         let dmg = n.damage * def.power * might;
         let (px, py) = (self.player.x, self.player.y);
         for k in 0..count {
@@ -74,7 +77,7 @@ impl Game {
                 let r = def.offset * 100.0;
                 (px + fmath::cos(angle) * r, py + fmath::sin(angle) * r * 0.8)
             };
-            if self.turrets.len() >= MAX_TURRETS {
+            while self.turrets.len() >= cap {
                 self.turrets.remove(0);
             }
             self.turrets.push(Turret {

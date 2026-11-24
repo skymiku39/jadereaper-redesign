@@ -321,6 +321,9 @@ pub const FORMS: [&str; 6] = ["long", "short", "heavy", "light", "paired", "mech
 /// What a weapon kind does of its own (`kinds.rs`).
 pub const TRAITS: [&str; 6] = ["none", "hook", "pierce", "swarm", "tip", "bend"];
 
+/// What a weapon kind's famous blade (名器) does of its own (`kinds.rs`).
+pub const FAMOUS: [&str; 7] = ["none", "reach", "stop", "knock", "speed", "turret", "guard"];
+
 /// A route's rule of its own (`routes.rs`).
 pub const RULES: [&str; 4] = ["none", "crowd", "opening", "momentum"];
 
@@ -338,6 +341,8 @@ pub struct Weapon {
     pub start: bool,
     /// What it does of its own, one of `TRAITS`.
     pub trait_: String,
+    /// What its famous blade does of its own, one of `FAMOUS`.
+    pub famous: String,
 }
 
 /// A school (門派): where a route comes from. Its name is `school.<name>` in src/i18n.js.
@@ -880,13 +885,27 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                     f.used.push("trait");
                     Some("none".to_string())
                 };
-                if let (Some(id), Some(name), Some(art), Some(glyph), Some(forms), Some(start), Some(trait_)) =
-                    (id, name, art, glyph, forms, start, trait_)
+                let famous = if t.entries.iter().any(|e| e.key == "famous") {
+                    f.word("famous", &FAMOUS)
+                } else {
+                    f.used.push("famous");
+                    Some("none".to_string())
+                };
+                if let (
+                    Some(id),
+                    Some(name),
+                    Some(art),
+                    Some(glyph),
+                    Some(forms),
+                    Some(start),
+                    Some(trait_),
+                    Some(famous),
+                ) = (id, name, art, glyph, forms, start, trait_, famous)
                 {
                     if glyph.chars().count() != 1 {
                         f.errs.push(format!("line {}: weapon `glyph` must be one character", t.line));
                     }
-                    weapons.push((Weapon { id, name, art, glyph, forms, start, trait_ }, t.line));
+                    weapons.push((Weapon { id, name, art, glyph, forms, start, trait_, famous }, t.line));
                 }
             }
             "route" => {
@@ -1614,10 +1633,11 @@ pub fn render_rust(c: &Content) -> String {
         let forms = if bits.is_empty() { "0".to_string() } else { bits.join(" | ") };
         writeln!(
             o,
-            "    WeaponDef {{ art: A_{}, forms: {forms}, start: {}, trait_: WT_{} }},",
+            "    WeaponDef {{ art: A_{}, forms: {forms}, start: {}, trait_: WT_{}, famous: FM_{} }},",
             upper(&w.art),
             w.start,
-            upper(&w.trait_)
+            upper(&w.trait_),
+            upper(&w.famous)
         )
         .unwrap();
     }
@@ -1858,20 +1878,24 @@ pub fn render_js(c: &Content) -> String {
     writeln!(o, "export const MAX_ARTS = {};\n", c.max_arts).unwrap();
 
     o.push_str("/** Weapon kinds (兵器種類), indexed by id: `art` is the art id it is a kind of, `forms` its\n");
-    o.push_str(" * form tags, `start` the kind an art comes in first. Names are weapon.<name> in src/i18n.js. */\n");
+    o.push_str(" * form tags, `start` the kind an art comes in first, `famous` what its famous blade (名器)\n");
+    o.push_str(
+        " * does ('none' for no named one). Names are weapon.<name> and famous.<name>.name in src/i18n.js. */\n",
+    );
     o.push_str("export const WEAPONS = [\n");
     for w in &c.weapons {
         let art = c.arts.iter().find(|a| a.name == w.art).map_or(0, |a| a.id);
         let forms: Vec<String> = FORMS.iter().zip(&w.forms).filter(|(_, on)| **on).map(|(f, _)| js_str(f)).collect();
         writeln!(
             o,
-            "  {{ id: {}, name: {}, art: {art}, glyph: {}, forms: [{}], start: {}, trait: {} }},",
+            "  {{ id: {}, name: {}, art: {art}, glyph: {}, forms: [{}], start: {}, trait: {}, famous: {} }},",
             w.id,
             js_str(&w.name),
             js_str(&w.glyph),
             forms.join(", "),
             w.start,
-            js_str(&w.trait_)
+            js_str(&w.trait_),
+            js_str(&w.famous)
         )
         .unwrap();
     }
