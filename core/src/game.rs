@@ -344,9 +344,11 @@ pub fn scripted_game(seed: u32, ticks: u32, mission: usize, armed: bool) -> Game
     game
 }
 
-fn xp_for(level: u32) -> f32 {
+/// The xp needed for the next level at `level`, by the column `pace` of the
+/// pacing keys (`Game::pace`).
+fn xp_for(level: u32, pace: usize) -> f32 {
     let l = level as f32;
-    4.0 + l * 3.5 + l * l * 0.4
+    PACE_XP_BASE[pace] + l * PACE_XP_STEP[pace] + l * l * PACE_XP_SQUARE[pace]
 }
 
 fn cell_key(cx: i32, cy: i32) -> usize {
@@ -381,7 +383,9 @@ impl Game {
                 hp: 100.0,
                 max_hp: 100.0,
                 xp: 0.0,
-                xp_next: xp_for(1),
+                // The curve without routes until `start` reads the tunes; the
+                // recorded whole run sets them without starting.
+                xp_next: xp_for(1, 0),
                 level: 1,
                 aim: (1.0, 0.0),
                 face: 1.0,
@@ -465,6 +469,10 @@ impl Game {
     /// Start a run of the given mission. An unknown id plays endless.
     pub fn start(&mut self, mission: usize) {
         self.mission = if mission < N_MISSIONS { mission } else { M_ENDLESS };
+        self.player.xp_next = xp_for(self.player.level, self.pace());
+        for k in 0..N_KINDS {
+            self.next_lone[k] = self.lone_every(k);
+        }
         self.hold.begin(self.mission == M_HOLD, &self.tune);
         self.running = true;
         // The stolen routes learned in earlier runs.
@@ -855,7 +863,7 @@ impl Game {
         while self.player.xp >= self.player.xp_next {
             self.player.xp -= self.player.xp_next;
             self.player.level += 1;
-            self.player.xp_next = xp_for(self.player.level);
+            self.player.xp_next = xp_for(self.player.level, self.pace());
             self.pending += 1;
         }
         // Dying on the same step as meeting the goal counts as dying.
@@ -889,6 +897,23 @@ impl Game {
         self.event(EV_HIT, x, y, dmg);
     }
 
+    /// The column of the pacing keys in the content file this run uses: 1
+    /// with routes on (docs/design.md 4.11), 0 as the game was before them.
+    pub(crate) fn pace(&self) -> usize {
+        (self.tune[T_ROUTES] > 0.5) as usize
+    }
+
+    /// What the health of an enemy spawned now is multiplied by, outside the arena.
+    pub(crate) fn hp_growth(&self) -> f32 {
+        let p = self.pace();
+        PACE_HP_START[p] + self.time / PACE_HP_GROWTH[p]
+    }
+
+    /// Seconds between two of kind `k` when it comes alone, on a clock.
+    fn lone_every(&self, k: usize) -> f32 {
+        KINDS[k].every * PACE_LONE_EVERY[self.pace()]
+    }
+
     pub(crate) fn spawn_ring(&self) -> f32 {
         (self.view_w * self.view_w + self.view_h * self.view_h).sqrt() + 70.0
     }
@@ -916,7 +941,7 @@ impl Game {
             return;
         }
         let k = &KINDS[kind as usize];
-        let scale = if self.mission == M_ARENA { self.arena.hp_scale() } else { 1.0 + self.time / 120.0 };
+        let scale = if self.mission == M_ARENA { self.arena.hp_scale() } else { self.hp_growth() };
         let id = self.next_id;
         self.next_id = self.next_id.wrapping_add(1).max(1);
         let seed = self.rng.f();
@@ -960,7 +985,7 @@ impl Game {
             return;
         }
         let t = self.time;
-        let rate = (1.0 + t / 24.0) * self.formation_edge_scale() * self.tune[T_SPAWN_RATE];
+        let rate = (1.0 + t / PACE_SPAWN_GROWTH[self.pace()]) * self.formation_edge_scale() * self.tune[T_SPAWN_RATE];
         self.spawn_acc += rate * dt;
         while self.spawn_acc >= 1.0 {
             self.spawn_acc -= 1.0;
@@ -982,7 +1007,7 @@ impl Game {
             // A kind that comes alone but belongs to a tune's share only comes while that share is above 0.
             let off = KINDS[k].share_tune < N_TUNES && self.tune[KINDS[k].share_tune] <= 0.0;
             if KINDS[k].every > 0.0 && !off && t >= self.next_lone[k] {
-                self.next_lone[k] += KINDS[k].every;
+                self.next_lone[k] += self.lone_every(k);
                 self.spawn_enemy(k as u8);
                 // The kind comes with it, so the host can say who came.
                 self.event(EV_ELITE, self.player.x, self.player.y, k as f32);

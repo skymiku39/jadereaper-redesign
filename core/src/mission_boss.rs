@@ -349,7 +349,7 @@ impl Game {
 
     fn boss_summon(&mut self, x: f32, y: f32) {
         let n = PACK_BLOTS + PACK_WISPS;
-        let scale = 1.0 + self.time / 120.0;
+        let scale = self.hp_growth();
         for k in 0..n {
             if self.enemies.len() >= MAX_ENEMIES {
                 break;

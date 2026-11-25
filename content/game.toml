@@ -23,6 +23,23 @@ state_floats = 136
 # not offered once this many are.
 max_arts = 6
 
+# Pacing: how fast levels come and how fast the horde grows (docs/design.md
+# 4.11). Each key has two numbers: the first with the `routes` tune off, which
+# keeps the game as it was before 4.11 (the recorded whole run plays it), the
+# second with it on, as the game ships. The xp needed for the next level at
+# level L is xp_base + xp_step x L + xp_square x L x L. The horde sends
+# 1 + t / spawn_growth enemies a second, t seconds into the run, and enemies
+# come with their health times hp_start + t / hp_growth (the boss's summons
+# too). The kinds that come alone on a clock (`every` on [[enemy]]) come
+# lone_every times as far apart. The arena mission keeps its own waves.
+xp_base = [4, 2]
+xp_step = [3.5, 6]
+xp_square = [0.4, 1.0]
+spawn_growth = [24, 60]
+hp_start = [1, 0.75]
+hp_growth = [120, 240]
+lone_every = [1, 2]
+
 # ---------------------------------------------------------------- parts
 # Paper part ids, sent to the renderer in each instance. The name is also the
 # key for an image override in assets/parts.json. Ids must be 0..31 (the
