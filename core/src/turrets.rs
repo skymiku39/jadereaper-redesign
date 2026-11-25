@@ -9,6 +9,8 @@
 //! seconds (`speed`, `pierce` and `power` as a wave's), follows the player
 //! with `seek = 1`, and bursts into `split` shots all round when it ends. At
 //! most `MAX_TURRETS` stand at once; a new one takes the place of the oldest.
+//! A move with `most` keeps at most that many of its own: a new one takes the
+//! place of its own oldest.
 
 use super::{Game, Shot, MAX_SHOTS};
 use crate::defs::*;
@@ -63,7 +65,10 @@ impl Game {
     pub(crate) fn set_turrets(&mut self, a: usize, m: usize, might: f32) {
         let def = &MOVES[m];
         let n = &ARTS[a].levels[1.min(ARTS[a].levels.len() - 1)];
-        let count = def.count.clamp(1, MAX_TURRETS);
+        // The famous Tang box sets one more down, and one more may stand.
+        let extra = self.kind_turrets(a);
+        let cap = MAX_TURRETS + extra;
+        let count = (def.count + extra).clamp(1, cap);
         let dmg = n.damage * def.power * might;
         let (px, py) = (self.player.x, self.player.y);
         for k in 0..count {
@@ -74,7 +79,15 @@ impl Game {
                 let r = def.offset * 100.0;
                 (px + fmath::cos(angle) * r, py + fmath::sin(angle) * r * 0.8)
             };
-            if self.turrets.len() >= MAX_TURRETS {
+            // A move with a limit of its own (九攻九距) takes the place of its own
+            // oldest; a famous Tang box may keep one more of them.
+            let most = def.most as usize + extra;
+            if def.most > 0 && self.turrets.iter().filter(|t| t.mv as usize == m).count() >= most {
+                if let Some(old) = self.turrets.iter().position(|t| t.mv as usize == m) {
+                    self.turrets.remove(old);
+                }
+            }
+            while self.turrets.len() >= cap {
                 self.turrets.remove(0);
             }
             self.turrets.push(Turret {
@@ -209,6 +222,7 @@ impl Game {
             grow: 0.0,
             size: 0.7,
             zen: 0,
+            home: 0.0,
         });
     }
 

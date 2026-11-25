@@ -18,6 +18,8 @@ const DEFAULTS = {
   // Damage numbers, and camera shake with hit-stop.
   numbers: true,
   motion: true,
+  // The names of the player's route moves written over the game when they are used.
+  callouts: true,
   // Music level: 1 full, 0.5 soft, 0 off.
   music: 1,
   // Full drawing quality; off for slow devices.
@@ -30,7 +32,8 @@ const DEFAULTS = {
   manuals: 0,
   // The manuals dropped by masters and not yet given to a route, per school id.
   scrolls: {},
-  // The ids of the route moves ever used: what the martial record (武學錄) shows.
+  // The ids of the route moves ever learned, with their lines (心得): what the martial
+  // record (武學錄) shows. Saves before 2026-11-25 hold the moves ever used instead.
   learned: [],
   // The heights (極致) ever reached, as "route:element".
   zeniths: [],
@@ -41,6 +44,8 @@ const DEFAULTS = {
   // The weapon kinds and inner arts bought, by name.
   kindsBought: [],
   innerBought: [],
+  // The famous blades (名器) bought, by the name of their weapon kind.
+  famousBought: [],
 };
 
 export function loadSave() {
@@ -57,11 +62,12 @@ export function loadSave() {
     const names = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
     save.kindsBought = names(save.kindsBought);
     save.innerBought = names(save.innerBought);
+    save.famousBought = names(save.famousBought);
     save.learned = Array.isArray(save.learned) ? save.learned.filter((id) => Number.isInteger(id)) : [];
     save.zeniths = Array.isArray(save.zeniths) ? save.zeniths.filter((k) => typeof k === 'string') : [];
     return save;
   } catch {
-    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, inner: {}, kindsBought: [], innerBought: [], learned: [], zeniths: [] };
+    return { ...DEFAULTS, missions: {}, tuning: {}, scrolls: {}, inner: {}, kindsBought: [], innerBought: [], famousBought: [], learned: [], zeniths: [] };
   }
 }
 

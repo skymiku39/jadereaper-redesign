@@ -46,26 +46,31 @@ export const UPGRADES = [
   { name: 'spear', glyph: '槍', max: 6 },
 ];
 
-/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall. */
+/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall.
+ * `school` is the id of the school it belongs to, -1 for none; its name is enemy.<name> in src/i18n.js. */
 export const KINDS = [
-  { id: 0, name: 'blot', heavy: false },
-  { id: 1, name: 'wisp', heavy: false },
-  { id: 2, name: 'brute', heavy: true },
-  { id: 3, name: 'elite', heavy: true },
-  { id: 4, name: 'hound', heavy: false },
-  { id: 5, name: 'bandit', heavy: false },
-  { id: 6, name: 'constable', heavy: false },
-  { id: 7, name: 'needler', heavy: false },
-  { id: 8, name: 'puppet', heavy: false },
-  { id: 9, name: 'bandit_chief', heavy: true },
-  { id: 10, name: 'constable_chief', heavy: true },
-  { id: 11, name: 'claw_crone', heavy: false },
-  { id: 12, name: 'bandit_master', heavy: true },
-  { id: 13, name: 'constable_master', heavy: true },
-  { id: 14, name: 'sect_master', heavy: false },
-  { id: 15, name: 'tang_disciple', heavy: false },
-  { id: 16, name: 'soldier', heavy: false },
-  { id: 17, name: 'general', heavy: true },
+  { id: 0, name: 'blot', heavy: false, school: -1 },
+  { id: 1, name: 'wisp', heavy: false, school: -1 },
+  { id: 2, name: 'brute', heavy: true, school: -1 },
+  { id: 3, name: 'elite', heavy: true, school: -1 },
+  { id: 4, name: 'hound', heavy: false, school: -1 },
+  { id: 5, name: 'bandit', heavy: false, school: 6 },
+  { id: 6, name: 'constable', heavy: false, school: 7 },
+  { id: 7, name: 'needler', heavy: false, school: 8 },
+  { id: 8, name: 'puppet', heavy: false, school: 8 },
+  { id: 9, name: 'bandit_chief', heavy: true, school: 6 },
+  { id: 10, name: 'constable_chief', heavy: true, school: 7 },
+  { id: 11, name: 'claw_crone', heavy: false, school: 8 },
+  { id: 12, name: 'bandit_master', heavy: true, school: 6 },
+  { id: 13, name: 'constable_master', heavy: true, school: 7 },
+  { id: 14, name: 'sect_master', heavy: false, school: 8 },
+  { id: 15, name: 'tang_disciple', heavy: false, school: 3 },
+  { id: 16, name: 'soldier', heavy: false, school: 11 },
+  { id: 17, name: 'general', heavy: true, school: 11 },
+  { id: 18, name: 'needle_hand', heavy: false, school: 8 },
+  { id: 19, name: 'mechanist', heavy: true, school: 3 },
+  { id: 20, name: 'captain', heavy: true, school: 11 },
+  { id: 21, name: 'tang_master', heavy: true, school: 3 },
 ];
 
 /** Martial arts, indexed by id. `upgrade` is the id of the upgrade that levels the art, and
@@ -83,28 +88,29 @@ export const ARTS = [
 export const MAX_ARTS = 6;
 
 /** Weapon kinds (兵器種類), indexed by id: `art` is the art id it is a kind of, `forms` its
- * form tags, `start` the kind an art comes in first. Names are weapon.<name> in src/i18n.js. */
+ * form tags, `start` the kind an art comes in first, `famous` what its famous blade (名器)
+ * does ('none' for no named one). Names are weapon.<name> and famous.<name>.name in src/i18n.js. */
 export const WEAPONS = [
-  { id: 0, name: 'dandao', art: 0, glyph: '刀', forms: ['short', 'light'], start: true, trait: 'none' },
-  { id: 1, name: 'shuangdao', art: 0, glyph: '雙', forms: ['short', 'light', 'paired'], start: false, trait: 'none' },
-  { id: 2, name: 'dadao', art: 0, glyph: '斬', forms: ['long', 'heavy'], start: false, trait: 'none' },
-  { id: 3, name: 'lian', art: 0, glyph: '鐮', forms: ['short', 'light'], start: false, trait: 'hook' },
-  { id: 4, name: 'qimeigun', art: 2, glyph: '棍', forms: [], start: true, trait: 'none' },
-  { id: 5, name: 'changgun', art: 2, glyph: '長', forms: ['long'], start: false, trait: 'none' },
-  { id: 6, name: 'biao', art: 1, glyph: '鏢', forms: ['light'], start: true, trait: 'none' },
-  { id: 7, name: 'feidao', art: 1, glyph: '飛', forms: ['light'], start: false, trait: 'pierce' },
-  { id: 8, name: 'zhen', art: 1, glyph: '針', forms: ['light'], start: false, trait: 'swarm' },
-  { id: 9, name: 'tushou', art: 3, glyph: '拳', forms: ['short', 'light'], start: true, trait: 'none' },
-  { id: 10, name: 'hushou', art: 3, glyph: '護', forms: ['short', 'heavy'], start: false, trait: 'none' },
-  { id: 11, name: 'zhaotao', art: 3, glyph: '爪', forms: ['short', 'light'], start: false, trait: 'none' },
-  { id: 12, name: 'xiujian', art: 1, glyph: '袖', forms: ['light', 'mechanism'], start: false, trait: 'none' },
-  { id: 13, name: 'jiguanxia', art: 1, glyph: '匣', forms: ['heavy', 'mechanism'], start: false, trait: 'none' },
-  { id: 14, name: 'changjian', art: 4, glyph: '劍', forms: ['light'], start: true, trait: 'none' },
-  { id: 15, name: 'shuangjian', art: 4, glyph: '雙', forms: ['light', 'paired'], start: false, trait: 'none' },
-  { id: 16, name: 'ruanjian', art: 4, glyph: '軟', forms: ['light'], start: false, trait: 'bend' },
-  { id: 17, name: 'changqiang', art: 5, glyph: '槍', forms: ['long'], start: true, trait: 'none' },
-  { id: 18, name: 'huaqiang', art: 5, glyph: '花', forms: ['light'], start: false, trait: 'none' },
-  { id: 19, name: 'ji', art: 5, glyph: '戟', forms: ['long', 'heavy'], start: false, trait: 'tip' },
+  { id: 0, name: 'dandao', art: 0, glyph: '刀', forms: ['short', 'light'], start: true, trait: 'none', famous: 'none' },
+  { id: 1, name: 'shuangdao', art: 0, glyph: '雙', forms: ['short', 'light', 'paired'], start: false, trait: 'none', famous: 'none' },
+  { id: 2, name: 'dadao', art: 0, glyph: '斬', forms: ['long', 'heavy'], start: false, trait: 'none', famous: 'stop' },
+  { id: 3, name: 'lian', art: 0, glyph: '鐮', forms: ['short', 'light'], start: false, trait: 'hook', famous: 'reach' },
+  { id: 4, name: 'qimeigun', art: 2, glyph: '棍', forms: [], start: true, trait: 'none', famous: 'none' },
+  { id: 5, name: 'changgun', art: 2, glyph: '長', forms: ['long'], start: false, trait: 'none', famous: 'knock' },
+  { id: 6, name: 'biao', art: 1, glyph: '鏢', forms: ['light'], start: true, trait: 'none', famous: 'none' },
+  { id: 7, name: 'feidao', art: 1, glyph: '飛', forms: ['light'], start: false, trait: 'pierce', famous: 'speed' },
+  { id: 8, name: 'zhen', art: 1, glyph: '針', forms: ['light'], start: false, trait: 'swarm', famous: 'none' },
+  { id: 9, name: 'tushou', art: 3, glyph: '拳', forms: ['short', 'light'], start: true, trait: 'none', famous: 'none' },
+  { id: 10, name: 'hushou', art: 3, glyph: '護', forms: ['short', 'heavy'], start: false, trait: 'none', famous: 'guard' },
+  { id: 11, name: 'zhaotao', art: 3, glyph: '爪', forms: ['short', 'light'], start: false, trait: 'none', famous: 'none' },
+  { id: 12, name: 'xiujian', art: 1, glyph: '袖', forms: ['light', 'mechanism'], start: false, trait: 'none', famous: 'none' },
+  { id: 13, name: 'jiguanxia', art: 1, glyph: '匣', forms: ['heavy', 'mechanism'], start: false, trait: 'none', famous: 'turret' },
+  { id: 14, name: 'changjian', art: 4, glyph: '劍', forms: ['light'], start: true, trait: 'none', famous: 'none' },
+  { id: 15, name: 'shuangjian', art: 4, glyph: '雙', forms: ['light', 'paired'], start: false, trait: 'none', famous: 'none' },
+  { id: 16, name: 'ruanjian', art: 4, glyph: '軟', forms: ['light'], start: false, trait: 'bend', famous: 'none' },
+  { id: 17, name: 'changqiang', art: 5, glyph: '槍', forms: ['long'], start: true, trait: 'none', famous: 'none' },
+  { id: 18, name: 'huaqiang', art: 5, glyph: '花', forms: ['light'], start: false, trait: 'none', famous: 'none' },
+  { id: 19, name: 'ji', art: 5, glyph: '戟', forms: ['long', 'heavy'], start: false, trait: 'tip', famous: 'none' },
 ];
 
 /** Schools (門派), indexed by id. Names are in src/i18n.js as school.<name>. */
@@ -278,6 +284,8 @@ export const EVENT = {
   FOE: 20,
   MANUAL: 21,
   ZENITH: 22,
+  HEAVE: 23,
+  STOP: 24,
 };
 
 /** Missions, indexed by id. `goal` is what the mission asks for (seconds for survive, enemies for kills).
@@ -373,6 +381,7 @@ export const TUNES = [
   { id: 54, name: 'manuals', mission: 'host', def: 0, min: 0, max: 16777215, step: 1 },
   { id: 55, name: 'kinds_owned', mission: 'host', def: 16777215, min: 0, max: 16777215, step: 1 },
   { id: 56, name: 'inner_owned', mission: 'host', def: 16777215, min: 0, max: 16777215, step: 1 },
+  { id: 57, name: 'famous_owned', mission: 'host', def: 16777215, min: 0, max: 16777215, step: 1 },
 ];
 
 /** Size of the state array written by the core, in floats. */

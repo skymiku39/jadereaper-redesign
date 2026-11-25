@@ -262,11 +262,13 @@ amount = 0.4
 # is written above, once; the second and third change a rule. These three
 # exist only then:
 #   splash   a share of a blow, per layer, passes to the enemies within reach
-#            of one that a hit throws back (四兩撥千斤)
+#            of one that a hit throws back; from layer 2 they are pushed
+#            away, and at layer 3 each passes it on once more (四兩撥千斤)
 #   reach    melee moves reach this much further; from layer 2 the last move
 #            of a melee route also sends a blade of qi (氣貫長虹)
 #   element  hits that carry an element land this much harder; from layer 2
-#            reactions too (萬法歸一功)
+#            reactions too, and at layer 3 a reaction leaves an aftershock
+#            of half its damage (萬法歸一功)
 
 [[passive]]
 name = "jieli"
@@ -299,6 +301,12 @@ amount = 0.15
 #   tune    the name of a tune that holds its share instead of `share`
 #   every   above 0, one comes every this many seconds with an announcement,
 #           and none with the horde
+# What a school's enemy does besides charging (core/src/foes.rs):
+#   strike  a `[[move]]` it uses with a warning first; a master (`manual`) goes
+#           through the whole route of that move
+#   strike2 a second move an elite takes turns with
+#   throw   above 0, it throws a dart at the player every this many seconds
+#           from afar as it comes on
 # Enemy 0 takes none of these: it is whatever the others leave of the horde.
 # Missions that place their own enemies name the kinds in their own code.
 
@@ -387,8 +395,8 @@ tune = "chasers"
 
 # Disciples of the schools (docs/design.md 4.8.6): they join the horde at the
 # share of the `school_share` tune each, and the first one the player fells
-# teaches him that school's stolen routes (偷師). For now they only charge;
-# the elites that use a school's moves with a warning are still to come.
+# teaches him that school's stolen routes (偷師). They charge, except the Tang
+# clan's, who throw.
 [[enemy]]
 id = 5
 name = "bandit"
@@ -456,8 +464,9 @@ tune = "school_share"
 school = "jiuyou"
 
 # School elites (core/src/foes.rs): one of each comes alone on its clock while
-# `school_share` is above 0, and uses its school's move named by `strike`,
-# warned of on the ground first and called out in red.
+# `school_share` is above 0, and uses its school's one or two moves (`strike`,
+# `strike2`), warned of on the ground first and called out in red. An elite
+# falling drops a manual of its school now and then.
 [[enemy]]
 id = 9
 name = "bandit_chief"
@@ -475,7 +484,8 @@ heavy = true
 every = 75
 tune = "school_share"
 school = "heifeng"
-strike = "kaitang"
+strike = "menghu"
+strike2 = "kaitang"
 
 [[enemy]]
 id = 10
@@ -495,6 +505,7 @@ every = 105
 tune = "school_share"
 school = "liushanmen"
 strike = "qianyang"
+strike2 = "dacao"
 
 [[enemy]]
 id = 11
@@ -581,8 +592,8 @@ school = "jiuyou"
 strike = "wangui"
 manual = true
 
-# A Tang clan disciple, who throws from afar; felling one teaches the clan's
-# mechanism route (唐門九機匣).
+# A Tang clan disciple, who throws coin darts (金錢鏢) from afar; felling one
+# teaches the clan's mechanism route (唐門九機匣).
 [[enemy]]
 id = 15
 name = "tang_disciple"
@@ -599,6 +610,7 @@ pose_rate = 8
 hover = true
 tune = "school_share"
 school = "tangmen"
+throw = 3.0
 
 # A soldier of the frontier army, in a line with a spear; felling one teaches
 # 破軍槍. Its general drops the army's manuals.
@@ -635,7 +647,89 @@ heavy = true
 every = 280
 tune = "school_share"
 school = "bianjun"
-strike = "hengqiang"
+strike = "huangsha"
+manual = true
+
+# The second elites and masters of docs/martial-arts.md "門派的敵人": the
+# needle thrower of the Nine Nether sect, the Tang clan's mechanist and its
+# master, who set down mechanism stakes that shoot at the player (the master's
+# ring of them stretches a net that slows him), and the army's captain.
+[[enemy]]
+id = 18
+name = "needle_hand"
+part = "wisp"
+color = [0.36, 0.20, 0.42]
+hp = 180
+speed = 70
+radius = 20
+damage = 6
+xp = 12
+half_width = 30
+half_height = 18
+pose_rate = 7
+hover = true
+every = 120
+tune = "school_share"
+school = "jiuyou"
+strike = "huangquan"
+strike2 = "yanwang"
+
+[[enemy]]
+id = 19
+name = "mechanist"
+part = "brute"
+color = [0.26, 0.32, 0.26]
+hp = 220
+speed = 50
+radius = 24
+damage = 8
+xp = 12
+half_width = 28
+half_height = 28
+pose_rate = 3
+heavy = true
+every = 150
+tune = "school_share"
+school = "tangmen"
+strike = "jiugong"
+
+[[enemy]]
+id = 20
+name = "captain"
+part = "brute"
+color = [0.44, 0.36, 0.18]
+hp = 260
+speed = 54
+radius = 26
+damage = 9
+xp = 12
+half_width = 30
+half_height = 30
+pose_rate = 3
+heavy = true
+every = 125
+tune = "school_share"
+school = "bianjun"
+strike = "huangsha"
+
+[[enemy]]
+id = 21
+name = "tang_master"
+part = "brute"
+color = [0.18, 0.24, 0.18]
+hp = 1000
+speed = 50
+radius = 38
+damage = 12
+xp = 40
+half_width = 46
+half_height = 46
+pose_rate = 2.5
+heavy = true
+every = 330
+tune = "school_share"
+school = "tangmen"
+strike = "gongshu"
 manual = true
 
 # ------------------------------------------------------------------ arts
@@ -760,8 +854,20 @@ knockback = 260
 # A `trait` is what the kind does of its own: `hook` pulls in the last enemy a
 # sweep hits, `pierce` lets shots pass one enemy more, `swarm` throws twice the
 # shots at half the damage, `tip` sweeps round the tip of a thrust, `bend`
-# whips on from the tip of a thrust to the nearest enemy there.
-# Names are `weapon.<name>` in src/i18n.js.
+# whips on from the tip of a thrust to the second-nearest enemy, when it is
+# within reach of the tip. A `paired` kind lands its basic blow and every arc
+# and thrust of its route moves as two blows of half the damage.
+# `famous` is what the kind's famous blade (名器, docs/martial-arts.md) does of
+# its own while the art's weapon is famous: `reach` sweeps 10% further with a
+# jade blade light (玉鐮), `stop` the first move of each round of the route
+# stops the game for a beat (斷雲), `knock` throws enemies 30% further back
+# (烏金棍), `speed` shots fly 25% faster (柳葉飛刀), `turret` one more mechanism
+# is set down and may stand (the Tang box), `guard` every move adds 1 guard
+# without the metal element (玄鐵護手). Left out, a famous blade of the kind is
+# only its quality and needs no buying; a named one only comes once it is
+# bought at the weapon shop (the `famous_owned` tune).
+# Names are `weapon.<name>` in src/i18n.js; a famous blade's are
+# `famous.<name>.name` and `famous.<name>.desc`.
 
 [[weapon]]
 id = 0
@@ -788,6 +894,7 @@ art = "scythe"
 glyph = "斬"
 long = true
 heavy = true
+famous = "stop"
 
 [[weapon]]
 id = 3
@@ -797,6 +904,7 @@ glyph = "鐮"
 short = true
 light = true
 trait = "hook"
+famous = "reach"
 
 [[weapon]]
 id = 4
@@ -811,6 +919,7 @@ name = "changgun"
 art = "beads"
 glyph = "長"
 long = true
+famous = "knock"
 
 [[weapon]]
 id = 6
@@ -827,6 +936,7 @@ art = "talisman"
 glyph = "飛"
 light = true
 trait = "pierce"
+famous = "speed"
 
 [[weapon]]
 id = 8
@@ -852,6 +962,7 @@ art = "pulse"
 glyph = "護"
 short = true
 heavy = true
+famous = "guard"
 
 [[weapon]]
 id = 11
@@ -878,6 +989,7 @@ art = "talisman"
 glyph = "匣"
 heavy = true
 mechanism = true
+famous = "turret"
 
 [[weapon]]
 id = 14
@@ -1210,6 +1322,21 @@ zenith = "might"
 # waves burst from where each one's flight ends; `grow` adds that share of
 # damage with each enemy it passes through. A `spread` of 1 or more sets the
 # waves evenly all round.
+#   stretch  the staff (orbit) stretches to `reach` times its length and back
+#          over `life` seconds, every bead the tip of a staff that hits along
+#          its whole length, once an enemy; `speed` above 1 turns it that many
+#          times faster meanwhile; `offset` lands a ring of that many reaches
+#          at the tip nearest the aim at the height of the stretch; `side`
+#          is the share of its push that goes along its turn, not outward
+# A ring with `split` makes each enemy it hits throw that many shards at the
+# nearest other enemy (at `speed` for `life` seconds, hitting `pierce`).
+# A thrust with `offset` makes an enemy it fells burst in a ring of that many
+# reaches; with `rage`, it is one thrust until momentum has that many stacks.
+# A wave with `home` keeps turning toward the nearest enemy in flight, that
+# many radians a second.
+# Any shape but a turret: `slow` takes that share off the speed of the enemies
+# it hits for a second, and `lock` makes them take that share more damage
+# from every blow for a second (欲擒故縱; not an element tag).
 # `stop` asks the host for a moment of hit-stop when the move is used.
 # Text is `move.<name>.name` and `.desc` (the card's line) in src/i18n.js.
 
@@ -1369,6 +1496,7 @@ power = 1.8
 reach = 1.45
 count = 1
 knockback = 0.5
+slow = 0.5
 
 [[move]]
 id = 13
@@ -1389,56 +1517,54 @@ stop = true
 id = 14
 name = "chaosheng"
 route = "fanjiang"
-shape = "arc"
+shape = "stretch"
 power = 1.6
 reach = 2.0
-width = -2
-count = 1
+life = 0.5
 knockback = 1.0
 
 [[move]]
 id = 15
 name = "jingtao"
 route = "fanjiang"
-shape = "ring"
-power = 2.4
-reach = 0.8
-offset = 2.0
-count = 1
+shape = "stretch"
+power = 1.5
+reach = 2.0
+life = 0.5
+offset = 0.78
 knockback = 1.0
 
 [[move]]
 id = 16
 name = "nishui"
 route = "fanjiang"
-shape = "arc"
+shape = "stretch"
 power = 1.4
 reach = 2.0
-width = -2
-count = 1
+life = 0.5
+side = 1.0
+slow = 0.3
 knockback = 2.0
 
 [[move]]
 id = 17
 name = "dajiang"
 route = "fanjiang"
-shape = "arc"
+shape = "stretch"
 power = 1.8
-reach = 2.2
-width = -2
-count = 2
-delay = 0.12
+reach = 2.0
+life = 0.6
+speed = 2.0
 knockback = 2.0
 
 [[move]]
 id = 18
 name = "changhe"
 route = "fanjiang"
-shape = "arc"
+shape = "stretch"
 power = 4.0
 reach = 4.0
-width = -2
-count = 1
+life = 0.7
 knockback = 2.5
 ultimate = true
 stop = true
@@ -1492,9 +1618,8 @@ name = "xingluo"
 route = "ershiba"
 shape = "wave"
 seek = 1
-power = 0.8
-count = 3
-spread = 0.12
+power = 1.0
+count = 1
 pierce = 1
 split = 3
 speed = 560
@@ -1645,11 +1770,11 @@ knockback = 0.3
 id = 34
 name = "tashan"
 route = "zhuoyu"
-shape = "wave"
-seek = 1
+shape = "ring"
 power = 0.5
-count = 3
-spread = 0.33
+reach = 0.6
+count = 1
+split = 1
 pierce = 2
 speed = 500
 life = 0.5
@@ -1739,7 +1864,8 @@ shape = "ring"
 power = 1.6
 reach = 1.2
 count = 1
-knockback = 0.3
+knockback = -0.8
+lock = 0.25
 
 [[move]]
 id = 42
@@ -1818,6 +1944,7 @@ spread = 0.4
 pierce = 2
 speed = 600
 life = 1.0
+home = 6.0
 knockback = 0.1
 
 [[move]]
@@ -1826,11 +1953,12 @@ name = "shidian"
 route = "yinhun"
 shape = "wave"
 power = 0.5
-count = 32
+count = 40
 spread = 1.0
 pierce = 2
 speed = 500
 life = 1.1
+home = 3.0
 knockback = 0.1
 ultimate = true
 stop = true
@@ -1877,7 +2005,9 @@ stop = true
 #           him, or circling him at radius `width`; each lives `life` s,
 #           shoots every `delay` s, follows with `seek = 1`, bursts into
 #           `split` shots when it ends; with `slow`, a ring of them is a net
-#           that takes that share off the speed of the enemies inside
+#           that takes that share off the speed of the enemies inside; with
+#           `most`, at most that many of the move's own mechanisms stand at
+#           once (the oldest goes)
 [[move]]
 id = 52
 name = "gongshu"
@@ -1902,6 +2032,7 @@ life = 4
 delay = 0.5
 speed = 620
 pierce = 1
+most = 3
 
 [[move]]
 id = 54
@@ -2072,6 +2203,7 @@ shape = "thrust"
 seek = 1
 power = 0.9
 reach = 1.0
+offset = 0.25
 count = 1
 knockback = 0.6
 
@@ -2085,6 +2217,7 @@ power = 0.8
 reach = 1.0
 count = 2
 delay = 0.1
+rage = 5
 knockback = 0.6
 
 [[move]]
@@ -2511,6 +2644,18 @@ name = "manual"
 [[event]]
 id = 22
 name = "zenith"
+
+# The last move of a route's order landed with the third layer of the
+# mountain lifter (拔山訣), for a hit-stop. The value is the move's id.
+[[event]]
+id = 23
+name = "heave"
+
+# A famous blade asks the host for a moment of hit-stop (斷雲, the first move of
+# each round). The value is the art's id.
+[[event]]
+id = 24
+name = "stop"
 
 # ------------------------------------------------------------- missions
 # What a run is for. Ids index the mission tables, so they run 0, 1, 2...
@@ -3174,6 +3319,19 @@ step = 1
 [[tune]]
 id = 56
 name = "inner_owned"
+mission = "host"
+default = 16777215
+min = 0
+max = 16777215
+step = 1
+
+# The famous blades (名器) bought at the weapon shop, as bits by weapon id. A
+# weapon card of a kind with a named famous blade (`famous` on [[weapon]]) not
+# bought is at most fine steel; a kind without one comes famous as before,
+# without buying. Set by the host; the default has every one.
+[[tune]]
+id = 57
+name = "famous_owned"
 mission = "host"
 default = 16777215
 min = 0

@@ -23,6 +23,30 @@ pub const BASIC: u16 = u16::MAX;
 pub const MOST_STEPS: usize = 9;
 /// How many delayed hits can wait at once.
 const MAX_DELAYED: usize = 64;
+/// The most waves one wave move throws (十殿閻羅's forty needles).
+const MOST_WAVES: usize = 40;
+/// `Game::hit_move` while no route move's hits are landing.
+pub const NO_MOVE: u16 = u16::MAX;
+/// How many rings of felled enemies can wait at once.
+pub const MAX_BLOOMS: usize = 16;
+/// How long a lock or a slow left by a route move holds.
+const LOCK_TIME: f32 = 1.0;
+const SLOW_TIME: f32 = 1.0;
+/// How far a shard thrown from an enemy looks for the next one.
+const SHARD_REACH: f32 = 320.0;
+/// How far a homing wave looks for an enemy to turn to.
+const HOME_REACH: f32 = 360.0;
+
+/// A ring still to burst where an enemy felled by a route move fell (血濺五步).
+#[derive(Clone, Copy)]
+pub struct Bloom {
+    pub x: f32,
+    pub y: f32,
+    pub art: u8,
+    pub radius: f32,
+    pub dmg: f32,
+    pub knock: f32,
+}
 
 /// A hit that lands a moment after its move: a later sweep of an arc, or a mark.
 #[derive(Clone, Copy)]
@@ -43,6 +67,9 @@ pub struct Delayed {
     pub might: f32,
     /// The element of the ultimate at its height it belongs to; 0 for none (`zenith.rs`).
     pub zen: u8,
+    /// Whether it belongs to the last move of a route's order thrown with the
+    /// mountain lifter's third layer (`inner.rs`).
+    pub heave: bool,
 }
 
 impl Game {
@@ -216,9 +243,15 @@ impl Game {
         self.arts[a].step = ((step + 1) % len) as u8;
         self.striking = a as u8 + 1;
         // The last move of the order closes it: the mountain lifter makes it
-        // land harder, and piercing qi sends a blade after it.
+        // land harder (and at its third layer throw back further, with a
+        // hit-stop), and piercing qi sends a blade after it.
         let last = step + 1 == len && len > 1;
         let might = if last { might * self.finisher() } else { might };
+        let heave = last && order[step] != BASIC && self.heaves();
+        self.inner.heave = heave;
+        if heave {
+            self.event(EV_HEAVE, self.player.x, self.player.y, order[step] as f32);
+        }
         match order[step] {
             BASIC => self.basic_move(a, might),
             m => {
@@ -226,7 +259,7 @@ impl Game {
                 let zen = if MOVES[m as usize].ultimate { self.zenith_of(a) } else { None };
                 if let Some(element) = zen {
                     self.zenith = element;
-                    self.reach_height(m as usize, element);
+                    self.reach_height(a, m as usize, element);
                 }
                 self.use_move(a, m as usize, might * self.height_power());
                 self.zenith = 0;
@@ -238,6 +271,9 @@ impl Game {
         if last {
             self.qi_blade(a, Self::basic_numbers(a).damage * might);
         }
+        self.inner.heave = false;
+
+        self.famous_move(a, step == 0);
         self.striking = 0;
     }
 
@@ -288,7 +324,7 @@ impl Game {
     }
 
     /// The art's numbers at level 2, which its moves are measured against.
-    fn basic_numbers(a: usize) -> &'static ArtLevel {
+    pub(crate) fn basic_numbers(a: usize) -> &'static ArtLevel {
         let levels = ARTS[a].levels;
         &levels[1.min(levels.len() - 1)]
     }
@@ -305,7 +341,7 @@ impl Game {
             B_ARC => {
                 let (ax, ay) = self.player.aim;
                 let (reach, knock) = (n.reach * self.kind_reach(a), n.knockback * light * self.kind_knock(a));
-                let dmg = self.second_hand(a, n.damage * might * light, reach, n.width, knock, ax, ay);
+                let dmg = self.second_hand(a, n.damage * might * light, reach, n.width, knock, ax, ay, false);
                 self.sweep(a, dmg, reach, n.width, knock, ax, ay);
                 self.event(EV_SLASH, px, py, 0.0);
             }
@@ -316,7 +352,7 @@ impl Game {
                 let reach = n.reach * self.melee_reach() * self.kind_reach(a);
                 let (dx, dy) = self.thrust_aim(reach * 1.2);
                 let knock = n.knockback * light * self.kind_knock(a);
-                let dmg = self.second_hand(a, n.damage * might * light, reach, n.width, knock, dx, dy);
+                let dmg = self.second_hand(a, n.damage * might * light, reach, n.width, knock, dx, dy, true);
                 self.line(a, px, py, dx, dy, reach, n.width, dmg, knock);
                 self.event(EV_SLASH, px, py, 0.0);
             }
@@ -330,13 +366,19 @@ impl Game {
     }
 
     /// Use move `m` of art `a`.
-    fn use_move(&mut self, a: usize, m: usize, might: f32) {
+    pub(crate) fn use_move(&mut self, a: usize, m: usize, might: f32) {
         // Its later hits land with the damage factor it began with.
         self.cast_might = might;
+        // Its hits leave what it leaves on the enemies (a lock, a slow, shards, a burst).
+        self.hit_move = m as u16;
         let def = &MOVES[m];
         let (px, py) = (self.player.x, self.player.y);
         let (ax, ay) = self.player.aim;
         match def.shape {
+            MS_STRETCH => {
+                self.start_stretch(a, m, might);
+                self.event(EV_SLASH, px, py, 0.0);
+            }
             MS_ARC => {
                 self.arc_sweep(a, m, 0, ax, ay, might);
                 for k in 1..def.count.min(8) {
@@ -351,7 +393,7 @@ impl Game {
             MS_WAVE => {
                 // A seeking move aims at the nearest enemy, or along the aim when none is near.
                 let (ax, ay) = if def.seek > 0 { self.toward_nearest().unwrap_or((ax, ay)) } else { (ax, ay) };
-                for k in 0..def.count.clamp(1, 32) {
+                for k in 0..def.count.clamp(1, MOST_WAVES) {
                     if def.delay > 0.0 && k > 0 {
                         self.delay_hit(a, m, k, def.delay * k as f32, px, py, ax, ay);
                     } else {
@@ -368,7 +410,9 @@ impl Game {
                 // A seeking thrust goes at the nearest enemy; a fan or a ring turns from there.
                 let reach = Self::basic_numbers(a).reach * def.reach.max(0.1);
                 let (ax, ay) = if def.seek > 0 { self.thrust_aim(reach * 1.2) } else { (ax, ay) };
-                for k in 0..def.count.clamp(1, 16) {
+                // A move with rage thrusts once until momentum has enough stacks (殺人如麻).
+                let count = if def.rage > 0 && (self.momentum as u32) < def.rage { 1 } else { def.count.clamp(1, 16) };
+                for k in 0..count {
                     if def.delay > 0.0 && k > 0 {
                         self.delay_hit(a, m, k, def.delay * k as f32, px, py, ax, ay);
                     } else {
@@ -401,6 +445,7 @@ impl Game {
                 self.event(EV_SLASH, px, py, 0.0);
             }
         }
+        self.hit_move = NO_MOVE;
         self.event(EV_MOVE, px, py, m as f32);
     }
 
@@ -413,8 +458,10 @@ impl Game {
         let (c, s) = (fmath::cos(turn), fmath::sin(turn));
         let (dx, dy) = (ax * c - ay * s, ax * s + ay * c);
         let reach = n.reach * def.reach * (1.0 + def.grow * k as f32) * self.melee_reach() * self.kind_reach(a);
-        let dmg = n.damage * def.power * might;
-        self.sweep(a, dmg, reach, def.width, n.knockback * def.knockback * self.kind_knock(a), dx, dy);
+        let knock = n.knockback * def.knockback * self.kind_knock(a);
+        // With a paired kind, the other hand sweeps again a moment later for half.
+        let dmg = self.second_hand(a, n.damage * def.power * might, reach, def.width, knock, dx, dy, false);
+        self.sweep(a, dmg, reach, def.width, knock, dx, dy);
     }
 
     /// One sweep around the player towards (ax, ay): everything within `reach`
@@ -462,6 +509,7 @@ impl Game {
                 top: true,
             });
         }
+        self.jade_light(a, px, py - 24.0, reach, rot);
     }
 
     /// The way to the nearest enemy, if there is one.
@@ -489,7 +537,7 @@ impl Game {
         let def = &MOVES[m];
         let n = Self::basic_numbers(a);
         let (px, py) = (self.player.x, self.player.y);
-        let count = def.count.clamp(1, 32);
+        let count = def.count.clamp(1, MOST_WAVES);
         // A fan of a whole turn has no ends, so its waves sit evenly round.
         let off = if count == 1 || def.delay > 0.0 {
             0.0
@@ -500,21 +548,23 @@ impl Game {
         };
         let angle = fmath::atan2(ay, ax) + off;
         let (dx, dy) = (fmath::cos(angle), fmath::sin(angle));
+        let speed = def.speed * self.kind_speed(a);
         self.shots.push(Shot {
             x: px,
             y: py,
-            vx: dx * def.speed,
-            vy: dy * def.speed,
+            vx: dx * speed,
+            vy: dy * speed,
             life: def.life,
             dmg: n.damage * def.power * might,
             pierce: def.pierce.max(1) + self.kind_pierce(a),
             last: 0,
             art: a as u8,
-            push: def.knockback,
+            push: def.knockback * self.heave_knock(),
             split: def.split.min(8) as u8,
             grow: def.grow,
             size: def.power.sqrt().clamp(0.7, 2.5),
             zen: self.zenith,
+            home: def.home.max(0.0),
         });
     }
 
@@ -547,6 +597,7 @@ impl Game {
                 grow: 0.0,
                 size: 0.6,
                 zen,
+                home: 0.0,
             });
         }
     }
@@ -571,7 +622,9 @@ impl Game {
         let width = n.width * if def.width > 0.0 { def.width } else { 1.0 };
         let knock = n.knockback * def.knockback * self.kind_knock(a);
         let (px, py) = (self.player.x, self.player.y);
-        self.line(a, px, py, dx, dy, reach, width, n.damage * def.power * might, knock);
+        // With a paired kind, the other hand thrusts again a moment later for half.
+        let dmg = self.second_hand(a, n.damage * def.power * might, reach, width, knock, dx, dy, true);
+        self.line(a, px, py, dx, dy, reach, width, dmg, knock);
     }
 
     /// Ring `k` of a ring move: centred `offset` ahead along (ax, ay) from where
@@ -590,8 +643,20 @@ impl Game {
     #[allow(clippy::too_many_arguments)]
     fn delay_hit(&mut self, a: usize, m: usize, k: usize, left: f32, x: f32, y: f32, ax: f32, ay: f32) {
         if self.delayed.len() < MAX_DELAYED {
-            let (might, zen) = (self.cast_might, self.zenith);
-            self.delayed.push(Delayed { left, art: a as u8, mv: m as u16, k: k as u8, x, y, ax, ay, might, zen });
+            let (might, zen, heave) = (self.cast_might, self.zenith, self.inner.heave);
+            self.delayed.push(Delayed {
+                left,
+                art: a as u8,
+                mv: m as u16,
+                k: k as u8,
+                x,
+                y,
+                ax,
+                ay,
+                might,
+                zen,
+                heave,
+            });
         }
     }
 
@@ -611,7 +676,9 @@ impl Game {
             let (a, m, k, might) = (d.art as usize, d.mv as usize, d.k as usize, d.might);
             // A hit of an ultimate at its height lands at its height too.
             self.zenith = d.zen;
+            self.inner.heave = d.heave;
             self.striking = d.art + 1;
+            self.hit_move = d.mv;
             match MOVES[m].shape {
                 MS_ARC => self.arc_sweep(a, m, k, d.ax, d.ay, might),
                 MS_WAVE => self.wave(a, m, k, d.ax, d.ay, might),
@@ -620,8 +687,125 @@ impl Game {
                 _ => self.mark_strike(a, m, d.x, d.y, might),
             }
             self.zenith = 0;
+            self.inner.heave = false;
+            self.striking = 0;
+            self.hit_move = NO_MOVE;
+        }
+    }
+
+    /// A hit of the route move landing now (`hit_move`) struck enemy `i` for
+    /// `dmg`; `alive` says whether it stood before. Leave what the move leaves:
+    /// a lock, a slow, shards thrown on, or a ring where it fell.
+    pub(crate) fn move_hit(&mut self, i: usize, dmg: f32, alive: bool) {
+        let m = self.hit_move as usize;
+        if m >= N_MOVES {
+            return;
+        }
+        let def = &MOVES[m];
+        let t = &mut self.enemies[i].tags;
+        if def.lock > 0.0 {
+            t.locked = LOCK_TIME;
+            t.lock = def.lock;
+        }
+        if def.slow > 0.0 && def.shape != MS_TURRET {
+            t.slowed = SLOW_TIME;
+            t.slow = def.slow.min(0.9);
+        }
+        let a = ROUTES[def.route].art;
+        match def.shape {
+            // An enemy a thrust fells bursts where it falls (血濺五步).
+            MS_THRUST if def.offset > 0.0 && alive && self.enemies[i].hp <= 0.0 => {
+                if self.blooms.len() < MAX_BLOOMS {
+                    let n = Self::basic_numbers(a);
+                    let e = &self.enemies[i];
+                    let radius = n.reach * def.offset * self.kind_reach(a);
+                    let knock = n.knockback * def.knockback * self.kind_knock(a);
+                    self.blooms.push(Bloom { x: e.x, y: e.y, art: a as u8, radius, dmg, knock });
+                }
+            }
+            // A ring with shards: a shard of it flies on from the enemy to the nearest other (他山之石).
+            MS_RING if def.split > 0 => {
+                let (targets, found) = self.nearest(i, SHARD_REACH, 1);
+                if found == 0 {
+                    return;
+                }
+                let (x, y, id) = (self.enemies[i].x, self.enemies[i].y, self.enemies[i].id);
+                let (tx, ty) = (self.enemies[targets[0]].x, self.enemies[targets[0]].y);
+                let base = fmath::atan2(ty - y, tx - x);
+                let count = def.split.min(4);
+                for k in 0..count {
+                    if self.shots.len() >= MAX_SHOTS {
+                        break;
+                    }
+                    let off = if count == 1 { 0.0 } else { (k as f32 / (count - 1) as f32 - 0.5) * 0.4 };
+                    let speed = def.speed.max(300.0);
+                    self.shots.push(Shot {
+                        x,
+                        y,
+                        vx: fmath::cos(base + off) * speed,
+                        vy: fmath::sin(base + off) * speed,
+                        life: def.life.max(0.2),
+                        dmg,
+                        pierce: def.pierce.max(1) + self.kind_pierce(a),
+                        last: id,
+                        art: a as u8,
+                        push: def.knockback,
+                        split: 0,
+                        grow: 0.0,
+                        size: 0.7,
+                        zen: 0,
+                        home: 0.0,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Burst the rings of the enemies felled by a route move since the last step.
+    pub(crate) fn tick_blooms(&mut self) {
+        if self.blooms.is_empty() {
+            return;
+        }
+        let blooms = core::mem::take(&mut self.blooms);
+        for b in &blooms {
+            self.striking = b.art + 1;
+            self.ring(b.art as usize, b.x, b.y, b.radius, b.dmg, b.knock);
             self.striking = 0;
         }
+        self.blooms = blooms;
+        self.blooms.clear();
+    }
+
+    /// Turn homing shot `s` toward the nearest enemy near it, at most its turn rate for `dt`.
+    pub(crate) fn home_shot(&mut self, s: usize, dt: f32) {
+        let sh = &self.shots[s];
+        let (x, y, last) = (sh.x, sh.y, sh.last);
+        let mut best: Option<(f32, f32, f32)> = None;
+        for e in &self.enemies {
+            if e.id == last || e.hp <= 0.0 {
+                continue;
+            }
+            let (dx, dy) = (e.x - x, e.y - y);
+            let d2 = dx * dx + dy * dy;
+            if d2 < HOME_REACH * HOME_REACH && best.is_none_or(|(b, _, _)| d2 < b) {
+                best = Some((d2, dx, dy));
+            }
+        }
+        let Some((_, dx, dy)) = best else { return };
+        let sh = &mut self.shots[s];
+        let speed = (sh.vx * sh.vx + sh.vy * sh.vy).sqrt();
+        let now = fmath::atan2(sh.vy, sh.vx);
+        let mut turn = fmath::atan2(dy, dx) - now;
+        if turn > TAU * 0.5 {
+            turn -= TAU;
+        } else if turn < -TAU * 0.5 {
+            turn += TAU;
+        }
+        let most = sh.home * dt;
+        let angle = now + turn.clamp(-most, most);
+        sh.vx = fmath::cos(angle) * speed;
+        sh.vy = fmath::sin(angle) * speed;
     }
 
     /// A mark of a marks move landing at (x, y).
@@ -701,5 +885,10 @@ impl Game {
             mix(d.left.to_bits());
             mix(d.mv as u32);
         }
+        for b in &self.blooms {
+            mix(b.x.to_bits());
+            mix(b.dmg.to_bits());
+        }
+        self.staff_hash(mix);
     }
 }

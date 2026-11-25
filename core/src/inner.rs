@@ -7,13 +7,38 @@
 //! piercing qi and the art of all methods) are only offered then. Off, none of
 //! this runs and the passives stack as before, up to their own top level.
 
-use super::{Game, Shot, MAX_SHOTS};
+use super::{Fx, Game, Shot, MAX_SHOTS};
 use crate::defs::*;
 
 /// The most splashes of borrowed force that wait for the end of a step.
 const MAX_SPLASH: usize = 32;
 /// How far a splash of borrowed force reaches from the enemy that was struck.
 const SPLASH_REACH: f32 = 55.0;
+/// The share of the throw an enemy struck by borrowed force is pushed away with (second layer).
+const SPLASH_PUSH: f32 = 0.5;
+/// How much further the last move of a route throws back (third layer of the mountain lifter).
+const HEAVE: f32 = 1.5;
+/// Seconds between two prints of the snow trail (second layer of crossing on a reed).
+const TRAIL_EVERY: f32 = 0.11;
+/// Seconds a print of the snow trail stays on the ground.
+const TRAIL_LIFE: f32 = 1.4;
+
+/// A blow of borrowed force waiting for the end of the step.
+#[derive(Clone, Copy)]
+pub struct Splash {
+    /// Where the enemy thrown back was.
+    pub x: f32,
+    pub y: f32,
+    pub dmg: f32,
+    /// The enemy thrown back, which the blow does not land on.
+    pub id: u32,
+    /// The enemy the blow came from before that, which it does not land on either.
+    pub from: u32,
+    /// How hard the enemies it lands on are pushed away; 0 for not at all.
+    pub push: f32,
+    /// How many more times the enemies it lands on pass it on.
+    pub hops: u8,
+}
 
 /// What the inner arts keep track of during a run.
 #[derive(Default)]
@@ -30,14 +55,37 @@ pub struct Inner {
     pub since_strike: f32,
     /// Seconds left of the haste after an ultimate (third layer of the fleeting colt).
     pub rush: f32,
-    /// Blows of borrowed force to land at the end of the step: where, how hard, and the enemy struck.
-    pub splash: Vec<(f32, f32, f32, u32)>,
+    /// Blows of borrowed force to land at the end of the step. A blow passed
+    /// on (third layer) waits for the end of the next one.
+    pub splash: Vec<Splash>,
+    /// Whether the last move of a route's order is landing now with the third
+    /// layer of the mountain lifter, so throws back further.
+    pub heave: bool,
+    /// Seconds until the next print of the snow trail. Drawing only: not in the hash.
+    pub trail: f32,
+    /// The aftershocks of reactions still to land (third layer of the art of all methods, `elements.rs`).
+    pub aftershocks: Vec<super::elements::Aftershock>,
+    /// The sigil of a holy ultimate at its height, while it stands (`zenith.rs`).
+    pub sigil: Option<super::zenith::Sigil>,
 }
 
 impl Inner {
     pub fn mix(&self, mix: &mut impl FnMut(u32)) {
         for v in [self.since_hurt, self.moving_for, self.last_stand, self.gather, self.since_strike, self.rush] {
             mix(v.to_bits());
+        }
+        // The words below are only there while what they stand for is.
+        for s in &self.splash {
+            mix(s.dmg.to_bits());
+            mix(s.id);
+        }
+        for a in &self.aftershocks {
+            mix(a.left.to_bits());
+            mix(a.dmg.to_bits());
+        }
+        if let Some(s) = &self.sigil {
+            mix(s.life.to_bits());
+            mix(s.r.to_bits());
         }
     }
 }
@@ -104,6 +152,7 @@ impl Game {
                 self.gather_jade();
             }
         }
+        self.snow_trail(dt);
     }
 
     /// Every jade on the field flies to the player (the sleeve, 袖裡乾坤).
@@ -120,6 +169,42 @@ impl Game {
         } else {
             1.0
         }
+    }
+
+    /// While the stride of crossing on a reed is on, the player leaves a trail
+    /// of snow (雪痕) behind him: prints on the ground, for drawing only.
+    fn snow_trail(&mut self, dt: f32) {
+        if self.stride() <= 1.0 || !self.player.moving {
+            self.inner.trail = 0.0;
+            return;
+        }
+        self.inner.trail -= dt;
+        if self.inner.trail > 0.0 {
+            return;
+        }
+        self.inner.trail = TRAIL_EVERY;
+        // Left and right feet in turn, either side of the way he walks.
+        let p = &self.player;
+        let side = if ((self.time / TRAIL_EVERY) as i32) & 1 == 0 { 1.0 } else { -1.0 };
+        let (ax, ay) = p.aim;
+        let (x, y) = (p.x - ay * 6.0 * side, p.y + ax * 6.0 * side);
+        self.add_fx(Fx {
+            x,
+            y,
+            vx: 0.0,
+            vy: 0.0,
+            life: TRAIL_LIFE,
+            max: TRAIL_LIFE,
+            part: P_ELLIPSE,
+            hw: 6.0,
+            hh: 3.5,
+            rot: 0.0,
+            vr: 0.0,
+            grow: 0.0,
+            color: [0.80, 0.86, 0.93, 0.85],
+            seed: 0.6,
+            top: false,
+        });
     }
 
     /// How much faster the player heals while unhurt (second layer of breathing).
@@ -184,12 +269,28 @@ impl Game {
         f
     }
 
-    /// How much harder the last move of a route's order lands (second and third layers of the mountain lifter).
+    /// How much harder the last move of a route's order lands (second layer of the mountain lifter, kept at the third).
     pub(crate) fn finisher(&self) -> f32 {
-        match self.layer(U_MIGHT) {
-            0 | 1 => 1.0,
-            2 => 1.3,
-            _ => 1.6,
+        if self.layer(U_MIGHT) >= 2 {
+            1.3
+        } else {
+            1.0
+        }
+    }
+
+    /// Whether the last move of a route's order throws back further and stops
+    /// the game for a moment (third layer of the mountain lifter).
+    pub(crate) fn heaves(&self) -> bool {
+        self.layer(U_MIGHT) >= 3
+    }
+
+    /// How much further a hit throws back now: more while the last move of a
+    /// route's order lands with the third layer of the mountain lifter.
+    pub(crate) fn heave_knock(&self) -> f32 {
+        if self.inner.heave {
+            HEAVE
+        } else {
+            1.0
         }
     }
 
@@ -232,43 +333,61 @@ impl Game {
             grow: 0.0,
             size: 1.0,
             zen: 0,
+            home: 0.0,
         });
     }
 
     /// A struck enemy was thrown back: part of the blow passes to the
     /// enemies it is thrown into (borrowed force, 四兩撥千斤), landed at the
-    /// end of the step so that it cannot set off more of itself.
+    /// end of the step so that it cannot set off more of itself. From the
+    /// second layer those enemies are pushed away too; at the third, each of
+    /// them passes the blow on once more.
     pub(crate) fn borrow_force(&mut self, i: usize, dmg: f32, kx: f32, ky: f32) {
         let layer = self.layer(U_JIELI);
-        if layer == 0 || kx * kx + ky * ky < 60.0 * 60.0 || self.inner.splash.len() >= MAX_SPLASH {
+        let throw = kx * kx + ky * ky;
+        if layer == 0 || throw < 60.0 * 60.0 || self.inner.splash.len() >= MAX_SPLASH {
             return;
         }
         let e = &self.enemies[i];
         let share = Self::amount(U_JIELI) * layer as f32;
-        self.inner.splash.push((e.x, e.y, dmg * share, e.id));
+        let push = if layer >= 2 { throw.sqrt() * SPLASH_PUSH } else { 0.0 };
+        let hops = if layer >= 3 { 1 } else { 0 };
+        self.inner.splash.push(Splash { x: e.x, y: e.y, dmg: dmg * share, id: e.id, from: e.id, push, hops });
     }
 
-    /// Land the blows of borrowed force gathered this step.
+    /// Land the blows of borrowed force gathered this step. The ones passed
+    /// on wait for the end of the next step.
     pub(crate) fn land_splash(&mut self) {
         if self.inner.splash.is_empty() {
             return;
         }
         let splash = core::mem::take(&mut self.inner.splash);
-        for &(x, y, dmg, id) in &splash {
+        let mut next = Vec::new();
+        for s in &splash {
             for j in 0..self.enemies.len() {
                 let e = &self.enemies[j];
-                if e.id == id || e.hp <= 0.0 {
+                if e.id == s.id || e.id == s.from || e.hp <= 0.0 {
                     continue;
                 }
-                let (dx, dy) = (e.x - x, e.y - y);
+                let (dx, dy) = (e.x - s.x, e.y - s.y);
                 let reach = SPLASH_REACH + KINDS[e.kind as usize].r;
-                if dx * dx + dy * dy < reach * reach {
-                    self.hurt_enemy(j, dmg, 0.0, 0.0);
+                let d2 = dx * dx + dy * dy;
+                if d2 >= reach * reach {
+                    continue;
+                }
+                let (ex, ey, eid) = (e.x, e.y, e.id);
+                if s.push > 0.0 {
+                    let d = d2.sqrt().max(0.001);
+                    self.hurt_enemy(j, s.dmg, dx / d * s.push, dy / d * s.push);
+                } else {
+                    self.hurt_enemy(j, s.dmg, 0.0, 0.0);
+                }
+                if s.hops > 0 && next.len() < MAX_SPLASH {
+                    next.push(Splash { x: ex, y: ey, dmg: s.dmg, id: eid, from: s.id, push: s.push, hops: s.hops - 1 });
                 }
             }
         }
-        self.inner.splash = splash;
-        self.inner.splash.clear();
+        self.inner.splash = next;
     }
 
     /// How much harder a hit lands for carrying an element (the art of all methods, 萬法歸一功).
@@ -279,12 +398,18 @@ impl Game {
         }
     }
 
-    /// How much harder reactions land (second and third layers of the art of all methods).
+    /// How much harder reactions land (second layer of the art of all methods, kept at the third).
     pub(crate) fn reaction_boost(&self) -> f32 {
-        match self.layer(U_WANFA) {
-            0 | 1 => 1.0,
-            2 => 1.25,
-            _ => 1.5,
+        if self.layer(U_WANFA) >= 2 {
+            1.25
+        } else {
+            1.0
         }
+    }
+
+    /// Whether a reaction leaves an aftershock (餘波) of half its damage
+    /// (third layer of the art of all methods, `elements.rs`).
+    pub(crate) fn aftershocks(&self) -> bool {
+        self.layer(U_WANFA) >= 3
     }
 }

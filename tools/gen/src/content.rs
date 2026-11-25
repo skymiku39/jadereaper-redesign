@@ -270,6 +270,10 @@ pub struct Enemy {
     pub school: Option<String>,
     /// The `[[move]]` it uses with a warning first, if any.
     pub strike: Option<String>,
+    /// A second `[[move]]` an elite takes turns with, if any.
+    pub strike2: Option<String>,
+    /// Above 0, it throws at the player every this many seconds, as written ("0" for never).
+    pub throw: String,
     /// Drops a manual (秘笈) of its school when it falls.
     pub manual: bool,
 }
@@ -321,6 +325,9 @@ pub const FORMS: [&str; 6] = ["long", "short", "heavy", "light", "paired", "mech
 /// What a weapon kind does of its own (`kinds.rs`).
 pub const TRAITS: [&str; 6] = ["none", "hook", "pierce", "swarm", "tip", "bend"];
 
+/// What a weapon kind's famous blade (名器) does of its own (`kinds.rs`).
+pub const FAMOUS: [&str; 7] = ["none", "reach", "stop", "knock", "speed", "turret", "guard"];
+
 /// A route's rule of its own (`routes.rs`).
 pub const RULES: [&str; 4] = ["none", "crowd", "opening", "momentum"];
 
@@ -338,6 +345,8 @@ pub struct Weapon {
     pub start: bool,
     /// What it does of its own, one of `TRAITS`.
     pub trait_: String,
+    /// What its famous blade does of its own, one of `FAMOUS`.
+    pub famous: String,
 }
 
 /// A school (門派): where a route comes from. Its name is `school.<name>` in src/i18n.js.
@@ -371,10 +380,10 @@ pub struct Route {
 }
 
 /// How a move hits. The core has one piece of code per shape.
-pub const MOVE_SHAPES: [&str; 6] = ["arc", "wave", "marks", "ring", "turret", "thrust"];
+pub const MOVE_SHAPES: [&str; 7] = ["arc", "wave", "marks", "ring", "turret", "thrust", "stretch"];
 
 /// The optional numbers of a move, in the order of `Move::numbers`. Each defaults to 0.
-pub const MOVE_KEYS: [&str; 15] = [
+pub const MOVE_KEYS: [&str; 20] = [
     "power",
     "reach",
     "width",
@@ -390,10 +399,15 @@ pub const MOVE_KEYS: [&str; 15] = [
     "seek",
     "split",
     "slow",
+    "side",
+    "lock",
+    "home",
+    "rage",
+    "most",
 ];
 
 /// The move keys that are whole numbers.
-const MOVE_WHOLE_KEYS: [&str; 4] = ["count", "pierce", "seek", "split"];
+const MOVE_WHOLE_KEYS: [&str; 6] = ["count", "pierce", "seek", "split", "rage", "most"];
 
 /// One move (式) of a route.
 #[derive(Clone, Debug)]
@@ -806,6 +820,15 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         f.used.push("strike");
                         None
                     };
+                    // A second move an elite takes turns with, if any.
+                    let strike2 = if t.entries.iter().any(|e| e.key == "strike2") {
+                        f.string("strike2")
+                    } else {
+                        f.used.push("strike2");
+                        None
+                    };
+                    // How often it throws at the player from afar; 0 for never.
+                    let throw = f.number_or_zero("throw").unwrap_or_else(|| "0".to_string());
                     // Whether it drops a manual (秘笈) of its school when it falls.
                     let manual = f.flag("manual").unwrap_or(false);
                     let enemy = Enemy {
@@ -821,6 +844,8 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                         share_tune,
                         school,
                         strike,
+                        strike2,
+                        throw,
                         manual,
                     };
                     enemies.push((enemy, t.line));
@@ -880,13 +905,27 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                     f.used.push("trait");
                     Some("none".to_string())
                 };
-                if let (Some(id), Some(name), Some(art), Some(glyph), Some(forms), Some(start), Some(trait_)) =
-                    (id, name, art, glyph, forms, start, trait_)
+                let famous = if t.entries.iter().any(|e| e.key == "famous") {
+                    f.word("famous", &FAMOUS)
+                } else {
+                    f.used.push("famous");
+                    Some("none".to_string())
+                };
+                if let (
+                    Some(id),
+                    Some(name),
+                    Some(art),
+                    Some(glyph),
+                    Some(forms),
+                    Some(start),
+                    Some(trait_),
+                    Some(famous),
+                ) = (id, name, art, glyph, forms, start, trait_, famous)
                 {
                     if glyph.chars().count() != 1 {
                         f.errs.push(format!("line {}: weapon `glyph` must be one character", t.line));
                     }
-                    weapons.push((Weapon { id, name, art, glyph, forms, start, trait_ }, t.line));
+                    weapons.push((Weapon { id, name, art, glyph, forms, start, trait_, famous }, t.line));
                 }
             }
             "route" => {
@@ -1245,10 +1284,13 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
                 errs.push(format!("line {line}: enemy `{}` names school `{s}`, which is not defined", e.name));
             }
         }
-        if let Some(m) = &e.strike {
+        for m in e.strike.iter().chain(e.strike2.iter()) {
             if !moves.iter().any(|(mv, _)| &mv.name == m) {
                 errs.push(format!("line {line}: enemy `{}` strikes with move `{m}`, which is not defined", e.name));
             }
+        }
+        if e.strike2.is_some() && e.strike.is_none() {
+            errs.push(format!("line {line}: enemy `{}` has `strike2` without `strike`", e.name));
         }
     }
 
@@ -1542,12 +1584,13 @@ pub fn render_rust(c: &Content) -> String {
         let tune = e.share_tune.as_ref().map_or("N_TUNES".to_string(), |t| format!("T_{}", upper(t)));
         let school = e.school.as_ref().map_or("N_SCHOOLS".to_string(), |s| format!("SC_{}", upper(s)));
         let strike = e.strike.as_ref().map_or("N_MOVES".to_string(), |m| format!("MV_{}", upper(m)));
+        let strike2 = e.strike2.as_ref().map_or("N_MOVES".to_string(), |m| format!("MV_{}", upper(m)));
         writeln!(
             o,
-            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {}, strike: {}, manual: {} }},",
+            "    Kind {{ hp: {}, speed: {}, r: {}, dmg: {}, xp: {}, part: P_{}, color: [{}], hw: {}, hh: {}, rate: {}, corpse: {}, heavy: {}, hover: {}, from: {}, share: {}, ramp: {}, every: {}, share_tune: {}, school: {}, strike: {}, strike2: {}, throw: {}, manual: {} }},",
             n("hp"), n("speed"), n("radius"), n("damage"), n("xp"), upper(&e.part), color.join(", "),
             n("half_width"), n("half_height"), n("pose_rate"), e.corpse, e.heavy, e.hover,
-            s("from"), s("share"), s("ramp"), s("every"), tune, school, strike, e.manual
+            s("from"), s("share"), s("ramp"), s("every"), tune, school, strike, strike2, float_lit(&e.throw), e.manual
         )
         .unwrap();
     }
@@ -1614,10 +1657,11 @@ pub fn render_rust(c: &Content) -> String {
         let forms = if bits.is_empty() { "0".to_string() } else { bits.join(" | ") };
         writeln!(
             o,
-            "    WeaponDef {{ art: A_{}, forms: {forms}, start: {}, trait_: WT_{} }},",
+            "    WeaponDef {{ art: A_{}, forms: {forms}, start: {}, trait_: WT_{}, famous: FM_{} }},",
             upper(&w.art),
             w.start,
-            upper(&w.trait_)
+            upper(&w.trait_),
+            upper(&w.famous)
         )
         .unwrap();
     }
@@ -1831,10 +1875,16 @@ pub fn render_js(c: &Content) -> String {
     }
     o.push_str("];\n\n");
 
-    o.push_str("/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall. */\n");
+    o.push_str("/** Enemy kinds, indexed by id. `heavy` kinds are hard to push and stop the game for a moment when they fall.\n");
+    o.push_str(
+        " * `school` is the id of the school it belongs to, -1 for none; its name is enemy.<name> in src/i18n.js. */\n",
+    );
     o.push_str("export const KINDS = [\n");
     for e in &c.enemies {
-        writeln!(o, "  {{ id: {}, name: {}, heavy: {} }},", e.id, js_str(&e.name), e.heavy).unwrap();
+        let school =
+            e.school.as_ref().and_then(|s| c.schools.iter().find(|sc| &sc.name == s)).map_or(-1, |sc| sc.id as i64);
+        writeln!(o, "  {{ id: {}, name: {}, heavy: {}, school: {} }},", e.id, js_str(&e.name), e.heavy, school)
+            .unwrap();
     }
     o.push_str("];\n\n");
 
@@ -1858,20 +1908,24 @@ pub fn render_js(c: &Content) -> String {
     writeln!(o, "export const MAX_ARTS = {};\n", c.max_arts).unwrap();
 
     o.push_str("/** Weapon kinds (兵器種類), indexed by id: `art` is the art id it is a kind of, `forms` its\n");
-    o.push_str(" * form tags, `start` the kind an art comes in first. Names are weapon.<name> in src/i18n.js. */\n");
+    o.push_str(" * form tags, `start` the kind an art comes in first, `famous` what its famous blade (名器)\n");
+    o.push_str(
+        " * does ('none' for no named one). Names are weapon.<name> and famous.<name>.name in src/i18n.js. */\n",
+    );
     o.push_str("export const WEAPONS = [\n");
     for w in &c.weapons {
         let art = c.arts.iter().find(|a| a.name == w.art).map_or(0, |a| a.id);
         let forms: Vec<String> = FORMS.iter().zip(&w.forms).filter(|(_, on)| **on).map(|(f, _)| js_str(f)).collect();
         writeln!(
             o,
-            "  {{ id: {}, name: {}, art: {art}, glyph: {}, forms: [{}], start: {}, trait: {} }},",
+            "  {{ id: {}, name: {}, art: {art}, glyph: {}, forms: [{}], start: {}, trait: {}, famous: {} }},",
             w.id,
             js_str(&w.name),
             js_str(&w.glyph),
             forms.join(", "),
             w.start,
-            js_str(&w.trait_)
+            js_str(&w.trait_),
+            js_str(&w.famous)
         )
         .unwrap();
     }

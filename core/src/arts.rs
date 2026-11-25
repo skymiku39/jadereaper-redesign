@@ -15,8 +15,8 @@ use core::f32::consts::TAU;
 const JADE: [f32; 3] = [0.25, 0.62, 0.48];
 const PAPER_GOLD: [f32; 3] = [0.89, 0.77, 0.38];
 const BEAD_GREEN: [f32; 3] = [0.30, 0.66, 0.50];
-/// A soft sword's bend (the `bend` trait): how far it reaches on from the tip,
-/// as a share of the thrust, and how hard it lands.
+/// A soft sword's bend (the `bend` trait): how far it reaches on from the tip
+/// toward the second-nearest enemy, as a share of the thrust, and how hard it lands.
 const BEND_REACH: f32 = 0.6;
 const BEND_POWER: f32 = 0.6;
 
@@ -61,7 +61,7 @@ impl Game {
     /// An art on a route keeps its level-2 numbers, since its route's moves
     /// grow instead; circling beads (a staff) still grow with the level, since
     /// they keep circling under the moves.
-    fn art_numbers(&self, a: usize) -> Option<&'static ArtLevel> {
+    pub(crate) fn art_numbers(&self, a: usize) -> Option<&'static ArtLevel> {
         let levels = ARTS[a].levels;
         match self.art_level(a) {
             0 => None,
@@ -140,7 +140,7 @@ impl Game {
         let (ax, ay) = self.player.aim;
         let reach = n.reach * self.melee_reach() * self.kind_reach(a);
         let knock = n.knockback * self.kind_knock(a);
-        let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, ax, ay);
+        let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, ax, ay, false);
         let mut far: Option<(f32, u32)> = None;
         for i in 0..self.enemies.len() {
             let e = &self.enemies[i];
@@ -178,6 +178,8 @@ impl Game {
                 top: true,
             });
         }
+        self.jade_light(a, px, py - 24.0, reach, rot);
+        self.famous_move(a, false);
         self.event(EV_SLASH, px, py, 0.0);
     }
 
@@ -192,8 +194,9 @@ impl Game {
         let (dx, dy) = self.thrust_aim(reach * 1.2);
         let (px, py) = (self.player.x, self.player.y);
         let knock = n.knockback * self.kind_knock(a);
-        let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, dx, dy);
+        let dmg = self.second_hand(a, n.damage * might * self.kind_power(a), reach, n.width, knock, dx, dy, true);
         self.line(a, px, py, dx, dy, reach, n.width, dmg, knock);
+        self.famous_move(a, false);
         self.event(EV_SLASH, px, py, 0.0);
     }
 
@@ -252,10 +255,10 @@ impl Game {
         match self.kind_trait(a) {
             // A halberd also sweeps round the tip of its thrust.
             WT_TIP => self.ring(a, tx, ty, 55.0, dmg * 0.5, knock),
-            // A soft sword bends on from its tip to the nearest enemy there.
+            // A soft sword bends on from its tip to the second-nearest enemy, when it is near the tip.
             WT_BEND => {
                 let bend = reach * BEND_REACH;
-                if let Some((bx, by)) = self.nearest_from(tx, ty, bend) {
+                if let Some((bx, by)) = self.second_from(x, y, tx, ty, bend) {
                     self.line_hits(a, tx, ty, bx, by, bend, width, dmg * BEND_POWER, knock);
                 }
             }
@@ -263,21 +266,28 @@ impl Game {
         }
     }
 
-    /// The way from (x, y) to the nearest enemy within `reach` of it and
-    /// more than a step away, if any.
-    fn nearest_from(&self, x: f32, y: f32, reach: f32) -> Option<(f32, f32)> {
-        let mut best: Option<(f32, f32, f32)> = None;
-        for e in &self.enemies {
-            let (dx, dy) = (e.x - x, e.y - y);
-            let d2 = dx * dx + dy * dy;
-            if d2 > 100.0 && d2 < reach * reach && best.is_none_or(|(b, _, _)| d2 < b) {
-                best = Some((d2, dx, dy));
+    /// The way from the tip (tx, ty) to the second-nearest enemy to (x, y),
+    /// if it is within `reach` of the tip and more than a step away from it.
+    fn second_from(&self, x: f32, y: f32, tx: f32, ty: f32, reach: f32) -> Option<(f32, f32)> {
+        // The two nearest to (x, y), nearest first.
+        let mut best: [Option<(f32, usize)>; 2] = [None, None];
+        for (i, e) in self.enemies.iter().enumerate() {
+            let d2 = (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y);
+            if best[0].is_none_or(|(b, _)| d2 < b) {
+                best[1] = best[0];
+                best[0] = Some((d2, i));
+            } else if best[1].is_none_or(|(b, _)| d2 < b) {
+                best[1] = Some((d2, i));
             }
         }
-        best.map(|(d2, dx, dy)| {
-            let d = d2.sqrt();
-            (dx / d, dy / d)
-        })
+        let (_, i) = best[1]?;
+        let (dx, dy) = (self.enemies[i].x - tx, self.enemies[i].y - ty);
+        let d2 = dx * dx + dy * dy;
+        if d2 <= 100.0 || d2 >= reach * reach {
+            return None;
+        }
+        let d = d2.sqrt();
+        Some((dx / d, dy / d))
     }
 
     /// The hits and the streak of one straight line, without the kind's trait.
@@ -324,7 +334,9 @@ impl Game {
             return;
         }
         self.arts[a].timer = n.cooldown * haste * self.kind_beat(a);
-        if !self.shoot_nearest(a, n, might * self.kind_power(a)) {
+        if self.shoot_nearest(a, n, might * self.kind_power(a)) {
+            self.famous_move(a, false);
+        } else {
             // Nothing in range: look again soon instead of waiting out the cooldown.
             self.arts[a].timer = 0.15;
         }
@@ -341,6 +353,7 @@ impl Game {
         let count = if swarm { (n.count * 2).min(MOST) } else { n.count.min(MOST) };
         let might = if swarm { might * 0.5 } else { might };
         let extra = self.kind_pierce(a);
+        let speed = def.speed * self.kind_speed(a);
         let mut best = [(f32::MAX, 0usize); MOST];
         for (i, e) in self.enemies.iter().enumerate() {
             let d = (e.x - px) * (e.x - px) + (e.y - py) * (e.y - py);
@@ -365,8 +378,8 @@ impl Game {
             self.shots.push(Shot {
                 x: px,
                 y: py,
-                vx: dx / d * def.speed,
-                vy: dy / d * def.speed,
+                vx: dx / d * speed,
+                vy: dy / d * speed,
                 life: def.life,
                 dmg: n.damage * might,
                 pierce: n.pierce + extra,
@@ -377,6 +390,7 @@ impl Game {
                 grow: 0.0,
                 size: 1.0,
                 zen: 0,
+                home: 0.0,
             });
             fired = true;
         }
@@ -389,6 +403,10 @@ impl Game {
     /// Beads that circle the player. Their places come from the clock, so
     /// there is nothing to store.
     fn art_orbit(&mut self, a: usize, n: &ArtLevel, might: f32) {
+        // A stretching staff hits along its length instead (`staff.rs`).
+        if self.stretching(a) {
+            return;
+        }
         let element = self.arts[a].element;
         let (px, py) = (self.player.x, self.player.y);
         let dmg = n.damage * might * self.kind_power(a);
@@ -428,10 +446,11 @@ impl Game {
         }
     }
 
-    /// Where bead `k` of an orbit art is now.
-    fn orbit_pos(&self, a: usize, n: &ArtLevel, k: usize) -> (f32, f32) {
-        let radius = n.reach * self.kind_reach(a);
-        let angle = self.time * ARTS[a].speed + k as f32 * TAU / n.count as f32;
+    /// Where bead `k` of an orbit art is now: further out while the staff
+    /// stretches, and turned on by however much faster it has spun (`staff.rs`).
+    pub(crate) fn orbit_pos(&self, a: usize, n: &ArtLevel, k: usize) -> (f32, f32) {
+        let radius = n.reach * self.kind_reach(a) * self.stretch_factor(a);
+        let angle = self.time * ARTS[a].speed + self.staff_turn + k as f32 * TAU / n.count as f32;
         (self.player.x + fmath::cos(angle) * radius, self.player.y + fmath::sin(angle) * radius * 0.8)
     }
 
@@ -445,6 +464,7 @@ impl Game {
         let (px, py) = (self.player.x, self.player.y);
         let (reach, power, knock) = (self.kind_reach(a), self.kind_power(a), self.kind_knock(a));
         self.ring(a, px, py, n.reach * reach, n.damage * might * power, n.knockback * knock);
+        self.famous_move(a, false);
         self.event(EV_PULSE, px, py, 0.0);
     }
 
@@ -501,9 +521,19 @@ impl Game {
             }
             let Some(n) = self.art_numbers(a) else { continue };
             let color = self.art_color(a, BEAD_GREEN, 1.0);
+            let stretched = self.stretching(a);
+            let (px, py) = (self.player.x, self.player.y);
             for k in 0..n.count {
                 let (x, y) = self.orbit_pos(a, n, k);
                 self.put(x, y - 24.0, 9.0, 9.0, 0.0, def.part, 0.0, k as f32 * 0.13, color);
+                // A stretched staff shows its length: beads between the hand and the tip.
+                if stretched {
+                    for j in 1..3 {
+                        let f = j as f32 / 3.0;
+                        let (mx, my) = (px + (x - px) * f, py + (y - py) * f);
+                        self.put(mx, my - 24.0, 6.0, 6.0, 0.0, def.part, 0.0, k as f32 * 0.13, color);
+                    }
+                }
             }
         }
     }

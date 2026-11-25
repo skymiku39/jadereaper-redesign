@@ -64,6 +64,8 @@ pub struct Shot {
     size: f32,
     /// The element of the ultimate at its height it came from; 0 for none (`zenith.rs`).
     zen: u8,
+    /// Radians a second it turns toward the nearest enemy in flight (a route move); 0 for none.
+    home: f32,
 }
 
 pub struct Gem {
@@ -206,6 +208,11 @@ pub struct Game {
     pub stolen: u32,
     /// The school elites on the field and their moves (`foes.rs`).
     pub foes: Vec<foes::Foe>,
+    /// The shots foes threw at the player, their mechanism stakes and the net
+    /// of a ring of them; empty while no foe throws or sets them down (`foes.rs`).
+    pub foe_shots: Vec<foes::FoeShot>,
+    pub stakes: Vec<foes::Stake>,
+    pub foe_net: Option<foes::FoeNet>,
     /// The manuals (秘笈) gained, two bits per route id (`routes.rs`): from
     /// earlier runs (the `manuals` tune) and this one.
     pub manuals: u32,
@@ -222,6 +229,15 @@ pub struct Game {
     pub net: Option<turrets::Net>,
     /// The art whose hits are landing now, plus 1; 0 for none or not a route's (`routes.rs`).
     pub striking: u8,
+    /// The route move whose hits are landing now, for what they leave on the
+    /// enemies (`routes::NO_MOVE` for none).
+    pub hit_move: u16,
+    /// Rings still to burst where enemies felled by a route move fell (`routes.rs`).
+    pub blooms: Vec<routes::Bloom>,
+    /// The staff stretching out and back, while it does (`staff.rs`).
+    pub stretch: Option<staff::Stretch>,
+    /// How far the staff has turned beyond its clock, from spinning faster (`staff.rs`).
+    pub staff_turn: f32,
     /// Kills of the last few seconds while a route with momentum is followed, and the seconds before they go.
     pub momentum: u8,
     pub momentum_left: f32,
@@ -401,6 +417,9 @@ impl Game {
             dry: 0,
             stolen: 0,
             foes: Vec::with_capacity(16),
+            foe_shots: Vec::new(),
+            stakes: Vec::with_capacity(foes::MAX_STAKES),
+            foe_net: None,
             manuals: 0,
             zenith: 0,
             bulwark: 0.0,
@@ -408,6 +427,10 @@ impl Game {
             turrets: Vec::with_capacity(turrets::MAX_TURRETS),
             net: None,
             striking: 0,
+            hit_move: routes::NO_MOVE,
+            blooms: Vec::with_capacity(routes::MAX_BLOOMS),
+            stretch: None,
+            staff_turn: 0.0,
             momentum: 0,
             momentum_left: 0.0,
             pending: 0,
@@ -672,6 +695,12 @@ impl Game {
             if e.tags.opening {
                 mix(1);
             }
+            if e.tags.locked > 0.0 {
+                mix(e.tags.locked.to_bits());
+            }
+            if e.tags.slowed > 0.0 {
+                mix(e.tags.slowed.to_bits());
+            }
         }
         mix(self.shots.len() as u32);
         for s in &self.shots {
@@ -739,7 +768,11 @@ impl Game {
             my /= len;
             len = 1.0;
         }
-        let speed = 190.0 * self.stat(ST_MOVE_SPEED) * self.retrieval.speed_factor() * self.stride();
+        let mut speed = 190.0 * self.stat(ST_MOVE_SPEED) * self.retrieval.speed_factor() * self.stride();
+        // Inside a foe's net he walks slower (`foes.rs`).
+        if self.foe_net.is_some() {
+            speed *= self.foe_net_pace();
+        }
         let regen = self.stat(ST_REGEN) * self.mending();
         let p = &mut self.player;
         p.moving = len > 0.15;
@@ -805,10 +838,14 @@ impl Game {
         self.move_shots(dt);
         self.tick_delayed(dt);
         self.tick_echoes(dt);
+        self.tick_stretch(dt);
+        self.tick_blooms();
         self.tick_turrets(dt);
         self.tick_net(dt);
         self.land_splash();
         self.tick_tags(dt);
+        self.tick_aftershocks(dt);
+        self.tick_sigil(dt);
         self.reap();
         self.move_gems(dt);
         self.move_fx(dt);
@@ -947,7 +984,8 @@ impl Game {
             if KINDS[k].every > 0.0 && !off && t >= self.next_lone[k] {
                 self.next_lone[k] += KINDS[k].every;
                 self.spawn_enemy(k as u8);
-                self.event(EV_ELITE, self.player.x, self.player.y, 0.0);
+                // The kind comes with it, so the host can say who came.
+                self.event(EV_ELITE, self.player.x, self.player.y, k as f32);
             }
         }
     }
@@ -977,6 +1015,8 @@ impl Game {
             }
             let k = &KINDS[e.kind as usize];
             let speed = if net.is_some() { k.speed * pace * Self::net_pace(&net, e.x, e.y) } else { k.speed * pace };
+            // Slowed by a route move (逆水行舟).
+            let speed = if e.tags.slowed > 0.0 { speed * (1.0 - e.tags.slow) } else { speed };
             let (dx, dy) = (px - e.x, py - e.y);
             let d = (dx * dx + dy * dy).sqrt().max(0.001);
             // The boss of the boss mission steers itself.
@@ -1149,6 +1189,9 @@ impl Game {
     fn move_shots(&mut self, dt: f32) {
         let mut s = 0;
         while s < self.shots.len() {
+            if self.shots[s].home > 0.0 {
+                self.home_shot(s, dt);
+            }
             let (x, y, dmg, last) = {
                 let sh = &mut self.shots[s];
                 sh.x += sh.vx * dt;
@@ -1213,10 +1256,11 @@ impl Game {
                 self.drop_gem(e.x + 14.0, e.y, 0.0, true);
             }
             self.note_kill();
-            // A disciple of a school falling teaches its stolen routes; a master drops a manual too.
+            // A disciple of a school falling teaches its stolen routes; a master
+            // drops a manual too, and an elite now and then (design 4.8.6).
             if k.school < N_SCHOOLS {
                 self.steal(k.school);
-                if k.manual {
+                if k.manual || (k.strike < N_MOVES && self.rng.f() < foes::ELITE_MANUAL) {
                     self.gain_manual(k.school);
                 }
             }
@@ -1587,6 +1631,7 @@ impl Game {
             self.escape_draw();
         }
         self.vendetta_draw_ground();
+        self.draw_sigil();
 
         // Ground-level effects and pickups.
         for i in 0..self.fx.len() {
@@ -1659,6 +1704,7 @@ impl Game {
         // Things in the air.
         self.draw_arts();
         self.draw_turrets();
+        self.draw_foes();
         self.boss_draw_air();
         for i in 0..self.fx.len() {
             if self.fx[i].top {
@@ -1991,6 +2037,8 @@ mod mission_vendetta;
 pub mod replay;
 #[path = "routes.rs"]
 pub mod routes;
+#[path = "staff.rs"]
+pub mod staff;
 #[path = "turrets.rs"]
 pub mod turrets;
 #[path = "zenith.rs"]

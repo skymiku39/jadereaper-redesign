@@ -2,7 +2,7 @@
 import { MISSIONS, MISSION_IDS, UPGRADES, ARTS, WEAPONS, ELEMENTS, SCHOOLS, ROUTES, MOVES } from './data.js';
 import { formatTime, missionRecord } from './save.js';
 import { t, getLang, setText } from './i18n.js';
-import { KIND_PRICE, INNER_PRICE, kindFree, innerArts, innerFree } from './shop.js';
+import { KIND_PRICE, FAMOUS_PRICE, INNER_PRICE, kindFree, kindHeld, famousKinds, innerArts, innerFree } from './shop.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['title', 'setup', 'settings', 'record', 'shop', 'levelup', 'pause', 'over', 'won', 'error'];
@@ -27,6 +27,13 @@ function manualSlot(route) {
 
 /** The martial art an upgrade levels, or undefined for a plain stat upgrade. */
 const artOfUpgrade = (upgradeId) => ARTS.find((art) => art.upgrade === upgradeId);
+
+/** Whether a weapon kind at this quality is its named famous blade (名器). */
+const famousOf = (weapon, quality) => quality === 2 && weapon.famous && weapon.famous !== 'none';
+
+/** A weapon's name with its quality: a named famous blade by its own name, as 名器・玉鐮. */
+const weaponName = (weapon, quality) =>
+  `${t(`quality.${quality}`)}${t(famousOf(weapon, quality) ? `famous.${weapon.name}.name` : `weapon.${weapon.name}`)}`;
 
 /** A card face: one span per [class, text] pair. */
 function cardParts(card, parts) {
@@ -269,7 +276,7 @@ export function createUI({ onAction }) {
         // An art in a weapon kind shows the kind's mark and name.
         const kind = art ? WEAPONS[(artKinds[art.id] || 0) - 1] : null;
         const quality = art ? artQualities[art.id] || 0 : 0;
-        if (kind) chip.title = `${t(`quality.${quality}`)}${t(`weapon.${kind.name}`)} · ${chip.title}`;
+        if (kind) chip.title = `${weaponName(kind, quality)} · ${chip.title}`;
         if (quality === 1) chip.classList.add('chip-steel');
         if (quality === 2) chip.classList.add('chip-famous');
         const glyph = document.createElement('b');
@@ -316,6 +323,7 @@ export function createUI({ onAction }) {
    * (`UPGRADES.length + element id - 1`) or -1 for an empty slot; `upgrades` the upgrade levels.
    * While `attach` is an element id, the screen instead asks which held art gets that element;
    * `artElements` holds, per art id, the element the art carries now (0 for none).
+   * Returns true when a famous blade (名器) is among the cards, which turn over in gold.
    */
   function levelUp(choices, upgrades, {
     attach = 0, artElements = [], routePick = 0, artRoutes = [], routesOn = false,
@@ -332,7 +340,7 @@ export function createUI({ onAction }) {
       // The deck drawn from last is offered first.
       const last = document.querySelector(`#cards .card[data-value="${lastDeck}"]:not([disabled])`);
       if (last) last.focus({ preventScroll: true });
-      return;
+      return false;
     }
     if (picking) {
       delete banner.dataset.i18n;
@@ -359,6 +367,7 @@ export function createUI({ onAction }) {
       });
     }
     show('levelup');
+    return Boolean(document.querySelector('#cards .famous-card'));
   }
 
   /** One card per deck, in deck order; a deck with nothing to draw is greyed out. A card's value is its deck. */
@@ -432,7 +441,28 @@ export function createUI({ onAction }) {
       t(`route.${route.name}.name`),
       t('levelup.rank', { from: lvl, to: lvl + 1 }),
       `${learn}${formed}\n${t(`move.${move.name}.desc`)}`,
+      orderDots(route, lvl),
     ];
+  }
+
+  /**
+   * How long the move order of an art on `route` is at level `lvl`, as the core has it
+   * (`Game::move_order`): the moves learned, after the basic blow while the regular
+   * moves are not all learned yet; none below level 3.
+   */
+  function orderLength(route, lvl) {
+    if (lvl < 3) return 0;
+    const regular = route.moves.length - (route.ultimate ? 1 : 0);
+    const learned = Math.min(lvl - 2, route.moves.length);
+    return learned < regular ? learned + 1 : learned;
+  }
+
+  /** The move order now and after the card, as dots: ●●○ → ●●● (design 4.10). */
+  function orderDots(route, lvl) {
+    const now = orderLength(route, lvl);
+    const next = orderLength(route, lvl + 1);
+    const width = Math.max(now, next);
+    return `${'●'.repeat(now)}${'○'.repeat(width - now)} → ${'●'.repeat(next)}${'○'.repeat(width - next)}`;
   }
 
   /**
@@ -483,6 +513,14 @@ export function createUI({ onAction }) {
           title.append(tag);
         }
         box.append(title);
+        // The line the hero remembered when each height was first reached (design 4.12).
+        for (const e of heights) {
+          const row = el('div', 'record-move record-memory');
+          const mark = el('b', '', e.glyph);
+          mark.style.color = elementCss(e);
+          row.append(mark, el('span', '', t(`memory.${e.name}`)));
+          box.append(row);
+        }
         // A manual of the route's school, not yet given: give it to this route to open one more move.
         const spare = Number(save.scrolls?.[route.school]) || 0;
         if (!route.start && known && spare > 0 && movesOpen(route, manuals) < route.moves.length && manualSlot(route) < 12) {
@@ -527,11 +565,32 @@ export function createUI({ onAction }) {
       }
       return [box];
     });
-    $('recordBody').replaceChildren(...parts, innerHead, ...inners);
+    // The famous blades (名器): the ones bought by name, kind and what they do; the rest only outlined.
+    const famousHead = el('h3', 'record-art', t('record.famous'));
+    const famousBought = new Set(Array.isArray(save.famousBought) ? save.famousBought : []);
+    const famous = famousKinds().map((w) => {
+      const owned = famousBought.has(w.name);
+      const name = t(`famous.${w.name}.name`);
+      const box = el('div', owned ? 'record-route' : 'record-route unknown');
+      const title = el('div', 'record-route-title');
+      title.append(
+        el('b', '', owned ? `${w.glyph} ${name}` : hidden(name)),
+        el('span', 'record-tag', t(`weapon.${w.name}`)),
+        el('span', 'record-tag', t(owned ? 'record.famousOwned' : 'record.famousNot')),
+      );
+      box.append(title);
+      if (owned) {
+        const row = el('div', 'record-move');
+        row.append(el('span', '', t(`famous.${w.name}.desc`)));
+        box.append(row);
+      }
+      return box;
+    });
+    $('recordBody').replaceChildren(...parts, innerHead, ...inners, famousHead, ...famous);
   }
 
   /**
-   * The weapon shop (兵器鋪, docs/design.md 4.12): the weapon kinds and inner arts not yet owned,
+   * The weapon shop (兵器鋪, docs/design.md 4.12): the weapon kinds, famous blades and inner arts not yet owned,
    * each with its price and a button to buy it with silver; the ones owned are listed as such.
    * `onBuy(what, name)` buys and returns whether it could.
    */
@@ -546,13 +605,16 @@ export function createUI({ onAction }) {
     const kindsBought = new Set(save.kindsBought || []);
     const innerBought = new Set(save.innerBought || []);
     $('shopSilver').textContent = t('shop.silver', { n: silver });
-    const row = (glyph, name, line, owned, price, what, key) => {
+    // `blocked`, when set, says why it cannot be bought yet.
+    const row = (glyph, name, line, owned, price, what, key, blocked = '') => {
       const box = el('div', owned ? 'record-route' : 'record-route unknown');
       const title = el('div', 'record-route-title');
       title.append(el('b', '', `${glyph} ${name}`), el('span', 'record-tag', line));
       box.append(title);
       if (owned) {
         title.append(el('span', 'record-tag', t('shop.owned')));
+      } else if (blocked) {
+        title.append(el('span', 'record-tag', blocked));
       } else {
         const btn = el('button', 'record-give', t('shop.buy', { n: price }));
         btn.disabled = silver < price;
@@ -571,6 +633,15 @@ export function createUI({ onAction }) {
         const line = `${t(`upgrade.${art.upgrade}.name`)}${forms ? `・${forms}` : ''}${w.trait !== 'none' ? `・${t(`trait.${w.trait}`)}` : ''}`;
         parts.push(row(w.glyph, t(`weapon.${w.name}`), line, free || kindsBought.has(w.name), KIND_PRICE, 'kind', w.name));
       }
+    }
+    // Famous blades (名器): once bought, a weapon card of the kind can come famous. The kind comes first.
+    parts.push(el('h3', 'record-art', t('shop.famous')));
+    const famousBought = new Set(save.famousBought || []);
+    for (const w of famousKinds()) {
+      const kind = t(`weapon.${w.name}`);
+      const blocked = kindHeld(save, w) ? '' : t('shop.needKind', { kind });
+      parts.push(row(w.glyph, t(`famous.${w.name}.name`), `${kind}・${t(`famous.${w.name}.desc`)}`,
+        famousBought.has(w.name), FAMOUS_PRICE, 'famous', w.name, blocked));
     }
     parts.push(el('h3', 'record-art', t('record.inner')));
     for (const u of innerArts()) {
@@ -599,6 +670,38 @@ export function createUI({ onAction }) {
     setTimeout(() => el.remove(), kind === 'zenith' ? 1600 : kind === 'big' ? 1400 : 1000);
   }
 
+  /**
+   * Stamp the names of the moves just learned in the middle of the screen, with ink
+   * spattered round them (design 4.10). `hideSeal` takes the stamp away again.
+   */
+  function seal(names) {
+    const box = $('seal');
+    const stamp = document.createElement('div');
+    stamp.className = 'seal-stamp';
+    const head = document.createElement('small');
+    head.textContent = t('seal.learned');
+    const name = document.createElement('b');
+    name.textContent = names.join('・');
+    stamp.append(head, name);
+    // Spatters of ink round the stamp, each at its own angle and distance.
+    const drops = Array.from({ length: 9 }, (_, i) => {
+      const drop = document.createElement('i');
+      const angle = (i / 9) * Math.PI * 2 + Math.random() * 0.5;
+      const far = 120 + Math.random() * 90;
+      drop.style.setProperty('--dx', `${(Math.cos(angle) * far).toFixed(0)}px`);
+      drop.style.setProperty('--dy', `${(Math.sin(angle) * far * 0.6).toFixed(0)}px`);
+      drop.style.setProperty('--size', `${(6 + Math.random() * 12).toFixed(0)}px`);
+      return drop;
+    });
+    box.replaceChildren(stamp, ...drops);
+    box.hidden = false;
+  }
+
+  function hideSeal() {
+    $('seal').hidden = true;
+    $('seal').replaceChildren();
+  }
+
   /** One card per offered upgrade or element. A card's value is its slot. */
   function offerCards(choices, upgrades, artRoutes = [], routesOn = false, artKinds = [], ranks = []) {
     return choices.flatMap((id, slot) => {
@@ -622,13 +725,15 @@ export function createUI({ onAction }) {
         const quality = ranks[slot] || 0;
         card.classList.add('route-card', 'weapon-card');
         if (quality === 1) card.classList.add('steel-card');
-        if (quality === 2) card.classList.add('fine-card');
+        // A famous blade also turns over as it is dealt, in gold ink (design 4.10).
+        if (quality === 2) card.classList.add('fine-card', 'famous-card');
         cardParts(card, [
           ['key', String(slot + 1)],
           ['glyph', weapon.glyph],
-          ['name', `${t(`quality.${quality}`)}${name}`],
+          ['name', weaponName(weapon, quality)],
           ['rank', rank],
           ['desc', [
+            famousOf(weapon, quality) ? t(`famous.${weapon.name}.desc`) : '',
             forms,
             weapon.trait && weapon.trait !== 'none' ? t(`trait.${weapon.trait}`) : '',
             suits ? t('levelup.suits', { routes: suits }) : '',
@@ -673,6 +778,7 @@ export function createUI({ onAction }) {
           ['glyph', UPGRADES[id].glyph],
           ['name', routed[0]],
           ['rank', routed[1]],
+          ...(routed[3] ? [['order', routed[3]]] : []),
           ['desc', routed[2]],
         ]);
         return [card];
@@ -841,7 +947,7 @@ export function createUI({ onAction }) {
       : '';
   }
 
-  function settings({ volume, muted, numbers, motion, music, quality }) {
+  function settings({ volume, muted, numbers, motion, music, quality, callouts }) {
     const on = Math.round(volume * 10);
     $('volPips').replaceChildren(...Array.from({ length: 10 }, (_, i) => {
       const pip = document.createElement('i');
@@ -853,6 +959,7 @@ export function createUI({ onAction }) {
     }
     $('numbersBtn').textContent = t(numbers ? 'settings.numbersOn' : 'settings.numbersOff');
     $('motionBtn').textContent = t(motion ? 'settings.motionOn' : 'settings.motionOff');
+    $('calloutsBtn').textContent = t(callouts ? 'settings.calloutsOn' : 'settings.calloutsOff');
     const level = music === true ? 1 : music === false ? 0 : Number(music) || 0;
     $('musicBtn').textContent = t(level >= 1 ? 'settings.musicOn' : level > 0 ? 'settings.musicSoft' : 'settings.musicOff');
     $('qualityBtn').textContent = t(quality ? 'settings.qualityHigh' : 'settings.qualityLow');
@@ -903,7 +1010,7 @@ export function createUI({ onAction }) {
 
   return {
     show, navigate, confirm, hud, pointers, showHud, levelUp, gameOver, missionWon, records, setup, settings, error,
-    replaying, replayCopied, lowHealth, flashLevel, callout, record, shop,
+    replaying, replayCopied, lowHealth, flashLevel, callout, record, shop, seal, hideSeal,
     get screen() { return current; },
     get locked() { return performance.now() < lockedUntil; },
   };
