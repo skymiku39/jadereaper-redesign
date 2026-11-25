@@ -483,6 +483,8 @@ pub struct Content {
     pub state_floats: u32,
     /// How many martial arts the player can hold at once.
     pub max_arts: u32,
+    /// The pacing keys (`PACE_KEYS`), each [with routes off, with routes on].
+    pub pace: Vec<(&'static str, [String; 2])>,
     pub parts: Vec<Part>,
     pub upgrades: Vec<Upgrade>,
     pub enemies: Vec<Enemy>,
@@ -652,6 +654,41 @@ impl<'a> Fields<'a> {
         Some([out[0].clone(), out[1].clone(), out[2].clone()])
     }
 
+    /// Two numbers above 0, as written.
+    fn pair(&mut self, key: &'a str) -> Option<[String; 2]> {
+        let e = match self.get(key) {
+            Some(e) => e,
+            None => {
+                self.missing(key);
+                return None;
+            }
+        };
+        let items = match &e.value {
+            Value::Array(items) if items.len() == 2 => items,
+            _ => {
+                self.wrong(e, "an array of 2 numbers");
+                return None;
+            }
+        };
+        let mut out: Vec<String> = Vec::new();
+        for v in items {
+            let text = match v {
+                Value::Int(i) => i.to_string(),
+                Value::Num(s) => s.clone(),
+                _ => break,
+            };
+            match text.parse::<f64>() {
+                Ok(x) if x > 0.0 => out.push(text),
+                _ => break,
+            }
+        }
+        if out.len() != 2 {
+            self.errs.push(format!("line {}: `{key}` values must be numbers above 0", e.line));
+            return None;
+        }
+        Some([out[0].clone(), out[1].clone()])
+    }
+
     /// One of a fixed set of words.
     fn word(&mut self, key: &'a str, allowed: &[&str]) -> Option<String> {
         let line = self.t.entries.iter().find(|e| e.key == key).map_or(self.t.line, |e| e.line);
@@ -709,6 +746,11 @@ impl<'a> Fields<'a> {
     }
 }
 
+/// The top-level pacing keys (docs/design.md 4.11), each two numbers: with
+/// the `routes` tune off, then on. Rust gets `PACE_<KEY>: [f32; 2]`.
+pub const PACE_KEYS: [&str; 7] =
+    ["xp_base", "xp_step", "xp_square", "spawn_growth", "hp_start", "hp_growth", "lone_every"];
+
 /// Table names the content file may use, also valid as a `len` reference.
 const TABLES: [&str; 15] = [
     "part", "upgrade", "passive", "enemy", "art", "weapon", "school", "route", "move", "element", "reaction", "event",
@@ -725,6 +767,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
     let ink = f.rgb("ink");
     let state_floats = f.uint("state_floats");
     let max_arts = f.uint("max_arts");
+    let pace: Vec<(&'static str, Option<[String; 2]>)> = PACE_KEYS.iter().map(|&k| (k, f.pair(k))).collect();
     f.finish();
     if max_arts == Some(0) {
         errs.push("`max_arts` must be 1 or more".to_string());
@@ -1483,6 +1526,7 @@ pub fn load(src: &str) -> Result<Content, Vec<String>> {
         ink: ink.unwrap(),
         state_floats: state_floats.unwrap(),
         max_arts: max_arts.unwrap(),
+        pace: pace.into_iter().map(|(k, v)| (k, v.unwrap())).collect(),
         parts,
         upgrades,
         enemies,
@@ -1847,6 +1891,15 @@ pub fn render_rust(c: &Content) -> String {
     o.push('\n');
     let ink: Vec<String> = c.ink.iter().map(|v| float_lit(v)).collect();
     writeln!(o, "pub const INK: [f32; 3] = [{}];", ink.join(", ")).unwrap();
+
+    o.push_str(
+        "
+// Pacing (docs/design.md 4.11): [with the routes tune off, on].
+",
+    );
+    for (key, v) in &c.pace {
+        writeln!(o, "pub const PACE_{}: [f32; 2] = [{}, {}];", upper(key), float_lit(&v[0]), float_lit(&v[1])).unwrap();
+    }
     o
 }
 

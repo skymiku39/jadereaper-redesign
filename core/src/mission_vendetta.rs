@@ -350,7 +350,8 @@ mod tests {
         let mut game = started(3);
         let marked = game.goal() as usize;
         run(&mut game, 60);
-        assert!(game.enemies.len() > marked + 20, "{} enemies", game.enemies.len());
+        // The horde of design 4.11's pacing grows slowly at first (`spawn_growth`).
+        assert!(game.enemies.len() > marked + 12, "{} enemies", game.enemies.len());
         assert!(game.kills > 0);
         assert_eq!(game.vendetta_progress(), 0.0);
     }
