@@ -36,6 +36,27 @@ const TIMEOUT_MS = 20000;
 /** A screen ignores clicks for its first 300 ms (INPUT_LOCK_MS in src/ui.js). */
 const LOCK_MS = 450;
 
+/**
+ * Bring a run to rest: answer level-ups until none is showing (one can take
+ * several picks: a deck, then a card, then the art an element goes to or a
+ * route), then pause unless the run has ended. Returns once the pause, over
+ * or won screen shows.
+ */
+async function settle(page) {
+  const resting = () => page.locator('#pause, #over, #won').locator('visible=true').count();
+  for (let tries = 0; tries < 20; tries++) {
+    if (await resting()) return;
+    if (await page.locator('#levelup').isVisible()) {
+      await page.waitForTimeout(LOCK_MS);
+      await page.locator('#cards .card').first().click();
+      continue;
+    }
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(LOCK_MS);
+  }
+  await page.locator('#pause, #over, #won').locator('visible=true').first().waitFor({ timeout: TIMEOUT_MS });
+}
+
 const server = await serve(0);
 // The server listens on 127.0.0.1 only; "localhost" can resolve to ::1 first.
 const url = `http://127.0.0.1:${server.address().port}/`;
@@ -95,14 +116,9 @@ try {
     let played = 0;
     let replayChecked = 'its replay link was not checked';
     for (const mission of missions) {
-      // Leave the run in progress: pause it, unless it has already ended, then quit to the title.
-      if (!(await page.locator('#over, #won, #levelup').locator('visible=true').count())) await page.keyboard.press('Escape');
-      if (await page.locator('#levelup').isVisible()) {
-        await page.waitForTimeout(LOCK_MS);
-        await page.locator('#cards .card').first().click();
-        await page.keyboard.press('Escape');
-      }
-      await page.waitForTimeout(LOCK_MS);
+      // Leave the run in progress: answer any level-up, pause it unless it has
+      // already ended, then quit to the title.
+      await settle(page);
       await page.locator('.screen:not([hidden]) [data-action="quit"]').click();
       await page.locator('#title').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
       await page.waitForTimeout(LOCK_MS);
@@ -130,12 +146,8 @@ try {
       // The first mission's replay link must play the same run: pause, note
       // where the run is, and play the link back on the wasm in Node to the same step.
       if (mission === missions[0] && !(await page.locator('#over, #won').locator('visible=true').count())) {
-        if (await page.locator('#levelup').isVisible()) {
-          await page.waitForTimeout(LOCK_MS);
-          await page.locator('#cards .card').first().click();
-        }
-        await page.keyboard.press('Escape');
-        await page.locator('#pause').waitFor({ state: 'visible', timeout: TIMEOUT_MS });
+        await settle(page);
+        await page.locator('#pause, #over, #won').locator('visible=true').first().waitFor({ timeout: TIMEOUT_MS });
         const recorded = await page.evaluate(async () => ({
           ticks: window.jadereaper.core.jr_ticks(),
           hash: window.jadereaper.core.jr_state_hash() >>> 0,
