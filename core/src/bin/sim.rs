@@ -18,6 +18,10 @@
 //!                         element, and no element cards are offered
 //!   --tune <name>=<v>     a tune, as on the setup screen; may be repeated
 //!   --csv                 comma-separated values instead of a table
+//!   --levels              after each row, the seconds at which each level
+//!                         came in one middling run of the row: of the runs
+//!                         that reached a height, the one with the median
+//!                         time to it, else the one with the median length
 //!
 //! Each row is one bot, one way of picking cards and one element. Columns:
 //! how many of the runs were won and how many ended in death, the mean time
@@ -71,7 +75,7 @@ struct Setup {
     element: u8,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone)]
 struct Outcome {
     won: bool,
     died: bool,
@@ -81,6 +85,8 @@ struct Outcome {
     hurt: f32,
     /// Seconds into the run of the first height (極致); none if it never came.
     zenith: Option<f32>,
+    /// Seconds into the run at which each level from 2 on came.
+    levels: Vec<f32>,
 }
 
 /// Away from the enemies close by, each weighing more the nearer it is, and
@@ -243,6 +249,7 @@ fn run(setup: &Setup, seed: u32) -> Outcome {
     // The art held at the start: the one the one-art bot trains.
     let one = (0..N_ARTS).find(|&a| g.up[ARTS[a].upgrade] > 0).unwrap_or(0);
     let mut zenith = None;
+    let mut levels = Vec::new();
     for tick in 0..ticks {
         // The seeking bot looks at the mission's markers now and then; they are made when the game is drawn.
         if setup.bot == Bot::Seek && tick % 15 == 0 {
@@ -266,6 +273,9 @@ fn run(setup: &Setup, seed: u32) -> Outcome {
         if zenith.is_none() && g.events.iter().any(|e| e[0] == EV_ZENITH) {
             zenith = Some(g.time);
         }
+        while (levels.len() as u32) + 1 < g.player.level {
+            levels.push(g.time);
+        }
         // Several levels can come at once, and an element card asks twice.
         let mut asked = 0;
         while g.choosing && asked < 16 {
@@ -284,6 +294,7 @@ fn run(setup: &Setup, seed: u32) -> Outcome {
         kills: g.kills as f32,
         hurt,
         zenith,
+        levels,
     }
 }
 
@@ -330,6 +341,7 @@ fn main() {
     let mut elements: Vec<u8> = vec![0];
     let mut tune = TUNE_DEFAULT;
     let mut csv = false;
+    let mut levels = false;
     let mut i = 0;
     while i < args.len() {
         let value =
@@ -337,6 +349,11 @@ fn main() {
         match args[i].as_str() {
             "--csv" => {
                 csv = true;
+                i += 1;
+                continue;
+            }
+            "--levels" => {
+                levels = true;
                 i += 1;
                 continue;
             }
@@ -381,7 +398,7 @@ fn main() {
         println!("mission,bot,pick,element,runs,won,died,seconds,level,kills,kills_per_min,hurt_per_min,zenith_runs,zenith_minutes");
     }
     for &mission in &missions {
-        print_mission(mission, &bots, &picks, &elements, seeds, seconds, tune, csv, fixed);
+        print_mission(mission, &bots, &picks, &elements, seeds, seconds, tune, csv, fixed, levels);
     }
 }
 
@@ -396,6 +413,7 @@ fn print_mission(
     tune: [f32; N_TUNES],
     csv: bool,
     fixed: bool,
+    levels: bool,
 ) {
     if !csv {
         println!(
@@ -460,7 +478,34 @@ fn print_mission(
                         hurt_per_min
                     );
                 }
+                if levels {
+                    print_levels(&runs);
+                }
             }
         }
+    }
+}
+
+/// The seconds of each level of one middling run, and of its first height.
+fn print_levels(runs: &[Outcome]) {
+    let mut pool: Vec<(usize, f32)> = runs.iter().enumerate().filter_map(|(i, o)| o.zenith.map(|z| (i, z))).collect();
+    if pool.is_empty() {
+        pool = runs.iter().enumerate().map(|(i, o)| (i, o.time)).collect();
+    }
+    pool.sort_by(|a, b| a.1.total_cmp(&b.1));
+    let Some(&(i, _)) = pool.get(pool.len() / 2) else { return };
+    let o = &runs[i];
+    println!("  levels (seed {}, played {:.0} s):", 1000 + i as u32 * 7919, o.time);
+    let times: Vec<String> = o.levels.iter().enumerate().map(|(i, t)| format!("{}@{t:.0}", i + 2)).collect();
+    for line in times.chunks(15) {
+        println!("    {}", line.join(" "));
+    }
+    match o.zenith {
+        Some(t) => println!(
+            "  first height at {t:.0} s ({:.1} min), level {}",
+            t / 60.0,
+            1 + o.levels.iter().filter(|&&l| l <= t).count()
+        ),
+        None => println!("  no height"),
     }
 }

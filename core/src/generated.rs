@@ -680,3 +680,12 @@ pub const S_ART_QUALITY0: usize = 122;
 pub const S_ART_ORDER0: usize = 128;
 
 pub const INK: [f32; 3] = [0.17, 0.15, 0.13];
+
+// Pacing (docs/design.md 4.11): [with the routes tune off, on].
+pub const PACE_XP_BASE: [f32; 2] = [4.0, 2.0];
+pub const PACE_XP_STEP: [f32; 2] = [3.5, 6.0];
+pub const PACE_XP_SQUARE: [f32; 2] = [0.4, 1.0];
+pub const PACE_SPAWN_GROWTH: [f32; 2] = [24.0, 60.0];
+pub const PACE_HP_START: [f32; 2] = [1.0, 0.75];
+pub const PACE_HP_GROWTH: [f32; 2] = [120.0, 240.0];
+pub const PACE_LONE_EVERY: [f32; 2] = [1.0, 2.0];
